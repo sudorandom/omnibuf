@@ -23,37 +23,51 @@ import Footer from '../components/Footer.astro';
         </span>
       </h1>
 
-      <div class="mt-8 max-w-3xl space-y-5">
+      <div class="mt-8 max-w-3xl space-y-3">
         <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
           Head-to-head throughput, wire size, and field lookup measurements comparing OmniBuf
-          against Protobuf, FlatBuffers, Cap'n Proto, MessagePack, and JSON.
+          against{' '}
+          <a
+            href="https://protobuf.dev/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="doc-link"
+          >
+            Protobuf
+          </a>
+          ,{' '}
+          <a
+            href="https://flatbuffers.dev/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="doc-link"
+          >
+            FlatBuffers
+          </a>
+          ,{' '}
+          <a
+            href="https://capnproto.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="doc-link"
+          >
+            Cap'n Proto
+          </a>
+          ,{' '}
+          <a href="https://msgpack.org/" target="_blank" rel="noopener noreferrer" class="doc-link">
+            MessagePack
+          </a>
+          , and{' '}
+          <a
+            href="https://www.json.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="doc-link"
+          >
+            JSON
+          </a>
+          .
         </p>
-        <div class="flex flex-wrap gap-3 font-mono text-sm">
-          <a
-            href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="os-btn px-3.5 py-2 bg-white text-ink font-bold rounded-md"
-          >
-            Benchmark Code (omnibuf_bench_test.go) &rarr;
-          </a>
-          <a
-            href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="os-btn px-3.5 py-2 bg-white text-ink font-bold rounded-md"
-          >
-            Plugin &amp; Opaque Suite (opaque_table_bench_test.go) &rarr;
-          </a>
-          <a
-            href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="os-btn px-3.5 py-2 bg-[#FAF8F2] text-ink font-bold rounded-md"
-          >
-            Raw Run Data (testdata/benchmarks.txt) &rarr;
-          </a>
-        </div>
       </div>
     </section>
 
@@ -85,21 +99,6 @@ import Footer from '../components/Footer.astro';
             Protobuf vs. vtprotobuf vs. OmniBuf
           </span>
           <div class="os-stripes"></div>
-        </div>
-
-        <div class="p-4 sm:p-5 bg-[#FAF8F2] border-b border-ink/15 text-sm sm:text-base text-ink/85 leading-relaxed">
-          <p class="max-w-[75ch]">
-            All four columns operate on the same generated <code>pb.PeerUpdate</code> Go struct from{' '}
-            <code>schemas/peer.proto</code> (which uses pointer slices <code>[]*pb.Neighbor</code>,
-            unlike the value-slice <code>PeerUpdate</code> struct in the multi-format comparison
-            above). <strong>Marshal</strong> writes into a reused buffer,{' '}
-            <strong>Unmarshal (Safe)</strong> allocates fresh strings and slices per call,{' '}
-            <strong>Unmarshal (Zero-Copy)</strong> reuses the target struct (or{' '}
-            <code>vtprotobuf</code> sync pool), <strong>Read 2 Nested Fields</strong> extracts{' '}
-            <code>location.city</code> and <code>neighbors[2].latency_ms</code>, and{' '}
-            <strong>Read-Modify-Write</strong> increments <code>seq_num</code> and flips{' '}
-            <code>active</code> on a serialized packet.
-          </p>
         </div>
 
         <div class="overflow-x-auto bg-[#FAF8F2]">
@@ -190,11 +189,9 @@ import Footer from '../components/Footer.astro';
         </div>
         <div class="md:col-span-8 md:pt-2 space-y-4 text-base sm:text-lg text-ink/90 leading-relaxed max-w-[68ch]">
           <p>
-            All benchmarks serialize and deserialize an identical 11-field BGP/Telemetry{' '}
-            <strong>PeerUpdate</strong> message containing unsigned and ZigZag-signed integers,
-            booleans, IEEE-754 floats, string lists, packed integer arrays, a 6-field nested{' '}
-            <strong>Location</strong> sub-message, and a 4-element repeated{' '}
-            <strong>Neighbor</strong> sub-message list.
+            All benchmarks serialize and deserialize an identical 11-field message containing
+            unsigned and ZigZag-signed integers, booleans, IEEE-754 floats, string lists, packed
+            integer arrays, a 6-field nested sub-message, and a 4-element repeated sub-message list.
           </p>
           <p class="text-sm sm:text-base text-ink/85">
             Source code for the harnesses and codec implementations is in{' '}

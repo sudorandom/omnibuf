@@ -34,6 +34,12 @@
     color: #d4ff33;
     border-color: rgba(250, 248, 242, 0.35);
   }
+
+  .text-ink :not(pre) > code {
+    background-color: rgba(17, 17, 17, 0.08);
+    color: #111111;
+    border-color: rgba(17, 17, 17, 0.35);
+  }
 }
 
 @layer components {
@@ -194,10 +200,10 @@
     font-size: 0.85em;
     font-weight: 700;
     line-height: 1.2;
-    color: rgba(17, 17, 17, 0.35);
+    color: rgba(17, 17, 17, 0.62);
     text-decoration: none;
     border-radius: 4px;
-    border: 1.5px solid transparent;
+    border: 1.5px solid rgba(17, 17, 17, 0.2);
     vertical-align: middle;
     transition: all 0.12s ease;
     user-select: none;

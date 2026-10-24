@@ -46,10 +46,10 @@ const nodeSchemaCode = `message Node {
     <!-- Row 1: Decode ints in a single load (Merged with Varint Code & Microbenchmarks) -->
     <div class="py-8 sm:py-10 space-y-6">
       <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-        <div class="lg:col-span-6 space-y-3">
-          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+        <div class="lg:col-span-6 space-y-3 min-w-0">
+          <h2 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
             Decode ints in a single load
-          </h3>
+          </h2>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
             Instead of checking continuation bits on every byte in a loop, the trailing zeros in
             Byte 0 tell the CPU the exact byte width (<code>1</code>, <code>2</code>, <code>4</code>
@@ -229,10 +229,10 @@ const nodeSchemaCode = `message Node {
 
     <!-- Row 2: Single-Pass Encoding -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-6 space-y-2.5">
-        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+      <div class="lg:col-span-6 space-y-2.5 min-w-0">
+        <h2 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Reserve 2 bytes &amp; patch after
-        </h3>
+        </h2>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
           Protobuf requires shortest-length varints, so encoders must measure every child object
           before writing. In OmniBuf, a 2-byte Prefix-Varint (<code>TZCNT=1</code>) is valid for any
@@ -268,10 +268,10 @@ const nodeSchemaCode = `message Node {
     <!-- Row 3: 4-Bit Self-Describing Tags + Header Hopping (Merged with Skip Containers in One Step) -->
     <div class="py-8 sm:py-10 space-y-6">
       <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-        <div class="lg:col-span-6 space-y-2.5">
-          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+        <div class="lg:col-span-6 space-y-2.5 min-w-0">
+          <h2 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
             0-byte bools, explicit types &amp; 1-step skipping
-          </h3>
+          </h2>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
             Widening wire types from 3 bits to 4 bits (<code>0..15</code>) puts booleans directly
             inside the tag byte (<strong>0 value bytes</strong>), distinguishes unsigned (
@@ -281,7 +281,7 @@ const nodeSchemaCode = `message Node {
             field or container in a single step (<code>pos += byteLen</code>).
           </p>
         </div>
-        <div class="lg:col-span-6">
+        <div class="lg:col-span-6 min-w-0">
           <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm space-y-3">
             <div class="grid grid-cols-12 text-center text-xs sm:text-sm font-bold rounded overflow-hidden border border-paper/30">
               <div class="col-span-5 bg-paper/15 py-2 text-paper border-r border-paper/30">
@@ -304,12 +304,12 @@ const nodeSchemaCode = `message Node {
 
       <!-- Schema + Explanation + Color Key -->
       <div class="grid lg:grid-cols-12 gap-5 items-center bg-[#FAF8F2] border-2 border-ink rounded-md p-5">
-        <div class="lg:col-span-5 font-mono">
-          <div class="bg-ink text-paper p-4 rounded text-sm leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+        <div class="lg:col-span-5 font-mono min-w-0">
+          <div class="bg-ink text-paper p-4 rounded text-sm leading-relaxed overflow-x-auto [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
             <Code code={nodeSchemaCode} lang="protobuf" theme="github-dark" />
           </div>
         </div>
-        <div class="lg:col-span-7 space-y-3">
+        <div class="lg:col-span-7 space-y-3 min-w-0">
           <p class="text-base sm:text-lg text-ink/90 leading-relaxed">
             To skip past <code>id</code> (a 2-byte tag + 4-byte integer) and <code>active</code> (a
             boolean) to reach <code>city</code>, Protobuf has to bounce across{' '}

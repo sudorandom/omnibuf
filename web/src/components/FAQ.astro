@@ -22,8 +22,8 @@ const faqItems: FAQItem[] = [
   {
     question: 'How does it compare to vtprotobuf?',
     paragraphs: [
-      'vtprotobuf speeds up Go Protobuf by generating unrolled LEB128 loops and backwards-writing SizeVT() pre-passes, but it is still bound by the 2001 wire format.',
-      'Because OmniBuf uses single-pass forward encoding and 1-load Prefix-Varints, protoc-gen-omnibuf runs over 50% faster on Marshal and over 2x faster on Read-Modify-Write while generating less than half the code.',
+      'vtprotobuf speeds up Go Protobuf by generating unrolled varint loops and a separate size-calculation pass before writing backwards into the buffer, because the 2001 Protobuf wire format requires knowing every sub-message length up front.',
+      'OmniBuf does not need a separate sizing pass (it reserves a 2-byte length slot and fills it in after writing) and reads integers in one step instead of a byte-by-byte loop. As a result, protoc-gen-omnibuf runs over 50% faster on Marshal and over 2x faster on Read-Modify-Write while generating less than half the code.',
     ],
   },
   {

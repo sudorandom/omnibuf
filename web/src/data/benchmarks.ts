@@ -34,7 +34,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     stats: [
       { label: 'Wire Size', score: 96 },
       { label: 'Encode Speed', score: 99 },
-      { label: 'Decode & Skip', score: 94 },
+      { label: 'Decode Speed', score: 94 },
       { label: 'Memory Efficiency', score: 99 },
       { label: 'Simplicity', score: 97 },
     ],
@@ -45,8 +45,8 @@ export const formatProfiles: Record<string, FormatProfile> = {
     verdict:
       'OmniBuf stays within ~6% of Protobuf wire size while encoding up to 6x faster, decoding up to 8x faster, and making every wire type inspectable without a schema.',
     omniWinsList: [
-      '2x to 6x faster encoding with single-pass writes instead of measuring nested messages twice.',
-      '2x to 8x faster decoding with single-load Prefix-Varints.',
+      '2x to 6x faster encoding by writing in one pass instead of measuring nested messages twice.',
+      '2x to 8x faster decoding by reading integer byte widths from the first byte instead of looping byte-by-byte.',
       'Explicit 4-bit wire types and optional Field #0 names remove Wire Type 2 ambiguity.',
       'Faster field skipping while keeping raw message concatenation (append(msgA, msgB...)).',
     ],
@@ -57,7 +57,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     stats: [
       { label: 'Wire Size', score: 100 },
       { label: 'Encode Speed', score: 48 },
-      { label: 'Decode & Skip', score: 38 },
+      { label: 'Decode Speed', score: 38 },
       { label: 'Memory Efficiency', score: 62 },
       { label: 'Simplicity', score: 88 },
     ],
@@ -79,7 +79,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     stats: [
       { label: 'Wire Size', score: 56 },
       { label: 'Encode Speed', score: 35 },
-      { label: 'Decode & Skip', score: 96 },
+      { label: 'Decode Speed', score: 96 },
       { label: 'Memory Efficiency', score: 92 },
       { label: 'Simplicity', score: 42 },
     ],
@@ -102,7 +102,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     stats: [
       { label: 'Wire Size', score: 60 },
       { label: 'Encode Speed', score: 25 },
-      { label: 'Decode & Skip', score: 82 },
+      { label: 'Decode Speed', score: 82 },
       { label: 'Memory Efficiency', score: 65 },
       { label: 'Simplicity', score: 45 },
     ],
@@ -124,7 +124,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     stats: [
       { label: 'Wire Size', score: 52 },
       { label: 'Encode Speed', score: 20 },
-      { label: 'Decode & Skip', score: 22 },
+      { label: 'Decode Speed', score: 22 },
       { label: 'Memory Efficiency', score: 25 },
       { label: 'Simplicity', score: 90 },
     ],
@@ -146,7 +146,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     stats: [
       { label: 'Wire Size', score: 42 },
       { label: 'Encode Speed', score: 15 },
-      { label: 'Decode & Skip', score: 10 },
+      { label: 'Decode Speed', score: 10 },
       { label: 'Memory Efficiency', score: 30 },
       { label: 'Simplicity', score: 98 },
     ],
@@ -161,14 +161,14 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 1800,
     methodology:
-      'Serializes a populated 11-field PeerUpdate struct (with a nested Location message and 4 repeated Neighbor messages) into a reused byte buffer or FlatBuffers builder to measure encoding throughput without allocator noise.',
+      'Serializes a populated 11-field message (scalars, strings, packed int arrays, a 6-field nested sub-message, and 4 repeated sub-messages) into a reused byte buffer or FlatBuffers builder.',
     rows: [
       { name: 'OmniBuf', val: 94, highlight: true, color: '#FF4F18' },
-      { name: 'Protobuf', val: 561, color: '#94A3B8' },
-      { name: 'FlatBuffers', val: 562, color: '#94A3B8' },
-      { name: "Cap'n Proto", val: 1016, color: '#CBD5E1' },
-      { name: 'MessagePack', val: 1552, color: '#CBD5E1' },
-      { name: 'JSON', val: 1720, color: '#CBD5E1' },
+      { name: 'Protobuf', val: 561, color: '#57534E' },
+      { name: 'FlatBuffers', val: 562, color: '#57534E' },
+      { name: "Cap'n Proto", val: 1016, color: '#A8A29E' },
+      { name: 'MessagePack', val: 1552, color: '#A8A29E' },
+      { name: 'JSON', val: 1720, color: '#A8A29E' },
     ],
   },
   {
@@ -176,29 +176,29 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 4000,
     methodology:
-      "Deserializes the encoded PeerUpdate packet back into a reusable Go struct with zero-copy string slices. For FlatBuffers and Cap'n Proto, all 11 fields and nested structures are read out of the root table into the target struct so every format performs equivalent work.",
+      "Deserializes the encoded packet back into a reusable Go struct with zero-copy string slices. For FlatBuffers and Cap'n Proto, all 11 fields and nested structures are read out of the root table into the target struct so every format performs equivalent work.",
     rows: [
       { name: 'OmniBuf', val: 120, highlight: true, color: '#FF4F18' },
-      { name: 'FlatBuffers', val: 170, color: '#94A3B8' },
-      { name: "Cap'n Proto", val: 772, color: '#CBD5E1' },
-      { name: 'Protobuf', val: 960, color: '#94A3B8' },
-      { name: 'MessagePack', val: 2496, color: '#CBD5E1' },
-      { name: 'JSON', val: 3850, color: '#CBD5E1' },
+      { name: 'FlatBuffers', val: 170, color: '#57534E' },
+      { name: "Cap'n Proto", val: 772, color: '#A8A29E' },
+      { name: 'Protobuf', val: 960, color: '#57534E' },
+      { name: 'MessagePack', val: 2496, color: '#A8A29E' },
+      { name: 'JSON', val: 3850, color: '#A8A29E' },
     ],
   },
   {
-    title: 'Read a Single Nested Field (peer.location.city)',
+    title: 'Read a Single Nested Field',
     unit: 'ns',
     maxVal: 1050,
     methodology:
-      "Extracts a single nested string (location.city) from a raw PeerUpdate packet without decoding the rest of the message. OmniBuf skips preceding fields via header hopping, FlatBuffers and unframed Cap'n Proto follow offset pointers directly, framed Cap'n Proto parses the segment frame header first, and Protobuf unmarshals the message.",
+      "Extracts a single string inside a nested sub-message from a raw packet without decoding the rest of the message. OmniBuf skips preceding fields via header hopping, FlatBuffers and unframed Cap'n Proto follow offset pointers directly, framed Cap'n Proto parses the segment frame header first, and Protobuf unmarshals the message.",
     rows: [
-      { name: "Cap'n Proto (Unframed Shared Memory)", val: 5, color: '#94A3B8' },
-      { name: 'FlatBuffers', val: 13, color: '#94A3B8' },
+      { name: "Cap'n Proto (Unframed Shared Memory)", val: 5, color: '#57534E' },
+      { name: 'FlatBuffers', val: 13, color: '#57534E' },
       { name: 'OmniBuf', val: 76, highlight: true, color: '#FF4F18' },
-      { name: "Cap'n Proto (Framed Packet)", val: 221, color: '#CBD5E1' },
-      { name: 'MessagePack', val: 590, color: '#CBD5E1' },
-      { name: 'Protobuf', val: 983, color: '#94A3B8' },
+      { name: "Cap'n Proto (Framed Packet)", val: 221, color: '#A8A29E' },
+      { name: 'MessagePack', val: 590, color: '#A8A29E' },
+      { name: 'Protobuf', val: 983, color: '#57534E' },
     ],
   },
   {
@@ -206,15 +206,15 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'B',
     maxVal: 850,
     methodology:
-      'Measures the exact serialized byte length of the identical 11-field PeerUpdate payload across all formats, including OmniBuf both in standard .proto mode and with Field #0 inline field names enabled.',
+      'Measures the exact serialized byte length of the identical 11-field payload across all formats, including OmniBuf both in standard .proto mode and with Field #0 inline field names enabled.',
     rows: [
-      { name: 'Protobuf', val: 341, color: '#94A3B8' },
+      { name: 'Protobuf', val: 341, color: '#57534E' },
       { name: 'OmniBuf', val: 362, highlight: true, color: '#FF4F18' },
-      { name: "Cap'n Proto", val: 560, color: '#CBD5E1' },
-      { name: 'FlatBuffers', val: 600, color: '#CBD5E1' },
+      { name: "Cap'n Proto", val: 560, color: '#A8A29E' },
+      { name: 'FlatBuffers', val: 600, color: '#A8A29E' },
       { name: 'OmniBuf (With Field #0 Names)', val: 622, highlight: true, color: '#FF4F18' },
-      { name: 'MessagePack', val: 656, color: '#CBD5E1' },
-      { name: 'JSON', val: 803, color: '#CBD5E1' },
+      { name: 'MessagePack', val: 656, color: '#A8A29E' },
+      { name: 'JSON', val: 803, color: '#A8A29E' },
     ],
   },
 ];

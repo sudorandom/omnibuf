@@ -1,8 +1,4 @@
 ---
-import { benchmarkCategories } from '../data/benchmarks';
-
-const encodeCategory = benchmarkCategories[0];
-const decodeCategory = benchmarkCategories[1];
 ---
 
 <!-- COMPACT BENCHMARK & FORMAT COMPARISON SUMMARY -->
@@ -17,8 +13,7 @@ const decodeCategory = benchmarkCategories[1];
         <span class="font-serif italic font-normal normal-case text-[#FF4F18]">highlights.</span>
       </h2>
       <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-        Measured on an 11-field telemetry message with nested structs and arrays.{' '}
-        <strong>Shorter bars = Faster.</strong>
+        Measured on an 11-field message with scalars, strings, packed arrays, and nested messages.
       </p>
     </div>
     <div class="flex flex-wrap gap-3">
@@ -54,50 +49,6 @@ const decodeCategory = benchmarkCategories[1];
       <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink tabular-nums">40% Smaller</div>
       <div class="text-sm text-ink/80 mt-1.5">Than FlatBuffers, within ~6% of Protobuf</div>
     </div>
-  </div>
-
-  <!-- Side-by-Side Encode & Decode Summary Charts (Flagship .os-window frames) -->
-  <div class="grid lg:grid-cols-2 gap-6 mb-10">
-    {[encodeCategory, decodeCategory].map((cat) => (
-      <div class="os-window overflow-hidden min-w-0">
-        <div class="os-titlebar bg-[#E5E0D5]">
-          <span class="font-mono text-sm sm:text-base font-bold uppercase">{cat.title}</span>
-          <div class="os-stripes" />
-        </div>
-
-        <div class="p-4 sm:p-6 bg-[#FAF8F2] space-y-2.5">
-          <p class="text-sm text-ink/85 leading-relaxed pb-1.5">{cat.methodology}</p>
-          {cat.rows.map((r) => {
-            const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
-            return (
-              <div
-                class:list={[
-                  'grid grid-cols-12 gap-2 items-center py-2 px-3 rounded min-w-0',
-                  r.highlight
-                    ? 'bg-acid/30 border-2 border-ink font-bold'
-                    : 'border border-ink/15 bg-white',
-                ]}
-              >
-                <div class="col-span-5 font-mono text-sm sm:text-base text-ink truncate">
-                  {r.name}
-                </div>
-                <div class="col-span-4 sm:col-span-5 flex items-center min-w-0">
-                  <div class="w-full bg-[#E5E0D5] h-5 border border-ink rounded-sm overflow-hidden">
-                    <div
-                      class="h-full border-r border-ink"
-                      style={`width: ${pct}%; background-color: ${r.color};`}
-                    />
-                  </div>
-                </div>
-                <div class="col-span-3 sm:col-span-2 text-right font-mono text-sm sm:text-base font-bold tabular-nums">
-                  {r.val} {cat.unit}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    ))}
   </div>
 
   <!-- Feature Matrix Table (Clean bordered ledger without .os-titlebar) -->
@@ -157,12 +108,20 @@ const decodeCategory = benchmarkCategories[1];
             <td class="p-3.5 sm:p-4 text-ink/70">No</td>
           </tr>
           <tr class="bg-[#FAF8F2]">
-            <td class="p-3.5 sm:p-4 font-bold">MessagePack / JSON</td>
+            <td class="p-3.5 sm:p-4 font-bold">MessagePack</td>
             <td class="p-3.5 sm:p-4">Optional</td>
-            <td class="p-3.5 sm:p-4">+92% / +135% larger</td>
+            <td class="p-3.5 sm:p-4">+92% larger</td>
             <td class="p-3.5 sm:p-4">Yes (Slow)</td>
             <td class="p-3.5 sm:p-4">Yes (Repeated Keys)</td>
-            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
+            <td class="p-3.5 sm:p-4 text-ink/75">No</td>
+          </tr>
+          <tr class="bg-white">
+            <td class="p-3.5 sm:p-4 font-bold">JSON</td>
+            <td class="p-3.5 sm:p-4">Optional (ProtoJSON)</td>
+            <td class="p-3.5 sm:p-4">+135% larger</td>
+            <td class="p-3.5 sm:p-4">Yes (Slow)</td>
+            <td class="p-3.5 sm:p-4">Yes (Repeated Keys)</td>
+            <td class="p-3.5 sm:p-4 text-ink/75">No</td>
           </tr>
         </tbody>
       </table>
