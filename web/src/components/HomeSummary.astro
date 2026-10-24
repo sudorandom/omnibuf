@@ -8,7 +8,7 @@ const decodeCategory = benchmarkCategories[1];
 <!-- COMPACT BENCHMARK & FORMAT COMPARISON SUMMARY -->
 <section
   id="benchmarks"
-  class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+  class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
 >
   <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
     <div class="max-w-3xl">
@@ -37,41 +37,42 @@ const decodeCategory = benchmarkCategories[1];
     </div>
   </div>
 
-  <!-- 3 Stat Callout Cards (Whole-Number Multipliers & Percentages) -->
-  <div class="grid sm:grid-cols-3 gap-6 mb-8 font-mono">
-    <div class="os-window p-6 bg-ink text-paper">
+  <!-- 3 Stat Callout Cells (Flat architectural ledger strip, no .os-window shadow bloat) -->
+  <div class="grid sm:grid-cols-3 border-2 border-ink rounded-md overflow-hidden divide-y-2 sm:divide-y-0 sm:divide-x-2 divide-ink mb-8 font-mono">
+    <div class="p-6 bg-ink text-paper">
       <div class="text-sm uppercase text-acid font-bold">1-Pass Forward Encode</div>
-      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-white">6x Faster</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-white tabular-nums">6x Faster</div>
       <div class="text-sm text-paper/85 mt-1.5">Than Protobuf &amp; FlatBuffers (0 allocs)</div>
     </div>
-    <div class="os-window p-6 bg-[#FAF8F2]">
+    <div class="p-6 bg-[#FAF8F2]">
       <div class="text-sm uppercase text-[#FF4F18] font-bold">Full Zero-Copy Decode</div>
-      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">8x Faster</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink tabular-nums">8x Faster</div>
       <div class="text-sm text-ink/80 mt-1.5">Than Protobuf, faster than FlatBuffers</div>
     </div>
-    <div class="os-window p-6 bg-[#FAF8F2]">
+    <div class="p-6 bg-[#FAF8F2]">
       <div class="text-sm uppercase text-ink/75 font-bold">Compact Wire Size</div>
-      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">40% Smaller</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink tabular-nums">40% Smaller</div>
       <div class="text-sm text-ink/80 mt-1.5">Than FlatBuffers, within ~6% of Protobuf</div>
     </div>
   </div>
 
-  <!-- Side-by-Side Encode & Decode Summary Charts -->
-  <div class="grid lg:grid-cols-2 gap-6 mb-8">
+  <!-- Side-by-Side Encode & Decode Summary Charts (Flagship .os-window frames) -->
+  <div class="grid lg:grid-cols-2 gap-6 mb-10">
     {[encodeCategory, decodeCategory].map((cat) => (
-      <div class="os-window overflow-hidden">
+      <div class="os-window overflow-hidden min-w-0">
         <div class="os-titlebar bg-[#E5E0D5]">
           <span class="font-mono text-sm sm:text-base font-bold uppercase">{cat.title}</span>
           <div class="os-stripes" />
         </div>
 
         <div class="p-4 sm:p-6 bg-[#FAF8F2] space-y-2.5">
+          <p class="text-sm text-ink/85 leading-relaxed pb-1.5">{cat.methodology}</p>
           {cat.rows.map((r) => {
             const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
             return (
               <div
                 class:list={[
-                  'grid grid-cols-12 gap-2 items-center py-2 px-3 rounded',
+                  'grid grid-cols-12 gap-2 items-center py-2 px-3 rounded min-w-0',
                   r.highlight
                     ? 'bg-acid/30 border-2 border-ink font-bold'
                     : 'border border-ink/15 bg-white',
@@ -80,7 +81,7 @@ const decodeCategory = benchmarkCategories[1];
                 <div class="col-span-5 font-mono text-sm sm:text-base text-ink truncate">
                   {r.name}
                 </div>
-                <div class="col-span-4 sm:col-span-5 flex items-center">
+                <div class="col-span-4 sm:col-span-5 flex items-center min-w-0">
                   <div class="w-full bg-[#E5E0D5] h-5 border border-ink rounded-sm overflow-hidden">
                     <div
                       class="h-full border-r border-ink"
@@ -88,7 +89,7 @@ const decodeCategory = benchmarkCategories[1];
                     />
                   </div>
                 </div>
-                <div class="col-span-3 sm:col-span-2 text-right font-mono text-sm sm:text-base font-bold">
+                <div class="col-span-3 sm:col-span-2 text-right font-mono text-sm sm:text-base font-bold tabular-nums">
                   {r.val} {cat.unit}
                 </div>
               </div>
@@ -99,16 +100,13 @@ const decodeCategory = benchmarkCategories[1];
     ))}
   </div>
 
-  <!-- Feature Matrix Table -->
-  <div class="os-window overflow-hidden">
-    <div class="os-titlebar bg-[#E5E0D5]">
-      <span class="font-mono text-sm sm:text-base font-bold uppercase">Format Feature Matrix</span>
-      <div class="os-stripes"></div>
-    </div>
-    <div class="overflow-x-auto bg-[#FAF8F2]">
-      <table class="w-full text-left border-collapse font-mono text-sm sm:text-base">
+  <!-- Feature Matrix Table (Clean bordered ledger without .os-titlebar) -->
+  <div class="space-y-3">
+    <h3 class="text-xl sm:text-2xl font-bold uppercase tracking-tight">Format Feature Matrix</h3>
+    <div class="overflow-x-auto border-2 border-ink rounded-md bg-[#FAF8F2]">
+      <table class="w-full text-left border-collapse font-mono text-sm sm:text-base tabular-nums">
         <thead>
-          <tr class="border-b-2 border-ink bg-white">
+          <tr class="border-b-2 border-ink bg-[#E5E0D5]">
             <th class="p-3.5 sm:p-4 font-bold uppercase">Format</th>
             <th class="p-3.5 sm:p-4 font-bold uppercase">
               Uses <code>.proto</code>
@@ -134,29 +132,29 @@ const decodeCategory = benchmarkCategories[1];
             <td class="p-3.5 sm:p-4 font-bold">Protobuf</td>
             <td class="p-3.5 sm:p-4">Yes</td>
             <td class="p-3.5 sm:p-4">Baseline (1x)</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No (2-pass Size)</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No (Opaque Type 2)</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No (2-pass Size)</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No (Opaque Type 2)</td>
             <td class="p-3.5 sm:p-4">Yes</td>
           </tr>
           <tr class="bg-[#FAF8F2]">
             <td class="p-3.5 sm:p-4 font-bold">FlatBuffers</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">
+            <td class="p-3.5 sm:p-4 text-ink/70">
               No (<code>.fbs</code>)
             </td>
             <td class="p-3.5 sm:p-4">+76% larger</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">Bottom-up only</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">Bottom-up only</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
           </tr>
           <tr class="bg-white">
             <td class="p-3.5 sm:p-4 font-bold">Cap'n Proto</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">
+            <td class="p-3.5 sm:p-4 text-ink/70">
               No (<code>.capnp</code>)
             </td>
             <td class="p-3.5 sm:p-4">+64% larger</td>
             <td class="p-3.5 sm:p-4">Arena pointers</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
           </tr>
           <tr class="bg-[#FAF8F2]">
             <td class="p-3.5 sm:p-4 font-bold">MessagePack / JSON</td>
@@ -164,7 +162,7 @@ const decodeCategory = benchmarkCategories[1];
             <td class="p-3.5 sm:p-4">+92% / +135% larger</td>
             <td class="p-3.5 sm:p-4">Yes (Slow)</td>
             <td class="p-3.5 sm:p-4">Yes (Repeated Keys)</td>
-            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
           </tr>
         </tbody>
       </table>

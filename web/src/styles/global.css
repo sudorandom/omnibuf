@@ -17,6 +17,23 @@
     background-size: 32px 32px;
     overflow-x: hidden;
   }
+
+  :not(pre) > code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875em;
+    font-weight: 600;
+    background-color: #e5e0d5;
+    color: #111111;
+    border: 1px solid rgba(17, 17, 17, 0.35);
+    padding: 0.1rem 0.38rem;
+    border-radius: 3px;
+  }
+
+  .bg-ink :not(pre) > code {
+    background-color: rgba(250, 248, 242, 0.14);
+    color: #d4ff33;
+    border-color: rgba(250, 248, 242, 0.35);
+  }
 }
 
 @layer components {
@@ -75,6 +92,13 @@
     box-shadow: 1px 1px 0px #111111;
   }
 
+  .os-btn:focus-visible {
+    outline: 2px solid #111111;
+    outline-offset: 3px;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px #111111;
+  }
+
   /* Authoritative External Doc Links */
   .doc-link {
     text-decoration: underline;
@@ -86,9 +110,11 @@
       color 0.12s ease;
   }
 
-  .doc-link:hover {
+  .doc-link:hover,
+  .doc-link:focus-visible {
     background-color: #d4ff33;
     color: #111111;
+    outline: none;
   }
 
   /* Top Navbar Active Section Highlight */
@@ -97,10 +123,17 @@
     border-radius: 4px;
     border: 1.5px solid transparent;
     transition: all 0.12s ease;
+    white-space: nowrap;
   }
 
   .nav-link:hover {
     background-color: rgba(17, 17, 17, 0.06);
+  }
+
+  .nav-link:focus-visible {
+    outline: 2px solid #111111;
+    outline-offset: 2px;
+    background-color: rgba(212, 255, 51, 0.45);
   }
 
   .nav-link[data-active='true'] {
@@ -222,11 +255,13 @@
 
   .spec-prose code {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.9em;
-    background-color: rgba(17, 17, 17, 0.07);
-    padding: 0.15rem 0.4rem;
+    font-size: 0.875em;
+    background-color: #e5e0d5;
+    color: #111111;
+    border: 1px solid rgba(17, 17, 17, 0.35);
+    padding: 0.1rem 0.38rem;
     border-radius: 3px;
-    font-weight: 500;
+    font-weight: 600;
   }
 
   .spec-prose pre {
@@ -245,6 +280,7 @@
 
   .spec-prose pre code {
     background: transparent;
+    border: none;
     padding: 0;
     color: inherit;
     font-size: inherit;
@@ -286,24 +322,14 @@
   }
 }
 
-/* Animated Marquee */
-@keyframes marquee {
-  0% {
-    transform: translateX(0%);
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
   }
-  100% {
-    transform: translateX(-50%);
+
+  .os-btn {
+    transition: none !important;
   }
-}
-
-.animate-marquee {
-  display: flex;
-  width: max-content;
-  animation: marquee 28s linear infinite;
-}
-
-.animate-marquee:hover {
-  animation-play-state: paused;
 }
 
 @media print {

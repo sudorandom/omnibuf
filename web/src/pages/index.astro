@@ -2,17 +2,43 @@
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Hero from '../components/Hero.astro';
-import Ticker from '../components/Ticker.astro';
 import Motivation from '../components/Motivation.astro';
 import HomeSummary from '../components/HomeSummary.astro';
+import Quickstart from '../components/Quickstart.astro';
+import FAQ from '../components/FAQ.astro';
 import Footer from '../components/Footer.astro';
 ---
 
 <Layout>
   <Navbar currentPage="home" />
-  <Hero />
-  <Ticker />
-  <Motivation />
-  <HomeSummary />
+  <main id="main-content">
+    <Hero />
+    <Motivation />
+    <HomeSummary />
+    <Quickstart />
+    <FAQ />
+
+    <section class="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink no-print">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
+          Explore the wire layout &amp; full benchmarks
+        </div>
+        <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
+          <a
+            href="/how-it-works"
+            class="os-btn px-5 py-2.5 bg-[#FF4F18] text-white font-bold rounded-md"
+          >
+            How It Works &rarr;
+          </a>
+          <a
+            href="/benchmarks"
+            class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md"
+          >
+            Benchmarks &amp; Comparisons &rarr;
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
   <Footer />
 </Layout>

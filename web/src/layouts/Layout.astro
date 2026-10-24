@@ -11,7 +11,7 @@ const {
   description = 'Drop-in binary wire format for .proto schemas with single-pass encoding, branchless Prefix-Varints, raw message concatenation, and schema-less inspection.',
 } = Astro.props;
 
-const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? 'https://omnibuf.com');
+const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? 'https://omnibuf.dev');
 ---
 
 <!doctype html>
@@ -36,6 +36,12 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? 'https://omnibuf.
     />
   </head>
   <body class="font-display antialiased selection:bg-[#FF4F18] selection:text-white">
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] os-btn px-3 py-1.5 bg-acid text-ink font-mono text-sm font-bold rounded"
+    >
+      Skip to main content
+    </a>
     <slot />
   </body>
 </html>

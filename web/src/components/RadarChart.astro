@@ -6,8 +6,12 @@ interface Props {
 }
 
 const { oppKey } = Astro.props;
+const oppProfile = formatProfiles[oppKey];
 const omni = formatProfiles.omnibuf.stats;
-const opp = formatProfiles[oppKey].stats;
+const opp = oppProfile.stats;
+const ariaSummary = `Radar chart comparing OmniBuf and ${oppProfile.name} across 5 normalized axes (0 to 100): ${omni
+  .map((s, i) => `${s.label} (OmniBuf ${s.score}, ${oppProfile.name} ${opp[i].score})`)
+  .join('; ')}.`;
 
 const cx = 180;
 const cy = 135;
@@ -67,7 +71,12 @@ const dots = angles.map((a, i) => {
 });
 ---
 
-<svg viewBox="0 0 360 255" class="w-full max-w-[340px] mx-auto select-none">
+<svg
+  viewBox="0 0 360 255"
+  class="w-full max-w-[340px] mx-auto select-none"
+  role="img"
+  aria-label={ariaSummary}
+>
   {gridPolygons.map((pts) => (
     <polygon points={pts} fill="none" stroke="rgba(250,248,242,0.16)" stroke-width="1" />
   ))}

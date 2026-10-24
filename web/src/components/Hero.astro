@@ -19,17 +19,17 @@
       <a
         href="https://protobuf.dev/programming-guides/encoding/"
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         class="doc-link"
       >
         Protobuf
       </a>{' '}
-      got schemas right, mostly, but its 2001 wire format made two costly mistakes:{' '}
+      got schemas right, mostly, but the wire format from 2001 made two costly mistakes:{' '}
       <strong>it requires the schema just to decode values</strong>, and its byte-by-byte{' '}
       <a
         href="https://en.wikipedia.org/wiki/LEB128"
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         class="doc-link"
       >
         LEB128 varints
@@ -40,8 +40,7 @@
       <strong>OmniBuf</strong> gives you <strong>all the benefits of Protobuf</strong> (your
       existing <code class="underline">.proto</code> files, compact binary payloads, schema
       evolution, and raw byte concatenation) in a wire format that is{' '}
-      <strong>over 6x to 8x faster</strong>, <strong>easier to debug without a schema</strong>, and{' '}
-      <strong>simpler to implement</strong> in any language.
+      <strong>6x to 8x faster</strong> and <strong>inspectable without a schema</strong>.
     </p>
 
     <div class="flex flex-wrap gap-3.5 pt-2 no-print">
@@ -53,26 +52,9 @@
       </a>
       <a
         href="/benchmarks"
-        class="os-btn px-5 py-3 bg-acid text-ink font-mono font-bold text-sm sm:text-base rounded-md"
-      >
-        Benchmarks &rarr;
-      </a>
-      <a
-        href="/spec"
         class="os-btn px-5 py-3 bg-[#FAF8F2] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
       >
-        Wire Specification &rarr;
-      </a>
-      <a
-        href="https://github.com/sudorandom/omnibuf"
-        target="_blank"
-        rel="noopener"
-        class="os-btn px-5 py-3 bg-ink text-paper font-mono font-bold text-sm sm:text-base rounded-md flex items-center gap-2"
-      >
-        <svg class="w-4 h-4 fill-current text-acid" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-        </svg>
-        <span>GitHub</span>
+        Benchmarks &amp; Comparisons &rarr;
       </a>
     </div>
   </div>
@@ -110,7 +92,7 @@
           fill="#111111"
         />
         <circle cx="36" cy="128" r="5" fill="#FF4F18" />
-        <circle cx="52" cy="128" r="5" fill="#D4FF00" />
+        <circle cx="52" cy="128" r="5" fill="#D4FF33" />
         <text
           x="70"
           y="133"
@@ -335,11 +317,11 @@
           font-family="Space Grotesk, sans-serif"
           font-size="20"
           font-weight="700"
-          fill="#D4FF00"
+          fill="#D4FF33"
         >
           OmniBuf Encoding
         </text>
-        <rect x="606" y="302" width="190" height="26" rx="4" fill="#D4FF00" />
+        <rect x="606" y="302" width="190" height="26" rx="4" fill="#D4FF33" />
         <text
           x="701"
           y="319"
@@ -359,7 +341,7 @@
           font-weight="600"
           fill="#FAF8F2"
         >
-          <tspan fill="#D4FF00" font-weight="700">
+          <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
           Debuggable without the schema
@@ -372,7 +354,7 @@
           font-weight="600"
           fill="#FAF8F2"
         >
-          <tspan fill="#D4FF00" font-weight="700">
+          <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
           Over 6x-8x faster &amp; near-Protobuf size
@@ -403,7 +385,7 @@
           fill="#111111"
         />
         <circle cx="32" cy="30" r="4.5" fill="#FF4F18" />
-        <circle cx="46" cy="30" r="4.5" fill="#D4FF00" />
+        <circle cx="46" cy="30" r="4.5" fill="#D4FF33" />
         <text
           x="62"
           y="35"
@@ -575,7 +557,7 @@
           font-family="Space Grotesk, sans-serif"
           font-size="16.5"
           font-weight="700"
-          fill="#D4FF00"
+          fill="#D4FF33"
         >
           OmniBuf (Speed + Debug)
         </text>
@@ -587,7 +569,7 @@
           font-weight="600"
           fill="#FAF8F2"
         >
-          <tspan fill="#D4FF00" font-weight="700">
+          <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
           Debuggable without schema
@@ -600,7 +582,7 @@
           font-weight="600"
           fill="#FAF8F2"
         >
-          <tspan fill="#D4FF00" font-weight="700">
+          <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
           Over 6x-8x faster
@@ -613,7 +595,7 @@
           font-weight="600"
           fill="#FAF8F2"
         >
-          <tspan fill="#D4FF00" font-weight="700">
+          <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
           Near-Protobuf binary size

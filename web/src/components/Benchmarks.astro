@@ -8,7 +8,8 @@ import { benchmarkCategories } from '../data/benchmarks';
 >
   <div class="max-w-3xl mb-10">
     <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
-      Benchmarks.
+      Benchmarks &amp;{' '}
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">wire metrics.</span>
     </h2>
     <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
       Measured on an 11-field telemetry message with nested structs and arrays.{' '}
@@ -25,21 +26,24 @@ import { benchmarkCategories } from '../data/benchmarks';
         </div>
 
         <div class="p-5 sm:p-7 bg-[#FAF8F2] space-y-3">
+          <p class="text-sm sm:text-base text-ink/85 leading-relaxed pb-2 max-w-[75ch]">
+            {cat.methodology}
+          </p>
           {cat.rows.map((r) => {
             const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
             return (
               <div
                 class:list={[
-                  'grid grid-cols-12 gap-3 items-center py-2 px-3 rounded',
+                  'grid grid-cols-12 gap-3 items-center py-2 px-3 rounded min-w-0',
                   r.highlight
                     ? 'bg-acid/30 border-2 border-ink font-bold'
                     : 'border border-ink/15 bg-white',
                 ]}
               >
-                <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink">
+                <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
                   {r.name}
                 </div>
-                <div class="col-span-9 sm:col-span-6 flex items-center">
+                <div class="col-span-9 sm:col-span-6 flex items-center min-w-0">
                   <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
                     <div
                       class="h-full border-r border-ink"
@@ -47,7 +51,7 @@ import { benchmarkCategories } from '../data/benchmarks';
                     />
                   </div>
                 </div>
-                <div class="col-span-3 sm:col-span-2 text-right font-mono text-sm sm:text-base font-bold">
+                <div class="col-span-3 sm:col-span-2 text-right font-mono text-sm sm:text-base font-bold tabular-nums">
                   {r.val} {cat.unit}
                 </div>
               </div>

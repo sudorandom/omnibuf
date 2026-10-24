@@ -150,10 +150,42 @@ const tocSections = [
       </p>
     </div>
 
+    <!-- Sticky Mobile Section Jump Bar (< lg viewports) -->
+    <div class="lg:hidden sticky top-14 z-30 mb-6 flex items-start gap-2 font-mono text-sm no-print">
+      <details
+        id="mobile-spec-toc"
+        class="flex-1 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#111]"
+      >
+        <summary class="px-4 py-2.5 font-bold uppercase cursor-pointer">
+          Jump to Spec Section
+        </summary>
+        <nav
+          aria-label="Mobile specification sections"
+          class="p-3 border-t-2 border-ink space-y-1 max-h-64 overflow-y-auto"
+        >
+          {tocSections.map((sec) => (
+            <a
+              href={`#${sec.id}`}
+              data-mobile-spec-link
+              class="block px-2.5 py-1.5 rounded hover:bg-ink/5"
+            >
+              {sec.label}
+            </a>
+          ))}
+        </nav>
+      </details>
+      <a
+        href="#main-content"
+        class="os-btn px-3 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md shrink-0"
+      >
+        Top &uarr;
+      </a>
+    </div>
+
     <div class="grid lg:grid-cols-12 gap-8 items-start">
       <!-- Left Sticky Table of Contents -->
-      <aside class="lg:col-span-3 lg:sticky lg:top-16 no-print">
-        <div class="bg-[#FAF8F2] border-2 border-ink rounded-md p-4 shadow-[4px_4px_0px_#111]">
+      <aside class="hidden lg:block lg:col-span-3 lg:sticky lg:top-16 no-print">
+        <div class="bg-[#FAF8F2] border-2 border-ink rounded-md p-4 shadow-[4px_4px_0px_#111] lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto">
           <div class="font-mono text-sm font-bold uppercase pb-2.5 mb-2.5 border-b-2 border-ink">
             Specification Contents
           </div>
@@ -192,7 +224,10 @@ const tocSections = [
       </aside>
 
       <!-- Main Specification Document Sheet -->
-      <main class="lg:col-span-9 bg-[#FAF8F2] border-2 border-ink rounded-md p-6 sm:p-10 lg:p-12 shadow-[8px_8px_0px_#111] spec-prose">
+      <main
+        id="main-content"
+        class="lg:col-span-9 bg-[#FAF8F2] border-2 border-ink rounded-md p-6 sm:p-10 lg:p-12 shadow-[8px_8px_0px_#111] spec-prose"
+      >
         <!-- SECTION 1 -->
         <h2 id="sec-1">1. Design Goals &amp; Overview</h2>
 
@@ -2164,6 +2199,26 @@ Data Field #10 (WireSubMsgArr, N = 10,000 elements):
         </ol>
       </main>
     </div>
+
+    <div class="mt-12 pt-10 border-t-2 border-ink flex flex-wrap items-center justify-between gap-4 no-print">
+      <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
+        See how the specification translates to real-world performance
+      </div>
+      <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
+        <a
+          href="/how-it-works"
+          class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md"
+        >
+          How It Works &rarr;
+        </a>
+        <a
+          href="/benchmarks"
+          class="os-btn px-5 py-2.5 bg-[#FF4F18] text-white font-bold rounded-md"
+        >
+          Benchmarks &amp; Comparisons &rarr;
+        </a>
+      </div>
+    </div>
   </div>
 
   <Footer />
@@ -2225,6 +2280,17 @@ Data Field #10 (WireSubMsgArr, N = 10,000 elements):
 
   window.addEventListener('scroll', updateSpecToc, { passive: true });
   updateSpecToc();
+
+  const mobileTocDetails = document.getElementById('mobile-spec-toc') as HTMLDetailsElement | null;
+  if (mobileTocDetails) {
+    for (const link of Array.from(
+      mobileTocDetails.querySelectorAll<HTMLAnchorElement>('a[data-mobile-spec-link]'),
+    )) {
+      link.addEventListener('click', () => {
+        mobileTocDetails.open = false;
+      });
+    }
+  }
 
   // Add pilcrow (¶) copy-link anchors to every section heading in the specification
   const specHeadings = Array.from(

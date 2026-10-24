@@ -1,0 +1,43 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="404 Not Found | OmniBuf" description="The requested page could not be found.">
+  <Navbar currentPage="none" />
+  <main id="main-content" class="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          Error 404: Field Offset Out of Bounds
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-10 bg-[#FAF8F2] space-y-6">
+        <h1 class="text-4xl sm:text-6xl font-bold tracking-tight uppercase leading-none text-ink">
+          Page not{' '}
+          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">found.</span>
+        </h1>
+        <p class="text-lg sm:text-xl text-ink/85 leading-relaxed max-w-[60ch]">
+          The route you requested does not exist in the OmniBuf documentation or wire specification.
+        </p>
+        <div class="flex flex-wrap gap-3.5 pt-2 font-mono text-sm sm:text-base">
+          <a href="/" class="os-btn px-5 py-3 bg-[#FF4F18] text-white font-bold rounded-md">
+            Overview &rarr;
+          </a>
+          <a href="/how-it-works" class="os-btn px-5 py-3 bg-white text-ink font-bold rounded-md">
+            How It Works &rarr;
+          </a>
+          <a href="/benchmarks" class="os-btn px-5 py-3 bg-white text-ink font-bold rounded-md">
+            Benchmarks &rarr;
+          </a>
+          <a href="/spec" class="os-btn px-5 py-3 bg-white text-ink font-bold rounded-md">
+            Wire Specification &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
