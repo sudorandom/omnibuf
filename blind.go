@@ -436,7 +436,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 				return nil, err
 			}
 			prev, _ := out[name].([]uint64)
-			arr, ok := appendUint64ArrBody(prev, body)
+			arr, ok := appendUintArrBody(prev, body)
 			if !ok {
 				return nil, fmt.Errorf("omnibuf: invalid WireUintArr at %d", pos)
 			}
@@ -448,7 +448,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 				return nil, err
 			}
 			prev, _ := out[name].([]int64)
-			arr, ok := appendSint64ArrBody(prev, body)
+			arr, ok := appendSintArrBody(prev, body)
 			if !ok {
 				return nil, fmt.Errorf("omnibuf: invalid WireSintArr at %d", pos)
 			}

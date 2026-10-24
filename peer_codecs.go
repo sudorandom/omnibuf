@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"unsafe"
 
 	capnp "capnproto.org/go/capnp/v3"
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -227,25 +226,13 @@ func EncodePeerOmniBufDirect(dst []byte, p *PeerUpdate) []byte {
 	)
 
 	// Field 7: Tags (WireStringArr, 1B tag since fieldNum=7, backpatched length)
-	dst = append(dst, byte((FieldPeerTags<<4|uint16(WireStringArr))<<1)|1, 0, 0)
-	tagsLenPos := len(dst) - 2
-	dst = AppendVarint(dst, uint64(len(p.Tags)))
-	for i := range p.Tags {
-		s := p.Tags[i]
-		dst = AppendVarint(dst, uint64(len(s)))
-		dst = append(dst, s...)
-	}
-	dst = BackpatchContainerLen(dst, tagsLenPos)
+	dst = append(dst, byte((FieldPeerTags<<4|uint16(WireStringArr))<<1)|1)
+	dst = EncodeStringArr(dst, p.Tags)
 
 	// Field 8: Prefixes (WireUintArr, 2B tag since fieldNum=8, backpatched length)
 	tag8 := ((FieldPeerPrefixes<<4 | uint16(WireUintArr)) << 2) | 2
-	dst = append(dst, byte(tag8), byte(tag8>>8), 0, 0)
-	prefLenPos := len(dst) - 2
-	dst = AppendVarint(dst, uint64(len(p.Prefixes)))
-	for i := range p.Prefixes {
-		dst = AppendVarint(dst, uint64(p.Prefixes[i]))
-	}
-	dst = BackpatchContainerLen(dst, prefLenPos)
+	dst = append(dst, byte(tag8), byte(tag8>>8))
+	dst = EncodeUintArr(dst, p.Prefixes)
 
 	// Field 9: Location (WireSubMsg, 1-pass backpatched)
 	tag9 := ((FieldPeerLocation<<4 | uint16(WireSubMsg)) << 2) | 2
@@ -301,21 +288,6 @@ func EncodePeerOmniBufDirect(dst []byte, p *PeerUpdate) []byte {
 	return dst
 }
 
-// readVarintAt decodes a Prefix-Varint from b[pos:] without constructing a sub-slice.
-func readVarintAt(b []byte, pos int) (uint64, int) {
-	b0 := b[pos]
-	if (b0 & 1) != 0 {
-		return uint64(b0 >> 1), pos + 1
-	}
-	if (b0 & 2) != 0 {
-		return uint64(binary.LittleEndian.Uint16(b[pos:]) >> 2), pos + 2
-	}
-	if (b0 & 4) != 0 {
-		return uint64(binary.LittleEndian.Uint32(b[pos:]) >> 3), pos + 4
-	}
-	return binary.LittleEndian.Uint64(b[pos+1:]), pos + 9
-}
-
 // DecodePeerOmniBufInto decodes an OmniBuf packet into out.
 // If zeroCopyStrings is true, strings reference packet memory via unsafe.String (0 string allocs).
 func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool) error {
@@ -338,122 +310,73 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 		switch fieldNum {
 		case 0:
 			var byteLen uint64
-			byteLen, pos = readVarintAt(packet, pos)
+			byteLen, pos = ReadVarintAt(packet, pos)
 			pos += int(byteLen)
 		case FieldPeerASN:
 			var v uint64
-			v, pos = readVarintAt(packet, pos)
+			v, pos = ReadVarintAt(packet, pos)
 			out.ASN = uint32(v)
 		case FieldPeerRouterID:
 			var sLen64 uint64
-			sLen64, pos = readVarintAt(packet, pos)
+			sLen64, pos = ReadVarintAt(packet, pos)
 			sLen := int(sLen64)
-			out.RouterID = decodeStr(packet[pos:pos+sLen], zeroCopyStrings)
+			out.RouterID = DecodeStr(packet[pos:pos+sLen], zeroCopyStrings)
 			pos += sLen
 		case FieldPeerActive:
 			out.Active = (wt == WireBoolTrue)
 		case FieldPeerUptimeSec:
-			out.UptimeSec, pos = readVarintAt(packet, pos)
+			out.UptimeSec, pos = ReadVarintAt(packet, pos)
 		case FieldPeerRssiDbm:
 			var v uint64
-			v, pos = readVarintAt(packet, pos)
+			v, pos = ReadVarintAt(packet, pos)
 			out.RssiDbm = int32(DecodeZigZag(v))
 		case FieldPeerCPULoad:
 			out.CPULoad = math.Float64frombits(binary.LittleEndian.Uint64(packet[pos:]))
 			pos += 8
 		case FieldPeerTags:
 			var byteLen64 uint64
-			byteLen64, pos = readVarintAt(packet, pos)
+			byteLen64, pos = ReadVarintAt(packet, pos)
 			end := pos + int(byteLen64)
-			var c64 uint64
-			c64, p := readVarintAt(packet, pos)
-			c := int(c64)
-			start := 0
-			if (seenMask & (1 << FieldPeerTags)) != 0 {
-				start = len(out.Tags)
-			}
+			alreadySeen := (seenMask & (1 << FieldPeerTags)) != 0
 			seenMask |= (1 << FieldPeerTags)
-			total := start + c
-			if cap(out.Tags) < total {
-				next := make([]string, total)
-				copy(next, out.Tags[:start])
-				out.Tags = next
-			} else {
-				out.Tags = out.Tags[:total]
-			}
-			tags := out.Tags[start:total]
-			for i := range c {
-				var sLen64 uint64
-				sLen64, p = readVarintAt(packet, p)
-				sLen := int(sLen64)
-				tags[i] = decodeStr(packet[p:p+sLen], zeroCopyStrings)
-				p += sLen
-			}
+			out.Tags, _ = appendStringArrBody(sliceForDecode(&out.Tags, alreadySeen), packet[pos:end], zeroCopyStrings)
 			pos = end
 		case FieldPeerPrefixes:
 			var byteLen64 uint64
-			byteLen64, pos = readVarintAt(packet, pos)
+			byteLen64, pos = ReadVarintAt(packet, pos)
 			end := pos + int(byteLen64)
-			var c64 uint64
-			c64, p := readVarintAt(packet, pos)
-			c := int(c64)
-			start := 0
-			if (seenMask & (1 << FieldPeerPrefixes)) != 0 {
-				start = len(out.Prefixes)
-			}
+			alreadySeen := (seenMask & (1 << FieldPeerPrefixes)) != 0
 			seenMask |= (1 << FieldPeerPrefixes)
-			total := start + c
-			if cap(out.Prefixes) < total {
-				next := make([]uint32, total)
-				copy(next, out.Prefixes[:start])
-				out.Prefixes = next
-			} else {
-				out.Prefixes = out.Prefixes[:total]
-			}
-			prefs := out.Prefixes[start:total]
-			for i := range c {
-				var v uint64
-				v, p = readVarintAt(packet, p)
-				prefs[i] = uint32(v)
-			}
+			out.Prefixes, _ = appendUintArrBody(sliceForDecode(&out.Prefixes, alreadySeen), packet[pos:end])
 			pos = end
 		case FieldPeerLocation:
 			var subLen64 uint64
-			subLen64, pos = readVarintAt(packet, pos)
+			subLen64, pos = ReadVarintAt(packet, pos)
 			subLen := int(subLen64)
 			decodeLocationOmniBuf(packet[pos:pos+subLen], &out.Location, zeroCopyStrings)
 			pos += subLen
 		case FieldPeerNeighbors:
 			var arrLen64 uint64
-			arrLen64, pos = readVarintAt(packet, pos)
+			arrLen64, pos = ReadVarintAt(packet, pos)
 			arrLen := int(arrLen64)
 			arrPayload := packet[pos : pos+arrLen]
 			elemCount, _ := CountSubMsgArrElems(arrPayload)
-			start := 0
-			if (seenMask & (1 << FieldPeerNeighbors)) != 0 {
-				start = len(out.Neighbors)
-			}
+			alreadySeen := (seenMask & (1 << FieldPeerNeighbors)) != 0
 			seenMask |= (1 << FieldPeerNeighbors)
-			total := start + elemCount
-			if cap(out.Neighbors) < total {
-				next := make([]Neighbor, total)
-				copy(next, out.Neighbors[:start])
-				out.Neighbors = next
-			} else {
-				out.Neighbors = out.Neighbors[:total]
-			}
-			neighs := out.Neighbors[start:total]
+			var start int
+			out.Neighbors, start = growSlice(sliceForDecode(&out.Neighbors, alreadySeen), elemCount)
+			neighs := out.Neighbors[start:]
 			p := 0
 			for i := range elemCount {
 				var elemLen64 uint64
-				elemLen64, p = readVarintAt(arrPayload, p)
+				elemLen64, p = ReadVarintAt(arrPayload, p)
 				elemLen := int(elemLen64)
 				decodeNeighborOmniBuf(arrPayload[p:p+elemLen], &neighs[i], zeroCopyStrings)
 				p += elemLen
 			}
 			pos += arrLen
 		case FieldPeerSequence:
-			out.Sequence, pos = readVarintAt(packet, pos)
+			out.Sequence, pos = ReadVarintAt(packet, pos)
 		default:
 			return fmt.Errorf("omnibuf: unknown field %d", fieldNum)
 		}
@@ -470,29 +393,29 @@ func decodeLocationOmniBuf(packet []byte, loc *Location, zeroCopy bool) {
 		switch fieldNum {
 		case 0:
 			var byteLen uint64
-			byteLen, pos = readVarintAt(packet, pos)
+			byteLen, pos = ReadVarintAt(packet, pos)
 			pos += int(byteLen)
 		case FieldLocRegion:
 			var sLen64 uint64
-			sLen64, pos = readVarintAt(packet, pos)
+			sLen64, pos = ReadVarintAt(packet, pos)
 			sLen := int(sLen64)
-			loc.Region = decodeStr(packet[pos:pos+sLen], zeroCopy)
+			loc.Region = DecodeStr(packet[pos:pos+sLen], zeroCopy)
 			pos += sLen
 		case FieldLocDatacenter:
 			var sLen64 uint64
-			sLen64, pos = readVarintAt(packet, pos)
+			sLen64, pos = ReadVarintAt(packet, pos)
 			sLen := int(sLen64)
-			loc.Datacenter = decodeStr(packet[pos:pos+sLen], zeroCopy)
+			loc.Datacenter = DecodeStr(packet[pos:pos+sLen], zeroCopy)
 			pos += sLen
 		case FieldLocCity:
 			var sLen64 uint64
-			sLen64, pos = readVarintAt(packet, pos)
+			sLen64, pos = ReadVarintAt(packet, pos)
 			sLen := int(sLen64)
-			loc.City = decodeStr(packet[pos:pos+sLen], zeroCopy)
+			loc.City = DecodeStr(packet[pos:pos+sLen], zeroCopy)
 			pos += sLen
 		case FieldLocRack:
 			var v uint64
-			v, pos = readVarintAt(packet, pos)
+			v, pos = ReadVarintAt(packet, pos)
 			loc.Rack = uint32(v)
 		case FieldLocLatitude:
 			loc.Latitude = math.Float32frombits(binary.LittleEndian.Uint32(packet[pos:]))
@@ -514,36 +437,26 @@ func decodeNeighborOmniBuf(packet []byte, nb *Neighbor, zeroCopy bool) {
 		switch fieldNum {
 		case 0:
 			var byteLen uint64
-			byteLen, pos = readVarintAt(packet, pos)
+			byteLen, pos = ReadVarintAt(packet, pos)
 			pos += int(byteLen)
 		case FieldNeighPeerASN:
 			var v uint64
-			v, pos = readVarintAt(packet, pos)
+			v, pos = ReadVarintAt(packet, pos)
 			nb.PeerASN = uint32(v)
 		case FieldNeighRouter:
 			var sLen64 uint64
-			sLen64, pos = readVarintAt(packet, pos)
+			sLen64, pos = ReadVarintAt(packet, pos)
 			sLen := int(sLen64)
-			nb.Router = decodeStr(packet[pos:pos+sLen], zeroCopy)
+			nb.Router = DecodeStr(packet[pos:pos+sLen], zeroCopy)
 			pos += sLen
 		case FieldNeighLatencyUS:
 			var v uint64
-			v, pos = readVarintAt(packet, pos)
+			v, pos = ReadVarintAt(packet, pos)
 			nb.LatencyUS = uint32(v)
 		case FieldNeighEstablished:
 			nb.Established = ((tag & 0x0F) == WireBoolTrue)
 		}
 	}
-}
-
-func decodeStr(b []byte, zeroCopy bool) string {
-	if len(b) == 0 {
-		return ""
-	}
-	if zeroCopy {
-		return unsafe.String(&b[0], len(b))
-	}
-	return string(b)
 }
 
 // ============================================================================
@@ -672,7 +585,7 @@ func DecodePeerProtoWireInto(b []byte, out *PeerUpdate, zeroCopy bool) error {
 		case 2:
 			s, sn := protowire.ConsumeBytes(b)
 			b = b[sn:]
-			out.RouterID = decodeStr(s, zeroCopy)
+			out.RouterID = DecodeStr(s, zeroCopy)
 		case 3:
 			v, vn := protowire.ConsumeVarint(b)
 			b = b[vn:]
@@ -692,7 +605,7 @@ func DecodePeerProtoWireInto(b []byte, out *PeerUpdate, zeroCopy bool) error {
 		case 7:
 			s, sn := protowire.ConsumeBytes(b)
 			b = b[sn:]
-			out.Tags = append(out.Tags, decodeStr(s, zeroCopy))
+			out.Tags = append(out.Tags, DecodeStr(s, zeroCopy))
 		case 8:
 			packed, pn := protowire.ConsumeBytes(b)
 			b = b[pn:]
@@ -711,15 +624,15 @@ func DecodePeerProtoWireInto(b []byte, out *PeerUpdate, zeroCopy bool) error {
 				case 1:
 					s, vn := protowire.ConsumeBytes(sub)
 					sub = sub[vn:]
-					out.Location.Region = decodeStr(s, zeroCopy)
+					out.Location.Region = DecodeStr(s, zeroCopy)
 				case 2:
 					s, vn := protowire.ConsumeBytes(sub)
 					sub = sub[vn:]
-					out.Location.Datacenter = decodeStr(s, zeroCopy)
+					out.Location.Datacenter = DecodeStr(s, zeroCopy)
 				case 3:
 					s, vn := protowire.ConsumeBytes(sub)
 					sub = sub[vn:]
-					out.Location.City = decodeStr(s, zeroCopy)
+					out.Location.City = DecodeStr(s, zeroCopy)
 				case 4:
 					v, vn := protowire.ConsumeVarint(sub)
 					sub = sub[vn:]
@@ -749,7 +662,7 @@ func DecodePeerProtoWireInto(b []byte, out *PeerUpdate, zeroCopy bool) error {
 				case 2:
 					s, vn := protowire.ConsumeBytes(sub)
 					sub = sub[vn:]
-					nb.Router = decodeStr(s, zeroCopy)
+					nb.Router = DecodeStr(s, zeroCopy)
 				case 3:
 					v, vn := protowire.ConsumeVarint(sub)
 					sub = sub[vn:]
@@ -798,7 +711,7 @@ func LookupProtoWireNestedCity(b []byte, zeroCopy bool) (string, bool) {
 					if vn < 0 {
 						return "", false
 					}
-					return decodeStr(s, zeroCopy), true
+					return DecodeStr(s, zeroCopy), true
 				}
 				vn := protowire.ConsumeFieldValue(fnum, fwtype, sub)
 				if vn < 0 {
@@ -843,7 +756,7 @@ func LookupProtoWireNeighborRouter(b []byte, targetIdx int, zeroCopy bool) (stri
 						if vn < 0 {
 							return "", false
 						}
-						return decodeStr(s, zeroCopy), true
+						return DecodeStr(s, zeroCopy), true
 					}
 					vn := protowire.ConsumeFieldValue(fnum, fwtype, sub)
 					if vn < 0 {
@@ -959,7 +872,7 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 		out.ASN = tab.GetUint32(o + tab.Pos)
 	}
 	if o := flatbuffers.UOffsetT(tab.Offset(6)); o != 0 {
-		out.RouterID = decodeStr(tab.ByteVector(o+tab.Pos), zeroCopy)
+		out.RouterID = DecodeStr(tab.ByteVector(o+tab.Pos), zeroCopy)
 	}
 	if o := flatbuffers.UOffsetT(tab.Offset(8)); o != 0 {
 		out.Active = tab.GetBool(o + tab.Pos)
@@ -983,7 +896,7 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 		vecStart := tab.Vector(o)
 		for i := range vecLen {
 			elemPos := vecStart + flatbuffers.UOffsetT(i*4)
-			out.Tags[i] = decodeStr(tab.ByteVector(elemPos), zeroCopy)
+			out.Tags[i] = DecodeStr(tab.ByteVector(elemPos), zeroCopy)
 		}
 	}
 	if o := flatbuffers.UOffsetT(tab.Offset(18)); o != 0 {
@@ -1002,13 +915,13 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 		locPos := tab.Indirect(o + tab.Pos)
 		locTab := flatbuffers.Table{Bytes: buf, Pos: locPos}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(4)); lo != 0 {
-			out.Location.Region = decodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
+			out.Location.Region = DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
 		}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(6)); lo != 0 {
-			out.Location.Datacenter = decodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
+			out.Location.Datacenter = DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
 		}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(8)); lo != 0 {
-			out.Location.City = decodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
+			out.Location.City = DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
 		}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(10)); lo != 0 {
 			out.Location.Rack = locTab.GetUint32(lo + locTab.Pos)
@@ -1035,7 +948,7 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 				out.Neighbors[i].PeerASN = nbTab.GetUint32(no + nbTab.Pos)
 			}
 			if no := flatbuffers.UOffsetT(nbTab.Offset(6)); no != 0 {
-				out.Neighbors[i].Router = decodeStr(nbTab.ByteVector(no+nbTab.Pos), zeroCopy)
+				out.Neighbors[i].Router = DecodeStr(nbTab.ByteVector(no+nbTab.Pos), zeroCopy)
 			}
 			if no := flatbuffers.UOffsetT(nbTab.Offset(8)); no != 0 {
 				out.Neighbors[i].LatencyUS = nbTab.GetUint32(no + nbTab.Pos)
@@ -1064,7 +977,7 @@ func LookupFlatBuffersNestedCity(buf []byte, zeroCopy bool) (string, bool) {
 	if lo == 0 {
 		return "", false
 	}
-	return decodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy), true
+	return DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy), true
 }
 
 // LookupFlatBuffersNeighborRouter reads peer.neighbors[idx].router via FlatBuffers vtable + vector indirection.
@@ -1082,7 +995,7 @@ func LookupFlatBuffersNeighborRouter(buf []byte, idx int, zeroCopy bool) (string
 	if no == 0 {
 		return "", false
 	}
-	return decodeStr(nbTab.ByteVector(no+nbTab.Pos), zeroCopy), true
+	return DecodeStr(nbTab.ByteVector(no+nbTab.Pos), zeroCopy), true
 }
 
 // ============================================================================
@@ -1217,7 +1130,7 @@ func DecodePeerCapnpInto(data []byte, out *PeerUpdate, zeroCopy bool) error {
 	}
 	for i := range tLen {
 		b, _ := tagsList.BytesAt(i)
-		out.Tags[i] = decodeStr(b, zeroCopy)
+		out.Tags[i] = DecodeStr(b, zeroCopy)
 	}
 
 	prefPtr, _ := st.Ptr(2)
@@ -1264,7 +1177,7 @@ func DecodePeerCapnpInto(data []byte, out *PeerUpdate, zeroCopy bool) error {
 }
 
 func decodeCapnpText(b []byte, zeroCopy bool) string {
-	return decodeStr(b, zeroCopy)
+	return DecodeStr(b, zeroCopy)
 }
 
 // LookupCapnpNestedCity reads peer.location.city from a Cap'n Proto message.
@@ -1345,7 +1258,7 @@ func LookupCapnpInPlaceNestedCity(data []byte, zeroCopy bool) (string, bool) {
 	if cityLen < 0 {
 		return "", false
 	}
-	return decodeStr(seg[cityOffBytes:cityOffBytes+cityLen], zeroCopy), true
+	return DecodeStr(seg[cityOffBytes:cityOffBytes+cityLen], zeroCopy), true
 }
 
 // LookupCapnpInPlaceNeighborRouter traverses Cap'n Proto's composite list + struct pointer in-place with 0 allocations.
@@ -1378,7 +1291,7 @@ func LookupCapnpInPlaceNeighborRouter(data []byte, idx int, zeroCopy bool) (stri
 	if rtrLen < 0 {
 		return "", false
 	}
-	return decodeStr(seg[rtrOffBytes:rtrOffBytes+rtrLen], zeroCopy), true
+	return DecodeStr(seg[rtrOffBytes:rtrOffBytes+rtrLen], zeroCopy), true
 }
 
 // ============================================================================

@@ -67,15 +67,15 @@ func TestOpaqueAPILazyUnmarshalAndSpliceMarshal(t *testing.T) {
 	pkt := EncodePeerOmniBufDirect(nil, &orig)
 
 	// 1. Lazy Unmarshal + O(1) Getters
-	var op OpaquePeerUpdate
+	var op pb.OpaquePeerUpdate
 	if err := op.Unmarshal(pkt); err != nil {
 		t.Fatalf("OpaquePeerUpdate.Unmarshal failed: %v", err)
 	}
-	if got := op.GetASN(); got != orig.ASN {
-		t.Fatalf("GetASN() = %d, want %d", got, orig.ASN)
+	if got := op.GetAsn(); got != orig.ASN {
+		t.Fatalf("GetAsn() = %d, want %d", got, orig.ASN)
 	}
-	if got := op.GetRouterID(); got != orig.RouterID {
-		t.Fatalf("GetRouterID() = %q, want %q", got, orig.RouterID)
+	if got := op.GetRouterId(); got != orig.RouterID {
+		t.Fatalf("GetRouterId() = %q, want %q", got, orig.RouterID)
 	}
 	if got := op.GetLocation().GetCity(); got != "Frankfurt" {
 		t.Fatalf("GetLocation().GetCity() = %q, want Frankfurt", got)
@@ -91,7 +91,7 @@ func TestOpaqueAPILazyUnmarshalAndSpliceMarshal(t *testing.T) {
 	}
 
 	// 2. Read-Modify-Write Splice: mutate ASN and Sequence without decoding Location or Neighbors!
-	op.SetASN(65530)
+	op.SetAsn(65530)
 	op.SetSequence(orig.Sequence + 1)
 	splicedPkt := op.MarshalAppend(nil)
 
@@ -105,14 +105,6 @@ func TestOpaqueAPILazyUnmarshalAndSpliceMarshal(t *testing.T) {
 	want.Sequence = orig.Sequence + 1
 	if !reflect.DeepEqual(decoded, want) {
 		t.Fatalf("spliced packet mismatch:\ngot:  %#v\nwant: %#v", decoded, want)
-	}
-
-	// 3. Fresh build via Opaque setters
-	var fresh OpaquePeerUpdate
-	fresh.PopulateFromPeerUpdate(&orig)
-	freshBytes := fresh.MarshalAppend(nil)
-	if !reflect.DeepEqual(freshBytes, pkt) {
-		t.Fatalf("Opaque fresh MarshalAppend mismatch:\ngot  (%dB): %x\nwant (%dB): %x", len(freshBytes), freshBytes, len(pkt), pkt)
 	}
 }
 
@@ -443,7 +435,7 @@ func BenchmarkOpaque_UnmarshalAndRead2Fields(b *testing.B) {
 	// peer.GetLocation().GetCity() and peer.GetNeighbors(2).GetRouter()
 	orig := SamplePeerUpdate()
 	pkt := EncodePeerOmniBufDirect(nil, &orig)
-	var msg OpaquePeerUpdate
+	var msg pb.OpaquePeerUpdate
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -484,7 +476,7 @@ func BenchmarkOpaque_ReadModifyWrite_Splice(b *testing.B) {
 	orig := SamplePeerUpdate()
 	pkt := EncodePeerOmniBufDirect(nil, &orig)
 	outBuf := make([]byte, 0, 512)
-	var msg OpaquePeerUpdate
+	var msg pb.OpaquePeerUpdate
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

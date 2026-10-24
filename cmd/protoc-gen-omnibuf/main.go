@@ -49,7 +49,7 @@ func main() {
 	})
 }
 
-func runSelfGen(outPath string) error {
+func peerProtoRequest() *pluginpb.CodeGeneratorRequest {
 	f := func(name string, num int32, label descriptorpb.FieldDescriptorProto_Label, typ descriptorpb.FieldDescriptorProto_Type, typeName string) *descriptorpb.FieldDescriptorProto {
 		fd := &descriptorpb.FieldDescriptorProto{
 			Name:   proto.String(name),
@@ -110,21 +110,13 @@ func runSelfGen(outPath string) error {
 			},
 		},
 	}
-
-	req := &pluginpb.CodeGeneratorRequest{
+	return &pluginpb.CodeGeneratorRequest{
 		FileToGenerate: []string{"schemas/peer.proto"},
 		ProtoFile:      []*descriptorpb.FileDescriptorProto{fdp},
 	}
-	gen, err := protogen.Options{}.New(req)
-	if err != nil {
-		return err
-	}
-	for _, file := range gen.Files {
-		if file.Generate {
-			generateFile(gen, file)
-		}
-	}
-	resp := gen.Response()
+}
+
+func writePluginResponse(resp *pluginpb.CodeGeneratorResponse, outPath string) error {
 	if resp.Error != nil {
 		return fmt.Errorf("%s", resp.GetError())
 	}
@@ -136,73 +128,21 @@ func runSelfGen(outPath string) error {
 	return nil
 }
 
-func runVTProtoGen(outPath string) error {
-	f := func(name string, num int32, label descriptorpb.FieldDescriptorProto_Label, typ descriptorpb.FieldDescriptorProto_Type, typeName string) *descriptorpb.FieldDescriptorProto {
-		fd := &descriptorpb.FieldDescriptorProto{
-			Name:   proto.String(name),
-			Number: proto.Int32(num),
-			Label:  label.Enum(),
-			Type:   typ.Enum(),
-		}
-		if typeName != "" {
-			fd.TypeName = proto.String(typeName)
-		}
-		return fd
+func runSelfGen(outPath string) error {
+	gen, err := protogen.Options{}.New(peerProtoRequest())
+	if err != nil {
+		return err
 	}
-	opt := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
-	rep := descriptorpb.FieldDescriptorProto_LABEL_REPEATED
-	fdp := &descriptorpb.FileDescriptorProto{
-		Syntax:  proto.String("proto3"),
-		Name:    proto.String("schemas/peer.proto"),
-		Package: proto.String("omnibuf.bench"),
-		Options: &descriptorpb.FileOptions{
-			GoPackage: proto.String("github.com/sudorandom/omnibuf/pb;pb"),
-		},
-		MessageType: []*descriptorpb.DescriptorProto{
-			{
-				Name: proto.String("Location"),
-				Field: []*descriptorpb.FieldDescriptorProto{
-					f("region", 1, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
-					f("datacenter", 2, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
-					f("city", 3, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
-					f("rack", 4, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
-					f("latitude", 5, opt, descriptorpb.FieldDescriptorProto_TYPE_FLOAT, ""),
-					f("longitude", 6, opt, descriptorpb.FieldDescriptorProto_TYPE_FLOAT, ""),
-				},
-			},
-			{
-				Name: proto.String("Neighbor"),
-				Field: []*descriptorpb.FieldDescriptorProto{
-					f("peer_asn", 1, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
-					f("router", 2, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
-					f("latency_us", 3, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
-					f("established", 4, opt, descriptorpb.FieldDescriptorProto_TYPE_BOOL, ""),
-				},
-			},
-			{
-				Name: proto.String("PeerUpdate"),
-				Field: []*descriptorpb.FieldDescriptorProto{
-					f("asn", 1, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
-					f("router_id", 2, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
-					f("active", 3, opt, descriptorpb.FieldDescriptorProto_TYPE_BOOL, ""),
-					f("uptime_sec", 4, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT64, ""),
-					f("rssi_dbm", 5, opt, descriptorpb.FieldDescriptorProto_TYPE_SINT32, ""),
-					f("cpu_load", 6, opt, descriptorpb.FieldDescriptorProto_TYPE_DOUBLE, ""),
-					f("tags", 7, rep, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
-					f("prefixes", 8, rep, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
-					f("location", 9, opt, descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, ".omnibuf.bench.Location"),
-					f("neighbors", 10, rep, descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, ".omnibuf.bench.Neighbor"),
-					f("sequence", 11, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT64, ""),
-				},
-			},
-		},
+	for _, file := range gen.Files {
+		if file.Generate {
+			generateFile(gen, file)
+		}
 	}
+	return writePluginResponse(gen.Response(), outPath)
+}
 
-	req := &pluginpb.CodeGeneratorRequest{
-		FileToGenerate: []string{"schemas/peer.proto"},
-		ProtoFile:      []*descriptorpb.FileDescriptorProto{fdp},
-	}
-	plugin, err := protogen.Options{}.New(req)
+func runVTProtoGen(outPath string) error {
+	plugin, err := protogen.Options{}.New(peerProtoRequest())
 	if err != nil {
 		return err
 	}
@@ -216,16 +156,7 @@ func runVTProtoGen(outPath string) error {
 		return err
 	}
 	gen.Generate()
-	resp := plugin.Response()
-	if resp.Error != nil {
-		return fmt.Errorf("%s", resp.GetError())
-	}
-	for _, rf := range resp.File {
-		if err := os.WriteFile(outPath, []byte(rf.GetContent()), 0644); err != nil {
-			return err
-		}
-	}
-	return nil
+	return writePluginResponse(plugin.Response(), outPath)
 }
 
 func wireTypeForField(field *protogen.Field) uint8 {
@@ -320,22 +251,9 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 		if f.Desc.IsList() {
 			switch f.Desc.Kind() {
 			case protoreflect.StringKind:
-				g.P("	lenPos_", i, " := len(dst)")
-				g.P("	dst = append(dst, 0, 0)")
-				g.P("	dst = omnibuf.AppendVarint(dst, uint64(len(x.", f.GoName, ")))")
-				g.P("	for _, s := range x.", f.GoName, " {")
-				g.P("		dst = omnibuf.AppendVarint(dst, uint64(len(s)))")
-				g.P("		dst = append(dst, s...)")
-				g.P("	}")
-				g.P("	dst = omnibuf.BackpatchContainerLen(dst, lenPos_", i, ")")
+				g.P("	dst = omnibuf.EncodeStringArr(dst, x.", f.GoName, ")")
 			case protoreflect.Uint32Kind:
-				g.P("	lenPos_", i, " := len(dst)")
-				g.P("	dst = append(dst, 0, 0)")
-				g.P("	dst = omnibuf.AppendVarint(dst, uint64(len(x.", f.GoName, ")))")
-				g.P("	for _, v := range x.", f.GoName, " {")
-				g.P("		dst = omnibuf.AppendVarint(dst, uint64(v))")
-				g.P("	}")
-				g.P("	dst = omnibuf.BackpatchContainerLen(dst, lenPos_", i, ")")
+				g.P("	dst = omnibuf.EncodeUintArr(dst, x.", f.GoName, ")")
 			case protoreflect.MessageKind:
 				g.P("	lenPos_", i, " := len(dst)")
 				g.P("	dst = append(dst, 0, 0)")
@@ -663,59 +581,20 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 			switch f.Desc.Kind() {
 			case protoreflect.StringKind:
 				g.P("func (x *", name, ") ", goName, "Len() int {")
-				g.P("	s, wt, ok := omnibuf.LocateField(x.raw, ", fnum, ")")
-				g.P("	if !ok || wt != omnibuf.WireStringArr { return 0 }")
-				g.P("	bLen, bn := omnibuf.DecodeVarint(s)")
-				g.P("	if bn == 0 || bLen > uint64(len(s)-bn) { return 0 }")
-				g.P("	c, cn := omnibuf.DecodeVarint(s[bn : bn+int(bLen)])")
-				g.P("	if cn == 0 { return 0 }")
-				g.P("	return int(c)")
+				g.P("	return omnibuf.CountedArrLen(x.raw, ", fnum, ", omnibuf.WireStringArr)")
 				g.P("}")
 				g.P()
 				g.P("func (x *", name, ") Append", goName, "Into(dst []string) []string {")
-				g.P("	s, wt, ok := omnibuf.LocateField(x.raw, ", fnum, ")")
-				g.P("	if !ok || wt != omnibuf.WireStringArr { return dst }")
-				g.P("	bLen, bn := omnibuf.DecodeVarint(s)")
-				g.P("	if bn == 0 || bLen > uint64(len(s)-bn) { return dst }")
-				g.P("	body := s[bn : bn+int(bLen)]")
-				g.P("	c, pos := omnibuf.DecodeVarint(body)")
-				g.P("	if pos == 0 || c > uint64(len(body)-pos) { return dst }")
-				g.P("	for i := 0; i < int(c); i++ {")
-				g.P("		sLen, sn := omnibuf.DecodeVarint(body[pos:])")
-				g.P("		if sn == 0 || sLen > uint64(len(body)-(pos+sn)) { return dst }")
-				g.P("		pos += sn")
-				g.P("		dst = append(dst, omnibuf.DecodeStr(body[pos:pos+int(sLen)], true))")
-				g.P("		pos += int(sLen)")
-				g.P("	}")
-				g.P("	return dst")
+				g.P("	return omnibuf.AppendStringArrZeroCopy(dst, x.raw, ", fnum, ")")
 				g.P("}")
 				g.P()
 			case protoreflect.Uint32Kind:
 				g.P("func (x *", name, ") ", goName, "Len() int {")
-				g.P("	s, wt, ok := omnibuf.LocateField(x.raw, ", fnum, ")")
-				g.P("	if !ok || wt != omnibuf.WireUintArr { return 0 }")
-				g.P("	bLen, bn := omnibuf.DecodeVarint(s)")
-				g.P("	if bn == 0 || bLen > uint64(len(s)-bn) { return 0 }")
-				g.P("	c, cn := omnibuf.DecodeVarint(s[bn : bn+int(bLen)])")
-				g.P("	if cn == 0 { return 0 }")
-				g.P("	return int(c)")
+				g.P("	return omnibuf.CountedArrLen(x.raw, ", fnum, ", omnibuf.WireUintArr)")
 				g.P("}")
 				g.P()
 				g.P("func (x *", name, ") Append", goName, "Into(dst []uint32) []uint32 {")
-				g.P("	s, wt, ok := omnibuf.LocateField(x.raw, ", fnum, ")")
-				g.P("	if !ok || wt != omnibuf.WireUintArr { return dst }")
-				g.P("	bLen, bn := omnibuf.DecodeVarint(s)")
-				g.P("	if bn == 0 || bLen > uint64(len(s)-bn) { return dst }")
-				g.P("	body := s[bn : bn+int(bLen)]")
-				g.P("	c, p := omnibuf.DecodeVarint(body)")
-				g.P("	if p == 0 || c > uint64(len(body)-p) { return dst }")
-				g.P("	for i := 0; i < int(c); i++ {")
-				g.P("		v, vn := omnibuf.DecodeVarint(body[p:])")
-				g.P("		if vn == 0 { return dst }")
-				g.P("		p += vn")
-				g.P("		dst = append(dst, uint32(v))")
-				g.P("	}")
-				g.P("	return dst")
+				g.P("	return omnibuf.AppendUint32Arr(dst, x.raw, ", fnum, ")")
 				g.P("}")
 				g.P()
 			case protoreflect.MessageKind:
@@ -793,27 +672,43 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 		g.P()
 	}
 
-	// Generate MarshalAppend on OpaquePeerUpdate with zero-decode splice support!
-	lastField := msg.Fields[len(msg.Fields)-1]
-	lastFnum := uint16(lastField.Desc.Number())
-	if lastField.Desc.Kind() == protoreflect.Uint64Kind && !lastField.Desc.IsList() {
-		lastPriv := "f_" + lastField.Desc.TextName()
-		rawTag := (lastFnum << 4) | uint16(wireTypeForField(lastField))
-		tag2 := (rawTag << 2) | 2
-		g.P("// MarshalAppend re-serializes ", name, " using zero-decode wire splicing for unmodified fields.")
-		g.P("func (x *", name, ") MarshalAppend(dst []byte) []byte {")
-		g.P("	dst = dst[:0]")
-		g.P("	if x.dirty == 0 {")
-		g.P("		return append(dst, x.raw...)")
-		g.P("	}")
-		g.P("	return omnibuf.SpliceFields(dst, x.raw, x.dirty, ", lastFnum, ", func(b []byte, fnum uint16) []byte {")
-		g.P("		if fnum == ", lastFnum, " {")
-		g.P(fmt.Sprintf("			b = append(b, 0x%02x, 0x%02x)", byte(tag2), byte(tag2>>8)))
-		g.P("			return omnibuf.AppendVarint(b, x.", lastPriv, ")")
-		g.P("		}")
-		g.P("		return b")
-		g.P("	})")
-		g.P("}")
-		g.P()
+	// Generate MarshalAppend on Opaque struct with full scalar zero-decode splice support!
+	maxFnum := uint16(msg.Fields[len(msg.Fields)-1].Desc.Number())
+	g.P("// MarshalAppend re-serializes ", name, " using zero-decode wire splicing for unmodified fields.")
+	g.P("func (x *", name, ") MarshalAppend(dst []byte) []byte {")
+	g.P("	dst = dst[:0]")
+	g.P("	if x.dirty == 0 {")
+	g.P("		return append(dst, x.raw...)")
+	g.P("	}")
+	g.P("	return omnibuf.SpliceFields(dst, x.raw, x.dirty, ", maxFnum, ", func(b []byte, fnum uint16) []byte {")
+	g.P("		switch fnum {")
+	for _, f := range msg.Fields {
+		if f.Desc.IsList() || f.Desc.Kind() == protoreflect.MessageKind {
+			continue
+		}
+		fnum := uint16(f.Desc.Number())
+		privName := "f_" + f.Desc.TextName()
+		g.P("		case ", fnum, ":")
+		switch f.Desc.Kind() {
+		case protoreflect.Uint32Kind:
+			g.P("			return omnibuf.EncodeUint(b, ", fnum, ", uint64(x.", privName, "))")
+		case protoreflect.Uint64Kind:
+			g.P("			return omnibuf.EncodeUint(b, ", fnum, ", x.", privName, ")")
+		case protoreflect.Sint32Kind, protoreflect.Int32Kind:
+			g.P("			return omnibuf.EncodeSint(b, ", fnum, ", int64(x.", privName, "))")
+		case protoreflect.BoolKind:
+			g.P("			return omnibuf.EncodeBool(b, ", fnum, ", x.", privName, ")")
+		case protoreflect.FloatKind:
+			g.P("			return omnibuf.EncodeFloat32(b, ", fnum, ", x.", privName, ")")
+		case protoreflect.DoubleKind:
+			g.P("			return omnibuf.EncodeFloat64(b, ", fnum, ", x.", privName, ")")
+		case protoreflect.StringKind:
+			g.P("			return omnibuf.EncodeString(b, ", fnum, ", x.", privName, ")")
+		}
 	}
+	g.P("		}")
+	g.P("		return b")
+	g.P("	})")
+	g.P("}")
+	g.P()
 }

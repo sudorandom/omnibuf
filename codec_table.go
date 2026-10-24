@@ -434,15 +434,15 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 			dst = AppendVarint(dst, uint64(len(b)))
 			dst = append(dst, b...)
 		case kindStringSlice:
-			dst = encodeStringArr(dst, *(*[]string)(fPtr))
+			dst = EncodeStringArr(dst, *(*[]string)(fPtr))
 		case kindUint32Slice:
-			dst = encodeUint32Arr(dst, *(*[]uint32)(fPtr))
+			dst = EncodeUintArr(dst, *(*[]uint32)(fPtr))
 		case kindUint64Slice:
-			dst = encodeUint64Arr(dst, *(*[]uint64)(fPtr))
+			dst = EncodeUintArr(dst, *(*[]uint64)(fPtr))
 		case kindInt32Slice:
-			dst = encodeSint32Arr(dst, *(*[]int32)(fPtr))
+			dst = EncodeSintArr(dst, *(*[]int32)(fPtr))
 		case kindInt64Slice:
-			dst = encodeSint64Arr(dst, *(*[]int64)(fPtr))
+			dst = EncodeSintArr(dst, *(*[]int64)(fPtr))
 		case kindFloat32Slice:
 			dst = encodeFixed32Arr(dst, *(*[]uint32)(fPtr))
 		case kindFloat64Slice:
@@ -676,7 +676,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				return err
 			}
 			p := (*[]uint32)(fPtr)
-			sl, ok := appendUint32ArrBody(sliceForDecode(p, alreadySeen), body)
+			sl, ok := appendUintArrBody(sliceForDecode(p, alreadySeen), body)
 			if !ok {
 				return fmt.Errorf("omnibuf: invalid uint32 array at %d", pos)
 			}
@@ -688,7 +688,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				return err
 			}
 			p := (*[]uint64)(fPtr)
-			sl, ok := appendUint64ArrBody(sliceForDecode(p, alreadySeen), body)
+			sl, ok := appendUintArrBody(sliceForDecode(p, alreadySeen), body)
 			if !ok {
 				return fmt.Errorf("omnibuf: invalid uint64 array at %d", pos)
 			}
@@ -700,7 +700,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				return err
 			}
 			p := (*[]int32)(fPtr)
-			sl, ok := appendSint32ArrBody(sliceForDecode(p, alreadySeen), body)
+			sl, ok := appendSintArrBody(sliceForDecode(p, alreadySeen), body)
 			if !ok {
 				return fmt.Errorf("omnibuf: invalid int32 array at %d", pos)
 			}
@@ -712,7 +712,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				return err
 			}
 			p := (*[]int64)(fPtr)
-			sl, ok := appendSint64ArrBody(sliceForDecode(p, alreadySeen), body)
+			sl, ok := appendSintArrBody(sliceForDecode(p, alreadySeen), body)
 			if !ok {
 				return fmt.Errorf("omnibuf: invalid int64 array at %d", pos)
 			}

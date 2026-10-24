@@ -148,52 +148,103 @@ func backpatchLargeContainerLen(dst []byte, lenPos int, subLen uint64) []byte {
 	return dst
 }
 
+// readTagAt decodes a field tag at packet[pos:], returning (fieldNum, wireType, nextPos, ok).
+func readTagAt(packet []byte, pos int) (fnum uint16, wt uint8, nextPos int, ok bool) {
+	b0 := packet[pos]
+	if (b0 & 1) != 0 {
+		return uint16(b0 >> 5), (b0 >> 1) & 0x0F, pos + 1, true
+	}
+	if (b0 & 2) != 0 {
+		if pos+2 > len(packet) {
+			return 0, 0, 0, false
+		}
+		u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
+		return u >> 4, uint8(u & 0x0F), pos + 2, true
+	}
+	return readTagMultiAt(packet, pos)
+}
+
+//go:noinline
+func readTagMultiAt(packet []byte, pos int) (uint16, uint8, int, bool) {
+	tag, tn := decodeVarintMulti(packet[pos:])
+	if tn == 0 || tag>>4 > math.MaxUint16 {
+		return 0, 0, 0, false
+	}
+	return uint16(tag >> 4), uint8(tag & 0x0F), pos + tn, true
+}
+
+// fastSkipValue advances pos past a field value of wire type wt in O(1) time without error string allocation.
+func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
+	n := len(packet)
+	switch wt {
+	case WireUint, WireSint:
+		if pos >= n {
+			return 0, false
+		}
+		vb := packet[pos]
+		if (vb & 1) != 0 {
+			pos++
+		} else if (vb & 2) != 0 {
+			pos += 2
+		} else if (vb & 4) != 0 {
+			pos += 4
+		} else {
+			pos += 9
+		}
+		return pos, pos <= n
+	case WireBoolFalse, WireBoolTrue:
+		return pos, true
+	case WireString, WireBytes, WireSubMsg, WireStringArr, WireUintArr, WireSubMsgArr, WireMap, WireSintArr, WireFixedArr, WireExtended:
+		if pos >= n {
+			return 0, false
+		}
+		lb := packet[pos]
+		if (lb & 1) != 0 {
+			pos += 1 + int(lb>>1)
+			return pos, pos <= n
+		}
+		if (lb & 2) != 0 {
+			if pos+2 > n {
+				return 0, false
+			}
+			pos += 2 + int(binary.LittleEndian.Uint16(packet[pos:pos+2])>>2)
+			return pos, pos <= n
+		}
+		return skipLargeContainer(packet, pos)
+	case WireFixed32:
+		pos += 4
+		return pos, pos <= n
+	case WireFixed64:
+		pos += 8
+		return pos, pos <= n
+	default:
+		return 0, false
+	}
+}
+
+//go:noinline
+func skipLargeContainer(packet []byte, pos int) (int, bool) {
+	bLen, bn := decodeVarintMulti(packet[pos:])
+	if bn == 0 || bLen > uint64(len(packet)-(pos+bn)) {
+		return 0, false
+	}
+	pos += bn + int(bLen)
+	return pos, pos <= len(packet)
+}
+
 // SkipValue advances pos past a single field payload of the given 4-bit wireType (0..15),
 // performing full bounds validation in O(1) time without looping inside containers.
 func SkipValue(b []byte, pos int, wireType uint8) (int, error) {
 	if pos < 0 || pos > len(b) {
 		return 0, fmt.Errorf("omnibuf: position %d out of bounds", pos)
 	}
-	switch wireType {
-	case WireUint, WireSint:
-		if pos >= len(b) {
-			return 0, fmt.Errorf("omnibuf: truncated WireUint at %d", pos)
-		}
-		b0 := b[pos]
-		if (b0 & 1) != 0 {
-			return pos + 1, nil
-		}
-		if (b0 & 2) != 0 {
-			if pos+2 > len(b) {
-				return 0, fmt.Errorf("omnibuf: truncated 2B WireUint at %d", pos)
-			}
-			return pos + 2, nil
-		}
-		if (b0 & 4) != 0 {
-			if pos+4 > len(b) {
-				return 0, fmt.Errorf("omnibuf: truncated 4B WireUint at %d", pos)
-			}
-			return pos + 4, nil
-		}
-		if pos+9 > len(b) {
-			return 0, fmt.Errorf("omnibuf: truncated 9B WireUint at %d", pos)
-		}
-		return pos + 9, nil
-	case WireBoolFalse, WireBoolTrue:
-		return pos, nil
-	case WireString, WireBytes, WireSubMsg, WireStringArr, WireUintArr, WireSubMsgArr, WireMap, WireSintArr, WireFixedArr, WireExtended:
+	if wireType == WireFixedArr || wireType == WireExtended {
 		bLen, bn := DecodeVarint(b[pos:])
-		if bn == 0 {
-			return 0, fmt.Errorf("omnibuf: truncated length varint for wireType %d at %d", wireType, pos)
+		if bn == 0 || bLen < 1 || bLen > uint64(len(b)-(pos+bn)) {
+			return 0, fmt.Errorf("omnibuf: invalid container length at %d", pos)
 		}
 		pos += bn
-		if bLen > uint64(len(b)-pos) {
-			return 0, fmt.Errorf("omnibuf: length %d exceeds remaining buffer %d at %d", bLen, len(b)-pos, pos)
-		}
 		if wireType == WireFixedArr {
-			if bLen < 1 {
-				return 0, fmt.Errorf("omnibuf: WireFixedArr byteLen must be >= 1 at %d", pos)
-			}
 			switch elemType := b[pos]; elemType {
 			case WireFixed32:
 				if (bLen-1)%4 != 0 {
@@ -206,23 +257,14 @@ func SkipValue(b []byte, pos int, wireType uint8) (int, error) {
 			default:
 				return 0, fmt.Errorf("omnibuf: invalid WireFixedArr ElemType %d at %d", elemType, pos)
 			}
-		} else if wireType == WireExtended && bLen < 1 {
-			return 0, fmt.Errorf("omnibuf: WireExtended byteLen must be >= 1 at %d", pos)
 		}
 		return pos + int(bLen), nil
-	case WireFixed32:
-		if len(b)-pos < 4 {
-			return 0, fmt.Errorf("omnibuf: truncated WireFixed32 at %d", pos)
-		}
-		return pos + 4, nil
-	case WireFixed64:
-		if len(b)-pos < 8 {
-			return 0, fmt.Errorf("omnibuf: truncated WireFixed64 at %d", pos)
-		}
-		return pos + 8, nil
-	default:
-		return 0, fmt.Errorf("omnibuf: unknown wire type %d at %d", wireType, pos)
 	}
+	nextPos, ok := fastSkipValue(b, pos, wireType)
+	if !ok {
+		return 0, fmt.Errorf("omnibuf: truncated or invalid wireType %d at %d", wireType, pos)
+	}
+	return nextPos, nil
 }
 
 // LocateField locates targetField inside packet by hopping across field headers in O(1) time per field
@@ -233,9 +275,9 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 	pos := 0
 	n := len(packet)
 	for pos < n {
+		b0 := packet[pos]
 		var fnum uint16
 		var wt uint8
-		b0 := packet[pos]
 		if (b0 & 1) != 0 {
 			fnum = uint16(b0 >> 5)
 			wt = (b0 >> 1) & 0x0F
@@ -249,13 +291,11 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 			wt = uint8(u & 0x0F)
 			pos += 2
 		} else {
-			tag, tn := decodeVarintMulti(packet[pos:])
-			if tn == 0 {
+			var valid bool
+			fnum, wt, pos, valid = readTagMultiAt(packet, pos)
+			if !valid {
 				return nil, 0, false
 			}
-			fnum = uint16(tag >> 4)
-			wt = uint8(tag & 0x0F)
-			pos += tn
 		}
 
 		if fnum == targetField {
@@ -264,7 +304,6 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 			ok = true
 		}
 
-		// Branchless O(1) per-field skip over field value
 		switch wt {
 		case WireUint, WireSint:
 			if pos >= n {
@@ -284,7 +323,6 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 				return nil, 0, false
 			}
 		case WireBoolFalse, WireBoolTrue:
-			// 0 payload bytes
 		case WireString, WireBytes, WireSubMsg, WireStringArr, WireUintArr, WireSubMsgArr, WireMap, WireSintArr, WireFixedArr, WireExtended:
 			if pos >= n {
 				return nil, 0, false
@@ -298,11 +336,11 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 				}
 				pos += 2 + int(binary.LittleEndian.Uint16(packet[pos:pos+2])>>2)
 			} else {
-				bLen, bn := decodeVarintMulti(packet[pos:])
-				if bn == 0 || bLen > uint64(n-(pos+bn)) {
+				var valid bool
+				pos, valid = skipLargeContainer(packet, pos)
+				if !valid {
 					return nil, 0, false
 				}
-				pos += bn + int(bLen)
 			}
 			if pos > n {
 				return nil, 0, false
@@ -331,45 +369,23 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8, minLen uint64) (body []byte, nextPos int, matched bool, valid bool) {
 	n := len(packet)
 	for pos < n {
-		var fnum uint16
-		var wt uint8
-		b0 := packet[pos]
-		if (b0 & 1) != 0 {
-			fnum = uint16(b0 >> 5)
-			wt = (b0 >> 1) & 0x0F
-			pos++
-		} else if (b0 & 2) != 0 {
-			if pos+2 > n {
-				return nil, 0, false, false
-			}
-			u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
-			fnum = u >> 4
-			wt = uint8(u & 0x0F)
-			pos += 2
-		} else {
-			tag, tn := decodeVarintMulti(packet[pos:])
-			if tn == 0 || tag>>4 > math.MaxUint16 {
-				return nil, 0, false, false
-			}
-			fnum = uint16(tag >> 4)
-			wt = uint8(tag & 0x0F)
-			pos += tn
+		fnum, wt, valPos, validTag := readTagAt(packet, pos)
+		if !validTag {
+			return nil, 0, false, false
 		}
-
 		if fnum == targetField {
 			if wt != expWT {
 				return nil, 0, false, false
 			}
-			bLen, bn := DecodeVarint(packet[pos:])
-			if bn == 0 || bLen < minLen || bLen > uint64(n-(pos+bn)) {
+			bLen, bn := DecodeVarint(packet[valPos:])
+			if bn == 0 || bLen < minLen || bLen > uint64(n-(valPos+bn)) {
 				return nil, 0, false, false
 			}
-			pos += bn
-			return packet[pos : pos+int(bLen)], pos + int(bLen), true, true
+			valPos += bn
+			return packet[valPos : valPos+int(bLen)], valPos + int(bLen), true, true
 		}
-
 		var err error
-		pos, err = SkipValue(packet, pos, wt)
+		pos, err = SkipValue(packet, valPos, wt)
 		if err != nil {
 			return nil, 0, false, false
 		}
@@ -434,15 +450,14 @@ func (e *Encoder) writeTag(fieldNum uint16, wireType uint8) {
 		e.buf = append(e.buf, byte(tag<<1)|1)
 		return
 	}
-	e.appendTagMulti(tag)
+	e.buf = appendTagMulti(e.buf, tag)
 }
 
 //go:noinline
-func (e *Encoder) appendTagMulti(tag uint32) {
+func appendTagMulti(b []byte, tag uint32) []byte {
 	if tag <= 16383 {
 		u := uint16(tag<<2) | 2
-		e.buf = append(e.buf, byte(u), byte(u>>8))
-		return
+		return append(b, byte(u), byte(u>>8))
 	}
-	e.buf = AppendVarint(e.buf, uint64(tag))
+	return AppendVarint(b, uint64(tag))
 }

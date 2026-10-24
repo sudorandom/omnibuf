@@ -1679,33 +1679,7 @@ func exerciseAllReadersNoPanic(raw []byte) {
 	var peerPluginZC pb.PeerUpdate
 	_ = peerPluginZC.UnmarshalOmniBuf(raw, true)
 
-	// 3. Hand-rolled OpaquePeerUpdate and Plugin-generated pb.OpaquePeerUpdate lazy getters
-	var op OpaquePeerUpdate
-	if err := op.Unmarshal(raw); err == nil {
-		_ = op.GetASN()
-		_ = op.GetRouterID()
-		_ = op.GetActive()
-		_ = op.GetUptimeSec()
-		_ = op.GetRssiDbm()
-		_ = op.GetCPULoad()
-		loc := op.GetLocation()
-		_ = loc.GetRegion()
-		_ = loc.GetDatacenter()
-		_ = loc.GetCity()
-		_ = loc.GetRack()
-		_ = loc.GetLatitude()
-		_ = loc.GetLongitude()
-		nLen := op.NeighborsLen()
-		for i := 0; i < nLen && i < 4; i++ {
-			nb := op.GetNeighbors(i)
-			_ = nb.GetPeerASN()
-			_ = nb.GetRouter()
-			_ = nb.GetLatencyUS()
-			_ = nb.GetEstablished()
-		}
-		_ = op.GetSequence()
-	}
-
+	// 3. Plugin-generated pb.OpaquePeerUpdate lazy getters
 	var pbOp pb.OpaquePeerUpdate
 	if err := pbOp.Unmarshal(raw); err == nil {
 		_ = pbOp.GetAsn()
