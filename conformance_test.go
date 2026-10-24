@@ -590,14 +590,14 @@ func TestProtobufStyleConformanceCorpus(t *testing.T) {
 	{
 		// Sparse packet with Field #0 inline schema (SchemaMeta) for only 3 present fields: #2, #5, #14
 		enc := NewEncoder(128)
-		enc.WriteField0SchemaMeta(&SchemaMeta{
+		enc.WriteRaw(AppendField0SchemaMetaDeterministic(nil, &SchemaMeta{
 			TypeName: "SparseTelemetry",
 			Fields: map[uint32]string{
 				2:  "uptime_sec",
 				5:  "active",
 				14: "cpu_load",
 			},
-		})
+		}, true))
 		enc.WriteUint(2, 99887766)
 		enc.WriteBool(5, true)
 		enc.WriteFloat64(14, 0.875)
@@ -1196,13 +1196,13 @@ func buildConcatAndOutOfOrderVectors(t *testing.T) []ConformanceVector {
 
 	// K2: Concatenating two self-describing (Field #0) messages and decoding via DecodeBlind
 	encA := NewEncoder(128)
-	encA.WriteField0Fields(map[uint32]string{1: "asn", 2: "router_id"})
+	encA.WriteRaw(AppendField0SchemaMetaDeterministic(nil, &SchemaMeta{Fields: map[uint32]string{1: "asn", 2: "router_id"}}, true))
 	encA.WriteUint(1, 64500)
 	encA.WriteString(2, "old-rtr")
 	sdA := append([]byte(nil), encA.Finish()...)
 
 	encB.Reset()
-	encB.WriteField0Fields(map[uint32]string{2: "router_id", 11: "sequence"})
+	encB.WriteRaw(AppendField0SchemaMetaDeterministic(nil, &SchemaMeta{Fields: map[uint32]string{2: "router_id", 11: "sequence"}}, true))
 	encB.WriteString(2, "new-rtr")
 	encB.WriteUint(11, 42)
 	sdB := append([]byte(nil), encB.Finish()...)

@@ -87,18 +87,18 @@ const dots = angles.map((a, i) => {
       </text>
     </>
   ))}
+  <polygon points={omniPts} fill="rgba(212, 255, 51, 0.25)" stroke="#D4FF33" stroke-width="2.5" />
   <polygon
     points={oppPts}
-    fill="rgba(255, 79, 24, 0.28)"
+    fill="rgba(255, 79, 24, 0.42)"
     stroke="#FF4F18"
-    stroke-width="2"
+    stroke-width="2.2"
     stroke-dasharray="4 2"
   />
-  <polygon points={omniPts} fill="rgba(212, 255, 51, 0.28)" stroke="#D4FF33" stroke-width="2.5" />
   {dots.map((d) => (
     <>
       <circle cx={d.omniX} cy={d.omniY} r="3.5" fill="#D4FF33" stroke="#111" stroke-width="1.5" />
-      <circle cx={d.oppX} cy={d.oppY} r="3" fill="#FF4F18" stroke="#111" stroke-width="1" />
+      <circle cx={d.oppX} cy={d.oppY} r="3.2" fill="#FF4F18" stroke="#111" stroke-width="1.2" />
     </>
   ))}
 </svg>

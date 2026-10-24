@@ -41,21 +41,19 @@ const encodeCategory = benchmarkCategories[1];
   <div class="grid sm:grid-cols-3 gap-6 mb-8 font-mono">
     <div class="os-window p-6 bg-ink text-paper">
       <div class="text-sm uppercase text-acid font-bold">1-Pass Forward Encode</div>
-      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-white">110 ns/op</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-white">94 ns/op</div>
       <div class="text-sm text-paper/85 mt-1.5">
-        Over 6x faster than Protobuf &amp; FlatBuffers (0 allocs)
+        Nearly 6x faster than Protobuf &amp; FlatBuffers (0 allocs)
       </div>
     </div>
     <div class="os-window p-6 bg-[#FAF8F2]">
       <div class="text-sm uppercase text-[#FF4F18] font-bold">Full Zero-Copy Decode</div>
-      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">159 ns/op</div>
-      <div class="text-sm text-ink/80 mt-1.5">
-        Over 8x faster than Protobuf, faster than FlatBuffers
-      </div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">124 ns/op</div>
+      <div class="text-sm text-ink/80 mt-1.5">8x faster than Protobuf, faster than FlatBuffers</div>
     </div>
     <div class="os-window p-6 bg-[#FAF8F2]">
       <div class="text-sm uppercase text-ink/75 font-bold">Compact Wire Size</div>
-      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">360 Bytes</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">362 Bytes</div>
       <div class="text-sm text-ink/80 mt-1.5">
         40% smaller than FlatBuffers (600 B), near Protobuf (341 B)
       </div>
@@ -131,8 +129,8 @@ const encodeCategory = benchmarkCategories[1];
           <tr class="bg-acid/30 font-bold">
             <td class="p-3.5 sm:p-4">OmniBuf</td>
             <td class="p-3.5 sm:p-4 text-ink">Yes</td>
-            <td class="p-3.5 sm:p-4">360 B</td>
-            <td class="p-3.5 sm:p-4">Yes (110 ns)</td>
+            <td class="p-3.5 sm:p-4">362 B</td>
+            <td class="p-3.5 sm:p-4">Yes (94 ns)</td>
             <td class="p-3.5 sm:p-4">Yes (+ opt Field #0)</td>
             <td class="p-3.5 sm:p-4">Yes</td>
           </tr>

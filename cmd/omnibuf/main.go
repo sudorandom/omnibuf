@@ -195,7 +195,7 @@ func runEncode(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	fs.StringVar(&outputPath, "o", "", "Short alias for --output")
 	fs.BoolVar(&field0, "field0", false, "Include Field #0 inline field names for self-describing mode")
 	fs.BoolVar(&field0, "self-describing", false, "Alias for --field0")
-	fs.BoolVar(&deterministic, "deterministic", true, "Sort WireMap keys deterministically for reproducible wire output")
+	fs.BoolVar(&deterministic, "deterministic", false, "Sort WireMap keys deterministically for reproducible wire output")
 	fs.BoolVar(&isHex, "hex", false, "Write hex-encoded OmniBuf wire bytes")
 
 	if err := fs.Parse(args); err != nil {

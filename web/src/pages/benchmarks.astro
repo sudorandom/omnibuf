@@ -74,38 +74,38 @@ import Footer from '../components/Footer.astro';
           <tbody class="divide-y divide-ink/15">
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Marshal</td>
-              <td class="p-3.5 sm:p-4">738.9 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4">129.6 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4">191.7 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">96.3 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">556.5 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">127.8 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">201.0 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">99.0 ns (0 allocs)</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Safe)</td>
-              <td class="p-3.5 sm:p-4">1,304.0 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">557.2 ns (24 allocs)</td>
-              <td class="p-3.5 sm:p-4">649.0 ns (18 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">497.6 ns (17 allocs)</td>
+              <td class="p-3.5 sm:p-4">989.5 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">566.7 ns (24 allocs)</td>
+              <td class="p-3.5 sm:p-4">724.9 ns (19 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">494.6 ns (17 allocs)</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Zero-Copy)</td>
-              <td class="p-3.5 sm:p-4">1,304.0 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">201.0 ns (0 allocs, Pool)</td>
-              <td class="p-3.5 sm:p-4">288.3 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">989.5 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">201.7 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">305.6 ns (0 allocs)</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">197.6 ns (0 allocs)</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Read 2 Nested Fields</td>
-              <td class="p-3.5 sm:p-4">970.1 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">202.3 ns (0 allocs, Pool)</td>
-              <td class="p-3.5 sm:p-4">288.3 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">144.0 ns (0 allocs, Opaque)</td>
+              <td class="p-3.5 sm:p-4">979.5 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">204.2 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">305.6 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">120.4 ns (0 allocs, Opaque)</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Read-Modify-Write</td>
-              <td class="p-3.5 sm:p-4">1,590.0 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">331.3 ns (0 allocs, Pool)</td>
-              <td class="p-3.5 sm:p-4">480.0 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">177.8 ns (0 allocs, Splice)</td>
+              <td class="p-3.5 sm:p-4">1,579.0 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">331.2 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">506.6 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">140.4 ns (0 allocs, Splice)</td>
             </tr>
           </tbody>
         </table>
@@ -119,8 +119,8 @@ import Footer from '../components/Footer.astro';
         <code>SizeVT()</code> passes, and backwards buffer indexing. By contrast,{' '}
         <code>protoc-gen-omnibuf</code> emits just <strong>781 lines</strong> (including all three{' '}
         <code>Opaque*</code> lazy readers) that call standard <code>AppendVarint</code> /{' '}
-        <code>DecodeVarint</code> helpers, yet runs <strong>1.35x faster</strong> on Marshal and{' '}
-        <strong>1.86x faster</strong> on Read-Modify-Write because the wire format avoids 2-pass
+        <code>DecodeVarint</code> helpers, yet runs <strong>1.29x faster</strong> on Marshal and{' '}
+        <strong>2.36x faster</strong> on Read-Modify-Write because the wire format avoids 2-pass
         sizing and multi-branch varint loops.
       </div>
     </div>

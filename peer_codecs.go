@@ -145,11 +145,13 @@ func SamplePeerUpdate() PeerUpdate {
 // 1. OmniBuf Encoder & Decoder
 // ============================================================================
 
+var peerSchemaMetaWire = AppendField0SchemaMetaDeterministic(nil, peerSchemaMeta, true)
+
 // EncodePeerOmniBuf encodes PeerUpdate into enc in shared-schema mode (or self-describing mode if withField0 is true).
 func EncodePeerOmniBuf(enc *Encoder, p *PeerUpdate, withField0 bool) []byte {
 	enc.Reset()
 	if withField0 {
-		enc.WriteField0SchemaMeta(peerSchemaMeta)
+		enc.WriteRaw(peerSchemaMetaWire)
 	}
 	enc.WriteUint(FieldPeerASN, uint64(p.ASN))
 	enc.WriteString(FieldPeerRouterID, p.RouterID)

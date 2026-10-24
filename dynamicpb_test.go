@@ -55,7 +55,7 @@ func TestDynamicPB_CanonicalPeerUpdateEquivalence(t *testing.T) {
 	}
 
 	// 3. Marshal dynamicpb.Message with Field #0 inline schema (self-describing mode)
-	dynSelfBytes, err := MarshalProtoReflect(dynIn, true)
+	dynSelfBytes, err := MarshalOptions{SelfDescribing: true, Deterministic: true}.Marshal(dynIn)
 	if err != nil {
 		t.Fatalf("MarshalProtoReflect(includeField0=true) failed: %v", err)
 	}

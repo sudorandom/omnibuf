@@ -3,7 +3,6 @@ package omnibuf
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -383,15 +382,13 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 		fc := &fields[i]
 		fPtr := unsafe.Add(base, fc.offset)
 
-		// Skip nil sub-message pointers
 		if fc.kind == kindStructPtr && *(*unsafe.Pointer)(fPtr) == nil {
 			continue
 		}
 
 		if fc.kind == kindBool {
-			bVal := *(*bool)(fPtr)
 			wt := WireBoolFalse
-			if bVal {
+			if *(*bool)(fPtr) {
 				wt = WireBoolTrue
 			}
 			rawTag := (fc.fieldNum << 4) | uint16(wt)
@@ -437,88 +434,34 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 			dst = AppendVarint(dst, uint64(len(b)))
 			dst = append(dst, b...)
 		case kindStringSlice:
-			items := *(*[]string)(fPtr)
-			lenPos := len(dst)
-			dst = append(dst, 0, 0)
-			dst = AppendVarint(dst, uint64(len(items)))
-			for j := range items {
-				s := items[j]
-				dst = AppendVarint(dst, uint64(len(s)))
-				dst = append(dst, s...)
-			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = encodeStringArr(dst, *(*[]string)(fPtr))
 		case kindUint32Slice:
-			items := *(*[]uint32)(fPtr)
-			lenPos := len(dst)
-			dst = append(dst, 0, 0)
-			dst = AppendVarint(dst, uint64(len(items)))
-			for j := range items {
-				dst = AppendVarint(dst, uint64(items[j]))
-			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = encodeUint32Arr(dst, *(*[]uint32)(fPtr))
 		case kindUint64Slice:
-			items := *(*[]uint64)(fPtr)
-			lenPos := len(dst)
-			dst = append(dst, 0, 0)
-			dst = AppendVarint(dst, uint64(len(items)))
-			for j := range items {
-				dst = AppendVarint(dst, items[j])
-			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = encodeUint64Arr(dst, *(*[]uint64)(fPtr))
 		case kindInt32Slice:
-			items := *(*[]int32)(fPtr)
-			lenPos := len(dst)
-			dst = append(dst, 0, 0)
-			dst = AppendVarint(dst, uint64(len(items)))
-			for j := range items {
-				dst = AppendVarint(dst, EncodeZigZag(int64(items[j])))
-			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = encodeSint32Arr(dst, *(*[]int32)(fPtr))
 		case kindInt64Slice:
-			items := *(*[]int64)(fPtr)
-			lenPos := len(dst)
-			dst = append(dst, 0, 0)
-			dst = AppendVarint(dst, uint64(len(items)))
-			for j := range items {
-				dst = AppendVarint(dst, EncodeZigZag(items[j]))
-			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = encodeSint64Arr(dst, *(*[]int64)(fPtr))
 		case kindFloat32Slice:
-			items := *(*[]uint32)(fPtr)
-			dst = AppendVarint(dst, uint64(1+len(items)*4))
-			dst = append(dst, WireFixed32)
-			for j := range items {
-				v := items[j]
-				dst = append(dst, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
-			}
+			dst = encodeFixed32Arr(dst, *(*[]uint32)(fPtr))
 		case kindFloat64Slice:
-			items := *(*[]uint64)(fPtr)
-			dst = AppendVarint(dst, uint64(1+len(items)*8))
-			dst = append(dst, WireFixed64)
-			for j := range items {
-				v := items[j]
-				dst = append(dst,
-					byte(v), byte(v>>8), byte(v>>16), byte(v>>24),
-					byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56),
-				)
-			}
+			dst = encodeFixed64Arr(dst, *(*[]uint64)(fPtr))
 		case kindStructVal:
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
 			dst = fc.subCodec.encodeStruct(dst, fPtr, deterministic)
 			dst = BackpatchContainerLen(dst, lenPos)
 		case kindStructPtr:
-			subPtr := *(*unsafe.Pointer)(fPtr)
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
-			dst = fc.subCodec.encodeStruct(dst, subPtr, deterministic)
+			dst = fc.subCodec.encodeStruct(dst, *(*unsafe.Pointer)(fPtr), deterministic)
 			dst = BackpatchContainerLen(dst, lenPos)
 		case kindStructValSlice:
 			sh := (*unsafeSliceHeader)(fPtr)
-			nElems := sh.Len
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
-			for j := range nElems {
+			for j := range sh.Len {
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
 				elemPtr := unsafe.Add(sh.Data, uintptr(j)*fc.elemSize)
@@ -528,10 +471,9 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 			dst = BackpatchContainerLen(dst, lenPos)
 		case kindStructPtrSlice:
 			ptrs := *(*[]unsafe.Pointer)(fPtr)
-			nElems := len(ptrs)
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
-			for j := range nElems {
+			for j := range ptrs {
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
 				if ptrs[j] != nil {
@@ -541,29 +483,7 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 			}
 			dst = BackpatchContainerLen(dst, lenPos)
 		case kindMapStringUint:
-			m := *(*map[string]uint64)(fPtr)
-			lenPos := len(dst)
-			dst = append(dst, 0, 0, MapHeaderByte(WireString, WireUint))
-			dst = AppendVarint(dst, uint64(len(m)))
-			if deterministic && len(m) > 1 {
-				keys := make([]string, 0, len(m))
-				for k := range m {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
-				for _, k := range keys {
-					dst = AppendVarint(dst, uint64(len(k)))
-					dst = append(dst, k...)
-					dst = AppendVarint(dst, m[k])
-				}
-			} else {
-				for k, v := range m {
-					dst = AppendVarint(dst, uint64(len(k)))
-					dst = append(dst, k...)
-					dst = AppendVarint(dst, v)
-				}
-			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = encodeMapStringUint(dst, *(*map[string]uint64)(fPtr), deterministic)
 		}
 	}
 	return dst
@@ -601,6 +521,14 @@ func unmarshalTable(packet []byte, v any, zeroCopy bool) error {
 	}
 	ptr := (*emptyInterface)(unsafe.Pointer(&v)).ptr
 	return sc.decodeStruct(packet, ptr, zeroCopy, 0)
+}
+
+func sliceForDecode[T any](p *[]T, alreadySeen bool) []T {
+	sl := *p
+	if !alreadySeen && sl != nil {
+		return sl[:0]
+	}
+	return sl
 }
 
 func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy bool, depth int) error {
@@ -652,7 +580,6 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 		} else if sc.overflow != nil {
 			fc = sc.overflow[fieldNum]
 		}
-		// Unknown field (e.g. schema evolution V2 -> V1) or wire-type mismatch: skip safely
 		if fc == nil || (fc.kind != kindBool && fc.wireType != wt) || (fc.kind == kindBool && wt != WireBoolFalse && wt != WireBoolTrue) {
 			nextPos, err := SkipValue(data, pos, wt)
 			if err != nil {
@@ -712,316 +639,137 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			*(*uint64)(fPtr) = binary.LittleEndian.Uint64(data[pos:])
 			pos += 8
 		case kindString:
-			sLen, sn := DecodeVarint(data[pos:])
-			if sn == 0 || sLen > uint64(n-(pos+sn)) {
-				return fmt.Errorf("omnibuf: invalid string length at %d", pos)
+			s, nextPos, err := readLenSlice(data, pos, 0)
+			if err != nil {
+				return err
 			}
-			pos += sn
-			*(*string)(fPtr) = decodeStr(data[pos:pos+int(sLen)], zeroCopy)
-			pos += int(sLen)
+			*(*string)(fPtr) = DecodeStr(s, zeroCopy)
+			pos = nextPos
 		case kindBytes:
-			bLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || bLen > uint64(n-(pos+bn)) {
-				return fmt.Errorf("omnibuf: invalid bytes length at %d", pos)
+			b, nextPos, err := readLenSlice(data, pos, 0)
+			if err != nil {
+				return err
 			}
-			pos += bn
 			if zeroCopy {
-				*(*[]byte)(fPtr) = data[pos : pos+int(bLen)]
+				*(*[]byte)(fPtr) = b
 			} else {
-				cp := make([]byte, int(bLen))
-				copy(cp, data[pos:pos+int(bLen)])
+				cp := make([]byte, len(b))
+				copy(cp, b)
 				*(*[]byte)(fPtr) = cp
 			}
-			pos += int(bLen)
+			pos = nextPos
 		case kindStringSlice:
-			byteLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || byteLen == 0 || byteLen > uint64(n-(pos+bn)) {
-				return fmt.Errorf("omnibuf: invalid string array byteLen at %d", pos)
-			}
-			pos += bn
-			end := pos + int(byteLen)
-			count, cn := DecodeVarint(data[pos:end])
-			if cn == 0 || count > uint64(end-(pos+cn)) {
-				return fmt.Errorf("omnibuf: invalid string array count at %d", pos)
-			}
-			p := pos + cn
-			c := int(count)
-			sl := *(*[]string)(fPtr)
-			start := 0
-			if alreadySeen {
-				start = len(sl)
-			}
-			total := start + c
-			if cap(sl) < total {
-				next := make([]string, total)
-				copy(next, sl[:start])
-				sl = next
-			} else {
-				sl = sl[:total]
-			}
-			for j := range c {
-				sLen, sn := DecodeVarint(data[p:end])
-				if sn == 0 || sLen > uint64(end-(p+sn)) {
-					return fmt.Errorf("omnibuf: invalid string array elem length at %d", p)
-				}
-				p += sn
-				sl[start+j] = decodeStr(data[p:p+int(sLen)], zeroCopy)
-				p += int(sLen)
-			}
-			if p != end {
-				return fmt.Errorf("omnibuf: string array byteLen mismatch at %d", pos)
-			}
-			*(*[]string)(fPtr) = sl
-			pos = end
-		case kindUint32Slice:
-			byteLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || byteLen == 0 || byteLen > uint64(n-(pos+bn)) {
-				return fmt.Errorf("omnibuf: invalid uint32 array byteLen at %d", pos)
-			}
-			pos += bn
-			end := pos + int(byteLen)
-			count, cn := DecodeVarint(data[pos:end])
-			if cn == 0 || count > uint64(end-(pos+cn)) {
-				return fmt.Errorf("omnibuf: invalid uint32 array count at %d", pos)
-			}
-			p := pos + cn
-			c := int(count)
-			sl := *(*[]uint32)(fPtr)
-			start := 0
-			if alreadySeen {
-				start = len(sl)
-			}
-			total := start + c
-			if cap(sl) < total {
-				next := make([]uint32, total)
-				copy(next, sl[:start])
-				sl = next
-			} else {
-				sl = sl[:total]
-			}
-			for j := range c {
-				v, vn := DecodeVarint(data[p:end])
-				if vn == 0 {
-					return fmt.Errorf("omnibuf: truncated uint32 array elem at %d", p)
-				}
-				p += vn
-				sl[start+j] = uint32(v)
-			}
-			if p != end {
-				return fmt.Errorf("omnibuf: uint32 array byteLen mismatch at %d", pos)
-			}
-			*(*[]uint32)(fPtr) = sl
-			pos = end
-		case kindUint64Slice:
-			byteLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || byteLen == 0 || byteLen > uint64(n-(pos+bn)) {
-				return fmt.Errorf("omnibuf: invalid uint64 array byteLen at %d", pos)
-			}
-			pos += bn
-			end := pos + int(byteLen)
-			count, cn := DecodeVarint(data[pos:end])
-			if cn == 0 || count > uint64(end-(pos+cn)) {
-				return fmt.Errorf("omnibuf: invalid uint64 array count at %d", pos)
-			}
-			p := pos + cn
-			c := int(count)
-			sl := *(*[]uint64)(fPtr)
-			start := 0
-			if alreadySeen {
-				start = len(sl)
-			}
-			total := start + c
-			if cap(sl) < total {
-				next := make([]uint64, total)
-				copy(next, sl[:start])
-				sl = next
-			} else {
-				sl = sl[:total]
-			}
-			for j := range c {
-				v, vn := DecodeVarint(data[p:end])
-				if vn == 0 {
-					return fmt.Errorf("omnibuf: truncated uint64 array elem at %d", p)
-				}
-				p += vn
-				sl[start+j] = v
-			}
-			if p != end {
-				return fmt.Errorf("omnibuf: uint64 array byteLen mismatch at %d", pos)
-			}
-			*(*[]uint64)(fPtr) = sl
-			pos = end
-		case kindInt32Slice:
-			byteLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || byteLen == 0 || byteLen > uint64(n-(pos+bn)) {
-				return fmt.Errorf("omnibuf: invalid int32 array byteLen at %d", pos)
-			}
-			pos += bn
-			end := pos + int(byteLen)
-			count, cn := DecodeVarint(data[pos:end])
-			if cn == 0 || count > uint64(end-(pos+cn)) {
-				return fmt.Errorf("omnibuf: invalid int32 array count at %d", pos)
-			}
-			p := pos + cn
-			c := int(count)
-			sl := *(*[]int32)(fPtr)
-			start := 0
-			if alreadySeen {
-				start = len(sl)
-			}
-			total := start + c
-			if cap(sl) < total {
-				next := make([]int32, total)
-				copy(next, sl[:start])
-				sl = next
-			} else {
-				sl = sl[:total]
-			}
-			for j := range c {
-				v, vn := DecodeVarint(data[p:end])
-				if vn == 0 {
-					return fmt.Errorf("omnibuf: truncated int32 array elem at %d", p)
-				}
-				p += vn
-				sl[start+j] = int32(DecodeZigZag(v))
-			}
-			if p != end {
-				return fmt.Errorf("omnibuf: int32 array byteLen mismatch at %d", pos)
-			}
-			*(*[]int32)(fPtr) = sl
-			pos = end
-		case kindInt64Slice:
-			byteLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || byteLen == 0 || byteLen > uint64(n-(pos+bn)) {
-				return fmt.Errorf("omnibuf: invalid int64 array byteLen at %d", pos)
-			}
-			pos += bn
-			end := pos + int(byteLen)
-			count, cn := DecodeVarint(data[pos:end])
-			if cn == 0 || count > uint64(end-(pos+cn)) {
-				return fmt.Errorf("omnibuf: invalid int64 array count at %d", pos)
-			}
-			p := pos + cn
-			c := int(count)
-			sl := *(*[]int64)(fPtr)
-			start := 0
-			if alreadySeen {
-				start = len(sl)
-			}
-			total := start + c
-			if cap(sl) < total {
-				next := make([]int64, total)
-				copy(next, sl[:start])
-				sl = next
-			} else {
-				sl = sl[:total]
-			}
-			for j := range c {
-				v, vn := DecodeVarint(data[p:end])
-				if vn == 0 {
-					return fmt.Errorf("omnibuf: truncated int64 array elem at %d", p)
-				}
-				p += vn
-				sl[start+j] = DecodeZigZag(v)
-			}
-			if p != end {
-				return fmt.Errorf("omnibuf: int64 array byteLen mismatch at %d", pos)
-			}
-			*(*[]int64)(fPtr) = sl
-			pos = end
-		case kindFloat32Slice:
-			byteLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || byteLen < 1 || byteLen > uint64(n-(pos+bn)) || (byteLen-1)%4 != 0 {
-				return fmt.Errorf("omnibuf: invalid fixed32 array byteLen at %d", pos)
-			}
-			pos += bn
-			if data[pos] != WireFixed32 {
-				return fmt.Errorf("omnibuf: unexpected WireFixedArr elemType %d for fixed32 slice at %d", data[pos], pos)
-			}
-			end := pos + int(byteLen)
-			pStart := pos + 1
-			c := int(byteLen-1) / 4
-			sl := *(*[]uint32)(fPtr)
-			start := 0
-			if alreadySeen {
-				start = len(sl)
-			}
-			total := start + c
-			if cap(sl) < total {
-				next := make([]uint32, total)
-				copy(next, sl[:start])
-				sl = next
-			} else {
-				sl = sl[:total]
-			}
-			for j := range c {
-				sl[start+j] = binary.LittleEndian.Uint32(data[pStart+j*4 : pStart+(j+1)*4])
-			}
-			*(*[]uint32)(fPtr) = sl
-			pos = end
-		case kindFloat64Slice:
-			byteLen, bn := DecodeVarint(data[pos:])
-			if bn == 0 || byteLen < 1 || byteLen > uint64(n-(pos+bn)) || (byteLen-1)%8 != 0 {
-				return fmt.Errorf("omnibuf: invalid fixed64 array byteLen at %d", pos)
-			}
-			pos += bn
-			if data[pos] != WireFixed64 {
-				return fmt.Errorf("omnibuf: unexpected WireFixedArr elemType %d for fixed64 slice at %d", data[pos], pos)
-			}
-			end := pos + int(byteLen)
-			pStart := pos + 1
-			c := int(byteLen-1) / 8
-			sl := *(*[]uint64)(fPtr)
-			start := 0
-			if alreadySeen {
-				start = len(sl)
-			}
-			total := start + c
-			if cap(sl) < total {
-				next := make([]uint64, total)
-				copy(next, sl[:start])
-				sl = next
-			} else {
-				sl = sl[:total]
-			}
-			for j := range c {
-				sl[start+j] = binary.LittleEndian.Uint64(data[pStart+j*8 : pStart+(j+1)*8])
-			}
-			*(*[]uint64)(fPtr) = sl
-			pos = end
-		case kindStructVal:
-			subLen, sn := DecodeVarint(data[pos:])
-			if sn == 0 || subLen > uint64(n-(pos+sn)) {
-				return fmt.Errorf("omnibuf: invalid submsg length at %d", pos)
-			}
-			pos += sn
-			if err := fc.subCodec.decodeStruct(data[pos:pos+int(subLen)], fPtr, zeroCopy, depth+1); err != nil {
+			body, nextPos, err := readLenSlice(data, pos, 1)
+			if err != nil {
 				return err
 			}
-			pos += int(subLen)
-		case kindStructPtr:
-			subLen, sn := DecodeVarint(data[pos:])
-			if sn == 0 || subLen > uint64(n-(pos+sn)) {
-				return fmt.Errorf("omnibuf: invalid submsg length at %d", pos)
+			p := (*[]string)(fPtr)
+			sl, ok := appendStringArrBody(sliceForDecode(p, alreadySeen), body, zeroCopy)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid string array at %d", pos)
 			}
-			pos += sn
+			*p = sl
+			pos = nextPos
+		case kindUint32Slice:
+			body, nextPos, err := readLenSlice(data, pos, 1)
+			if err != nil {
+				return err
+			}
+			p := (*[]uint32)(fPtr)
+			sl, ok := appendUint32ArrBody(sliceForDecode(p, alreadySeen), body)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid uint32 array at %d", pos)
+			}
+			*p = sl
+			pos = nextPos
+		case kindUint64Slice:
+			body, nextPos, err := readLenSlice(data, pos, 1)
+			if err != nil {
+				return err
+			}
+			p := (*[]uint64)(fPtr)
+			sl, ok := appendUint64ArrBody(sliceForDecode(p, alreadySeen), body)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid uint64 array at %d", pos)
+			}
+			*p = sl
+			pos = nextPos
+		case kindInt32Slice:
+			body, nextPos, err := readLenSlice(data, pos, 1)
+			if err != nil {
+				return err
+			}
+			p := (*[]int32)(fPtr)
+			sl, ok := appendSint32ArrBody(sliceForDecode(p, alreadySeen), body)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid int32 array at %d", pos)
+			}
+			*p = sl
+			pos = nextPos
+		case kindInt64Slice:
+			body, nextPos, err := readLenSlice(data, pos, 1)
+			if err != nil {
+				return err
+			}
+			p := (*[]int64)(fPtr)
+			sl, ok := appendSint64ArrBody(sliceForDecode(p, alreadySeen), body)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid int64 array at %d", pos)
+			}
+			*p = sl
+			pos = nextPos
+		case kindFloat32Slice:
+			body, nextPos, err := readLenSlice(data, pos, 1)
+			if err != nil {
+				return err
+			}
+			p := (*[]uint32)(fPtr)
+			sl, ok := appendFixed32ArrBody(sliceForDecode(p, alreadySeen), body)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid fixed32 array at %d", pos)
+			}
+			*p = sl
+			pos = nextPos
+		case kindFloat64Slice:
+			body, nextPos, err := readLenSlice(data, pos, 1)
+			if err != nil {
+				return err
+			}
+			p := (*[]uint64)(fPtr)
+			sl, ok := appendFixed64ArrBody(sliceForDecode(p, alreadySeen), body)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid fixed64 array at %d", pos)
+			}
+			*p = sl
+			pos = nextPos
+		case kindStructVal:
+			subBytes, nextPos, err := readLenSlice(data, pos, 0)
+			if err != nil {
+				return err
+			}
+			if err := fc.subCodec.decodeStruct(subBytes, fPtr, zeroCopy, depth+1); err != nil {
+				return err
+			}
+			pos = nextPos
+		case kindStructPtr:
+			subBytes, nextPos, err := readLenSlice(data, pos, 0)
+			if err != nil {
+				return err
+			}
 			subPtr := *(*unsafe.Pointer)(fPtr)
 			if subPtr == nil {
-				newVal := reflect.New(fc.elemType)
-				subPtr = newVal.UnsafePointer()
+				subPtr = reflect.New(fc.elemType).UnsafePointer()
 				*(*unsafe.Pointer)(fPtr) = subPtr
 			}
-			if err := fc.subCodec.decodeStruct(data[pos:pos+int(subLen)], subPtr, zeroCopy, depth+1); err != nil {
+			if err := fc.subCodec.decodeStruct(subBytes, subPtr, zeroCopy, depth+1); err != nil {
 				return err
 			}
-			pos += int(subLen)
+			pos = nextPos
 		case kindStructValSlice:
-			arrLen, an := DecodeVarint(data[pos:])
-			if an == 0 || arrLen > uint64(n-(pos+an)) {
-				return fmt.Errorf("omnibuf: invalid submsg array length at %d", pos)
+			arrPayload, nextPos, err := readLenSlice(data, pos, 0)
+			if err != nil {
+				return err
 			}
-			pos += an
-			arrPayload := data[pos : pos+int(arrLen)]
 			elemCount, ok := CountSubMsgArrElems(arrPayload)
 			if !ok {
 				return fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
@@ -1054,14 +802,12 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				}
 				p += int(el)
 			}
-			pos += int(arrLen)
+			pos = nextPos
 		case kindStructPtrSlice:
-			arrLen, an := DecodeVarint(data[pos:])
-			if an == 0 || arrLen > uint64(n-(pos+an)) {
-				return fmt.Errorf("omnibuf: invalid submsg array length at %d", pos)
+			arrPayload, nextPos, err := readLenSlice(data, pos, 0)
+			if err != nil {
+				return err
 			}
-			pos += an
-			arrPayload := data[pos : pos+int(arrLen)]
 			elemCount, ok := CountSubMsgArrElems(arrPayload)
 			if !ok {
 				return fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
@@ -1098,53 +844,23 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				}
 				p += int(el)
 			}
-			pos += int(arrLen)
+			pos = nextPos
 		case kindMapStringUint:
-			mapLen, mn := DecodeVarint(data[pos:])
-			if mn == 0 || mapLen < 2 || mapLen > uint64(n-(pos+mn)) {
-				return fmt.Errorf("omnibuf: invalid WireMap length at %d", pos)
+			body, nextPos, err := readLenSlice(data, pos, 2)
+			if err != nil {
+				return err
 			}
-			pos += mn
-			body := data[pos : pos+int(mapLen)]
-			if body[0] != MapHeaderByte(WireString, WireUint) {
-				return fmt.Errorf("omnibuf: unexpected WireMap header 0x%02x", body[0])
-			}
-			mCount64, cn := DecodeVarint(body[1:])
-			if cn == 0 || mCount64*2 > uint64(len(body)-(1+cn)) {
-				return fmt.Errorf("omnibuf: WireMap count %d invalid for body (%d B)", mCount64, len(body))
-			}
-			mCount := int(mCount64)
-			var m map[string]uint64
+			var prev map[string]uint64
 			if alreadySeen {
-				m = *(*map[string]uint64)(fPtr)
+				prev = *(*map[string]uint64)(fPtr)
 			}
-			if m == nil {
-				m = make(map[string]uint64, mCount)
-			}
-			p := 1 + cn
-			for range mCount {
-				kLen, kn := DecodeVarint(body[p:])
-				if kn == 0 || kLen > uint64(len(body)-(p+kn)) {
-					return fmt.Errorf("omnibuf: truncated WireMap key at %d", p)
-				}
-				p += kn
-				k := decodeStr(body[p:p+int(kLen)], zeroCopy)
-				p += int(kLen)
-				v, vn := DecodeVarint(body[p:])
-				if vn == 0 {
-					return fmt.Errorf("omnibuf: truncated WireMap val at %d", p)
-				}
-				p += vn
-				m[k] = v
-			}
-			if p != len(body) {
-				return fmt.Errorf("omnibuf: WireMap trailing bytes")
+			m, ok := decodeMapStringUintBody(prev, body, zeroCopy)
+			if !ok {
+				return fmt.Errorf("omnibuf: invalid WireMap at %d", pos)
 			}
 			*(*map[string]uint64)(fPtr) = m
-			pos += int(mapLen)
+			pos = nextPos
 		}
 	}
 	return nil
 }
-
-var _ = math.Float64bits

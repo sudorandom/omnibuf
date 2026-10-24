@@ -266,27 +266,27 @@ func TestCLIAgainstCheckedInGoldenFiles(t *testing.T) {
 					t.Fatalf("read schema.json: %v", err)
 				}
 
-				// 1. CLI encode (shared) -> must match golden .shared.obuf byte-for-byte
+				// 1. CLI encode (shared, --deterministic) -> must match golden .shared.obuf byte-for-byte
 				var stdout, stderr bytes.Buffer
-				if err := run([]string{"encode", "-s", schemaFile, "-t", tc.msgType, inputJSONFile}, strings.NewReader(""), &stdout, &stderr); err != nil {
+				if err := run([]string{"encode", "--deterministic", "-s", schemaFile, "-t", tc.msgType, inputJSONFile}, strings.NewReader(""), &stdout, &stderr); err != nil {
 					t.Fatalf("encode shared failed: %v (%s)", err, stderr.String())
 				}
 				if !bytes.Equal(stdout.Bytes(), wantSharedObuf) {
 					t.Fatalf("CLI encode shared output differs from golden %s", sharedObufFile)
 				}
 
-				// 2. CLI encode (--field0) -> must match golden .field0.obuf byte-for-byte
+				// 2. CLI encode (--field0 --deterministic) -> must match golden .field0.obuf byte-for-byte
 				stdout.Reset()
-				if err := run([]string{"encode", "-s", schemaFile, "-t", tc.msgType, "--field0", inputJSONFile}, strings.NewReader(""), &stdout, &stderr); err != nil {
+				if err := run([]string{"encode", "--deterministic", "-s", schemaFile, "-t", tc.msgType, "--field0", inputJSONFile}, strings.NewReader(""), &stdout, &stderr); err != nil {
 					t.Fatalf("encode field0 failed: %v (%s)", err, stderr.String())
 				}
 				if !bytes.Equal(stdout.Bytes(), wantField0Obuf) {
 					t.Fatalf("CLI encode --field0 output differs from golden %s", field0ObufFile)
 				}
 
-				// 3. CLI encode (--field0 --hex) -> must match golden .field0.obuf.hex byte-for-byte
+				// 3. CLI encode (--field0 --deterministic --hex) -> must match golden .field0.obuf.hex byte-for-byte
 				stdout.Reset()
-				if err := run([]string{"encode", "-s", schemaFile, "-t", tc.msgType, "--field0", "--hex", inputJSONFile}, strings.NewReader(""), &stdout, &stderr); err != nil {
+				if err := run([]string{"encode", "--deterministic", "-s", schemaFile, "-t", tc.msgType, "--field0", "--hex", inputJSONFile}, strings.NewReader(""), &stdout, &stderr); err != nil {
 					t.Fatalf("encode field0 hex failed: %v (%s)", err, stderr.String())
 				}
 				if !bytes.Equal(stdout.Bytes(), wantField0Hex) {
