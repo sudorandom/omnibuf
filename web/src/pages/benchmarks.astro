@@ -114,13 +114,13 @@ import Footer from '../components/Footer.astro';
         <strong>
           Why OmniBuf beats <code>vtprotobuf</code> with simpler generated code:
         </strong>{' '}
-        For <code>schemas/peer.proto</code>, <code>vtprotobuf</code> emits{' '}
-        <strong>1,899 lines</strong> of unrolled per-byte <code>LEB128</code> loops,{' '}
-        <code>SizeVT()</code> passes, and backwards buffer indexing. By contrast,{' '}
-        <code>protoc-gen-omnibuf</code> emits just <strong>848 lines</strong> (including all three{' '}
-        <code>Opaque*</code> lazy readers with full scalar splice support) that call standard{' '}
+        For <code>schemas/peer.proto</code>, <code>vtprotobuf</code> emits more than{' '}
+        <strong>2x as much generated code</strong> full of unrolled per-byte <code>LEB128</code>{' '}
+        loops, <code>SizeVT()</code> passes, and backwards buffer indexing. By contrast,{' '}
+        <code>protoc-gen-omnibuf</code> emits under half the code (including all three{' '}
+        <code>Opaque*</code> lazy readers with full scalar splice support) calling standard{' '}
         <code>AppendVarint</code> / <code>DecodeVarint</code> helpers, yet runs{' '}
-        <strong>1.59x faster</strong> on Marshal and <strong>2.51x faster</strong> on
+        <strong>over 50% faster</strong> on Marshal and <strong>over 2x faster</strong> on
         Read-Modify-Write because the wire format avoids 2-pass sizing and multi-branch varint
         loops.
       </div>

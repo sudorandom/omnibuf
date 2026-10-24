@@ -299,52 +299,52 @@ const nodeSchemaCode = `message Node {
           <tbody class="divide-y divide-ink/15">
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Decode 1B Int</td>
-              <td class="p-3.5 sm:p-4">1.36 ns</td>
-              <td class="p-3.5 sm:p-4">0.80 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.37 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">2.2x to 3.7x faster</td>
+              <td class="p-3.5 sm:p-4">1.27 ns</td>
+              <td class="p-3.5 sm:p-4">0.79 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.35 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">2x to 4x faster</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Decode 2B Int</td>
-              <td class="p-3.5 sm:p-4">1.32 ns</td>
-              <td class="p-3.5 sm:p-4">1.29 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.83 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.6x faster</td>
+              <td class="p-3.5 sm:p-4">1.26 ns</td>
+              <td class="p-3.5 sm:p-4">1.26 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.78 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~40% faster</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Decode 4B Int</td>
-              <td class="p-3.5 sm:p-4">1.93 ns</td>
-              <td class="p-3.5 sm:p-4">2.25 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">1.00 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.9x to 2.3x faster</td>
+              <td class="p-3.5 sm:p-4">1.81 ns</td>
+              <td class="p-3.5 sm:p-4">2.28 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.97 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~2x faster</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Decode 8B Int</td>
-              <td class="p-3.5 sm:p-4">4.06 ns</td>
-              <td class="p-3.5 sm:p-4">5.11 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">1.38 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">2.9x to 3.7x faster</td>
+              <td class="p-3.5 sm:p-4">4.83 ns</td>
+              <td class="p-3.5 sm:p-4">5.04 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">1.54 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">Over 3x faster</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Decode 16 Mixed Ints</td>
-              <td class="p-3.5 sm:p-4">40.8 ns</td>
-              <td class="p-3.5 sm:p-4">42.5 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">26.6 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.5x to 1.6x faster</td>
+              <td class="p-3.5 sm:p-4">38.1 ns</td>
+              <td class="p-3.5 sm:p-4">39.7 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">25.2 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~35% faster</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Skip 16 Mixed Ints</td>
-              <td class="p-3.5 sm:p-4">38.6 ns</td>
-              <td class="p-3.5 sm:p-4">42.5 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">25.0 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.5x to 1.7x faster</td>
+              <td class="p-3.5 sm:p-4">38.3 ns</td>
+              <td class="p-3.5 sm:p-4">39.7 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">24.7 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~35% faster</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Encode 16 Mixed Ints</td>
-              <td class="p-3.5 sm:p-4">62.9 ns</td>
+              <td class="p-3.5 sm:p-4">60.4 ns</td>
               <td class="p-3.5 sm:p-4">59.4 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">41.2 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.5x faster</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">37.6 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~35% faster</td>
             </tr>
           </tbody>
         </table>

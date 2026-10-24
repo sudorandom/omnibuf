@@ -51,7 +51,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     ],
     oppWinsList: [
       'Built into existing Protobuf ecosystems and third-party services where you cannot change the wire format.',
-      'Roughly 6% smaller wire payloads (341 B vs. 362 B in our benchmark) because Protobuf uses 3-bit tags and 1-byte lengths on small nested messages.',
+      'Roughly 6% smaller wire payloads because Protobuf uses 3-bit tags and 1-byte lengths on small nested messages.',
     ],
     stats: [
       { label: 'Wire Size', score: 100 },
@@ -112,7 +112,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     verdict:
       'OmniBuf is nearly half the size of MessagePack in shared-schema mode, and smaller even with Field #0 inline field names enabled while encoding over 6x faster.',
     omniWinsList: [
-      '45% smaller packets in standard .proto mode, and 5% smaller even with Field #0 inline names enabled (622 B vs. 656 B).',
+      '45% smaller packets in standard .proto mode, and 5% smaller even with Field #0 inline names enabled.',
       '16x faster encoding (or over 6x faster with Field #0 inline field names included).',
       'Over 20x faster full decoding and over 8x faster single-field skipping.',
       'Hoists nested child schemas into Field #0 once per message instead of repeating key strings inside every array element.',
@@ -156,19 +156,6 @@ export const opponentKeys = ['protobuf', 'flatbuffers', 'capnproto', 'msgpack', 
 
 export const benchmarkCategories: BenchmarkCategory[] = [
   {
-    title: 'Full Message Decode Speed',
-    unit: 'ns',
-    maxVal: 4000,
-    rows: [
-      { name: 'OmniBuf', val: 120, highlight: true, color: '#D4FF33' },
-      { name: 'FlatBuffers', val: 170, color: '#94A3B8' },
-      { name: "Cap'n Proto", val: 772, color: '#CBD5E1' },
-      { name: 'Protobuf', val: 960, color: '#FF4F18' },
-      { name: 'MessagePack', val: 2496, color: '#E2E8F0' },
-      { name: 'JSON', val: 3850, color: '#E2E8F0' },
-    ],
-  },
-  {
     title: 'Full Message Encode Speed',
     unit: 'ns',
     maxVal: 1800,
@@ -179,6 +166,19 @@ export const benchmarkCategories: BenchmarkCategory[] = [
       { name: "Cap'n Proto", val: 1016, color: '#CBD5E1' },
       { name: 'MessagePack', val: 1552, color: '#E2E8F0' },
       { name: 'JSON', val: 1720, color: '#E2E8F0' },
+    ],
+  },
+  {
+    title: 'Full Message Decode Speed',
+    unit: 'ns',
+    maxVal: 4000,
+    rows: [
+      { name: 'OmniBuf', val: 120, highlight: true, color: '#D4FF33' },
+      { name: 'FlatBuffers', val: 170, color: '#94A3B8' },
+      { name: "Cap'n Proto", val: 772, color: '#CBD5E1' },
+      { name: 'Protobuf', val: 960, color: '#FF4F18' },
+      { name: 'MessagePack', val: 2496, color: '#E2E8F0' },
+      { name: 'JSON', val: 3850, color: '#E2E8F0' },
     ],
   },
   {

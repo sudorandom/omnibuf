@@ -59,7 +59,7 @@
             Named JSON when you want it, compact tags when you don't
           </h3>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-            Send only field numbers in production RPCs for compact 362-byte packets, or include{' '}
+            Send only field numbers in production RPCs for compact binary packets, or include{' '}
             <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code> mapping field numbers to names
             and hoisting nested child schemas once per array) so logs and queues decode directly
             into named JSON without a schema registry.
