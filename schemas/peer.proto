@@ -1,0 +1,34 @@
+syntax = "proto3";
+package omnibuf.bench;
+
+option go_package = "github.com/sudorandom/omnibuf/pb";
+
+message Location {
+  string region = 1;
+  string datacenter = 2;
+  string city = 3;
+  uint32 rack = 4;
+  float latitude = 5;
+  float longitude = 6;
+}
+
+message Neighbor {
+  uint32 peer_asn = 1;
+  string router = 2;
+  uint32 latency_us = 3;
+  bool established = 4;
+}
+
+message PeerUpdate {
+  uint32 asn = 1;
+  string router_id = 2;
+  bool active = 3;
+  uint64 uptime_sec = 4;
+  sint32 rssi_dbm = 5;
+  double cpu_load = 6;
+  repeated string tags = 7;
+  repeated uint32 prefixes = 8;
+  Location location = 9;
+  repeated Neighbor neighbors = 10;
+  uint64 sequence = 11;
+}

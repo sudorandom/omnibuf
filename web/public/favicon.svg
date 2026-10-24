@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Hard Neo-Brutalist Offset Shadow -->
+  <rect x="8" y="8" width="52" height="52" rx="10" fill="#FF4F18" />
+  <!-- Main Ink Tile -->
+  <rect x="4" y="4" width="52" height="52" rx="10" fill="#111111" stroke="#111111" stroke-width="3" />
+  <!-- Outer Geometric "O" / Packet Frame in Paper -->
+  <rect x="13" y="13" width="34" height="34" rx="6" stroke="#FAF8F2" stroke-width="5" />
+  <!-- Acid Green TZCNT / Fast-Hop Block Inside -->
+  <rect x="22" y="22" width="16" height="16" rx="2" fill="#D4FF33" />
+</svg>

@@ -1,0 +1,33 @@
+namespace omnibuf.bench;
+
+table Location {
+  region:     string;
+  datacenter: string;
+  city:       string;
+  rack:       uint32;
+  latitude:   float32;
+  longitude:  float32;
+}
+
+table Neighbor {
+  peer_asn:    uint32;
+  router:      string;
+  latency_us:  uint32;
+  established: bool;
+}
+
+table PeerUpdate {
+  asn:        uint32;
+  router_id:  string;
+  active:     bool;
+  uptime_sec: uint64;
+  rssi_dbm:   int32;
+  cpu_load:   float64;
+  tags:       [string];
+  prefixes:   [uint32];
+  location:   Location;
+  neighbors:  [Neighbor];
+  sequence:   uint64;
+}
+
+root_type PeerUpdate;

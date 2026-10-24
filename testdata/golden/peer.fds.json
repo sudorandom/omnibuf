@@ -1,0 +1,154 @@
+{
+  "file": [
+    {
+      "name": "schemas/peer.proto",
+      "package": "omnibuf.bench",
+      "messageType": [
+        {
+          "name": "Location",
+          "field": [
+            {
+              "name": "region",
+              "number": 1,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "datacenter",
+              "number": 2,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "city",
+              "number": 3,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "rack",
+              "number": 4,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "latitude",
+              "number": 5,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_FLOAT"
+            },
+            {
+              "name": "longitude",
+              "number": 6,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_FLOAT"
+            }
+          ]
+        },
+        {
+          "name": "Neighbor",
+          "field": [
+            {
+              "name": "peer_asn",
+              "number": 1,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "router",
+              "number": 2,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "latency_us",
+              "number": 3,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "established",
+              "number": 4,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_BOOL"
+            }
+          ]
+        },
+        {
+          "name": "PeerUpdate",
+          "field": [
+            {
+              "name": "asn",
+              "number": 1,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "router_id",
+              "number": 2,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "active",
+              "number": 3,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_BOOL"
+            },
+            {
+              "name": "uptime_sec",
+              "number": 4,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT64"
+            },
+            {
+              "name": "rssi_dbm",
+              "number": 5,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_SINT32"
+            },
+            {
+              "name": "cpu_load",
+              "number": 6,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "name": "tags",
+              "number": 7,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "prefixes",
+              "number": 8,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "location",
+              "number": 9,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_MESSAGE",
+              "typeName": ".omnibuf.bench.Location"
+            },
+            {
+              "name": "neighbors",
+              "number": 10,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_MESSAGE",
+              "typeName": ".omnibuf.bench.Neighbor"
+            },
+            {
+              "name": "sequence",
+              "number": 11,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT64"
+            }
+          ]
+        }
+      ],
+      "syntax": "proto3"
+    }
+  ]
+}

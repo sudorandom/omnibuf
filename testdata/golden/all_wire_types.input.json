@@ -1,0 +1,78 @@
+{
+  "code_labels": {
+    "10": "ten",
+    "200": "two-hundred",
+    "3000": "three-thousand"
+  },
+  "f32": 2.5,
+  "f32_arr": [
+    -1.5,
+    0,
+    4.25
+  ],
+  "f64": 3.141592653589793,
+  "f64_arr": [
+    -0.5,
+    0.25,
+    1024.125
+  ],
+  "flag_false": false,
+  "flag_true": true,
+  "items": [
+    {
+      "active": true,
+      "id": 1,
+      "label": "item-1"
+    },
+    {
+      "active": false,
+      "id": 2,
+      "label": "item-2"
+    }
+  ],
+  "metrics": {
+    "alpha_rx": 100,
+    "beta_tx": 2500,
+    "delta_ok": 42,
+    "gamma_err": 0
+  },
+  "named_items": {
+    "first": {
+      "active": true,
+      "id": 10,
+      "label": "named-first"
+    },
+    "second": {
+      "active": false,
+      "id": 20,
+      "label": "named-second"
+    }
+  },
+  "primary": {
+    "active": true,
+    "id": 7,
+    "label": "primary-sub"
+  },
+  "raw_bytes": "yv66vg==",
+  "s64": -123456789,
+  "s64_arr": [
+    -8192,
+    -1,
+    0,
+    1,
+    8192
+  ],
+  "tags": [
+    "alpha",
+    "beta",
+    "gamma"
+  ],
+  "title": "omnibuf-golden-v2",
+  "u32": 64512,
+  "u32_arr": [
+    0,
+    127,
+    128,
+    16384
+  ]
+}

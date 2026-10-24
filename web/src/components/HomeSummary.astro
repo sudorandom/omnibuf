@@ -1,0 +1,179 @@
+---
+import { benchmarkCategories } from '../data/benchmarks';
+
+const decodeCategory = benchmarkCategories[0];
+const encodeCategory = benchmarkCategories[1];
+---
+
+<!-- COMPACT BENCHMARK & FORMAT COMPARISON SUMMARY -->
+<section
+  id="benchmarks"
+  class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+>
+  <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
+    <div class="max-w-3xl">
+      <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+        Benchmark{' '}
+        <span class="font-serif italic font-normal normal-case text-[#FF4F18]">highlights.</span>
+      </h2>
+      <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
+        Measured on an 11-field telemetry message with nested structs and arrays.{' '}
+        <strong>Shorter bars = Faster.</strong>
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-3">
+      <a
+        href="/how-it-works"
+        class="os-btn px-4 py-2.5 bg-white text-ink font-mono font-bold text-sm sm:text-base rounded-md"
+      >
+        How It Works &rarr;
+      </a>
+      <a
+        href="/benchmarks"
+        class="os-btn px-4 py-2.5 bg-[#FF4F18] text-white font-mono font-bold text-sm sm:text-base rounded-md"
+      >
+        Full Benchmarks &amp; Comparisons &rarr;
+      </a>
+    </div>
+  </div>
+
+  <!-- 3 Stat Callout Cards (Whole-Number Multipliers) -->
+  <div class="grid sm:grid-cols-3 gap-6 mb-8 font-mono">
+    <div class="os-window p-6 bg-ink text-paper">
+      <div class="text-sm uppercase text-acid font-bold">1-Pass Forward Encode</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-white">110 ns/op</div>
+      <div class="text-sm text-paper/85 mt-1.5">
+        Over 6x faster than Protobuf &amp; FlatBuffers (0 allocs)
+      </div>
+    </div>
+    <div class="os-window p-6 bg-[#FAF8F2]">
+      <div class="text-sm uppercase text-[#FF4F18] font-bold">Full Zero-Copy Decode</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">159 ns/op</div>
+      <div class="text-sm text-ink/80 mt-1.5">
+        Over 8x faster than Protobuf, faster than FlatBuffers
+      </div>
+    </div>
+    <div class="os-window p-6 bg-[#FAF8F2]">
+      <div class="text-sm uppercase text-ink/75 font-bold">Compact Wire Size</div>
+      <div class="text-3xl sm:text-4xl font-bold mt-1.5 text-ink">360 Bytes</div>
+      <div class="text-sm text-ink/80 mt-1.5">
+        40% smaller than FlatBuffers (600 B), near Protobuf (341 B)
+      </div>
+    </div>
+  </div>
+
+  <!-- Side-by-Side Decode & Encode Summary Charts -->
+  <div class="grid lg:grid-cols-2 gap-6 mb-8">
+    {[decodeCategory, encodeCategory].map((cat) => (
+      <div class="os-window overflow-hidden">
+        <div class="os-titlebar bg-[#E5E0D5]">
+          <span class="font-mono text-sm sm:text-base font-bold uppercase">{cat.title}</span>
+          <div class="os-stripes" />
+        </div>
+
+        <div class="p-4 sm:p-6 bg-[#FAF8F2] space-y-2.5">
+          {cat.rows.map((r) => {
+            const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
+            return (
+              <div
+                class:list={[
+                  'grid grid-cols-12 gap-2 items-center py-2 px-3 rounded',
+                  r.highlight
+                    ? 'bg-acid/30 border-2 border-ink font-bold'
+                    : 'border border-ink/15 bg-white',
+                ]}
+              >
+                <div class="col-span-5 font-mono text-sm sm:text-base text-ink truncate">
+                  {r.name}
+                </div>
+                <div class="col-span-4 sm:col-span-5 flex items-center">
+                  <div class="w-full bg-[#E5E0D5] h-5 border border-ink rounded-sm overflow-hidden">
+                    <div
+                      class="h-full border-r border-ink"
+                      style={`width: ${pct}%; background-color: ${r.color};`}
+                    />
+                  </div>
+                </div>
+                <div class="col-span-3 sm:col-span-2 text-right font-mono text-sm sm:text-base font-bold">
+                  {r.val} {cat.unit}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <!-- Feature Matrix Table -->
+  <div class="os-window overflow-hidden">
+    <div class="os-titlebar bg-[#E5E0D5]">
+      <span class="font-mono text-sm sm:text-base font-bold uppercase">Format Feature Matrix</span>
+      <div class="os-stripes"></div>
+    </div>
+    <div class="overflow-x-auto bg-[#FAF8F2]">
+      <table class="w-full text-left border-collapse font-mono text-sm sm:text-base">
+        <thead>
+          <tr class="border-b-2 border-ink bg-white">
+            <th class="p-3.5 sm:p-4 font-bold uppercase">Format</th>
+            <th class="p-3.5 sm:p-4 font-bold uppercase">
+              Uses <code>.proto</code>
+            </th>
+            <th class="p-3.5 sm:p-4 font-bold uppercase">Wire Size</th>
+            <th class="p-3.5 sm:p-4 font-bold uppercase">1-Pass Encode</th>
+            <th class="p-3.5 sm:p-4 font-bold uppercase">Schema-Less Types</th>
+            <th class="p-3.5 sm:p-4 font-bold uppercase">
+              <code>append(a, b)</code> Merge
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-ink/15">
+          <tr class="bg-acid/30 font-bold">
+            <td class="p-3.5 sm:p-4">OmniBuf</td>
+            <td class="p-3.5 sm:p-4 text-ink">Yes</td>
+            <td class="p-3.5 sm:p-4">360 B</td>
+            <td class="p-3.5 sm:p-4">Yes (110 ns)</td>
+            <td class="p-3.5 sm:p-4">Yes (+ opt Field #0)</td>
+            <td class="p-3.5 sm:p-4">Yes</td>
+          </tr>
+          <tr class="bg-white">
+            <td class="p-3.5 sm:p-4 font-bold">Protobuf</td>
+            <td class="p-3.5 sm:p-4">Yes</td>
+            <td class="p-3.5 sm:p-4">341 B</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No (2-pass Size)</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No (Opaque Type 2)</td>
+            <td class="p-3.5 sm:p-4">Yes</td>
+          </tr>
+          <tr class="bg-[#FAF8F2]">
+            <td class="p-3.5 sm:p-4 font-bold">FlatBuffers</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">
+              No (<code>.fbs</code>)
+            </td>
+            <td class="p-3.5 sm:p-4">600 B (+76%)</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">Bottom-up only</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+          </tr>
+          <tr class="bg-white">
+            <td class="p-3.5 sm:p-4 font-bold">Cap'n Proto</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">
+              No (<code>.capnp</code>)
+            </td>
+            <td class="p-3.5 sm:p-4">560 B (+64%)</td>
+            <td class="p-3.5 sm:p-4">Arena pointers</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+          </tr>
+          <tr class="bg-[#FAF8F2]">
+            <td class="p-3.5 sm:p-4 font-bold">MessagePack / JSON</td>
+            <td class="p-3.5 sm:p-4">Optional</td>
+            <td class="p-3.5 sm:p-4">656 B / 803 B</td>
+            <td class="p-3.5 sm:p-4">Yes (Slow)</td>
+            <td class="p-3.5 sm:p-4">Yes (Repeated Keys)</td>
+            <td class="p-3.5 sm:p-4 text-[#FF4F18]">No</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

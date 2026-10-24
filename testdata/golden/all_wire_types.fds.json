@@ -1,0 +1,215 @@
+{
+  "file": [
+    {
+      "name": "all_wire_types.proto",
+      "package": "omnibuf.golden",
+      "messageType": [
+        {
+          "name": "SubItem",
+          "field": [
+            {
+              "name": "id",
+              "number": 1,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "label",
+              "number": 2,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "active",
+              "number": 3,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_BOOL"
+            }
+          ]
+        },
+        {
+          "name": "AllWireTypesMsg",
+          "field": [
+            {
+              "name": "u32",
+              "number": 1,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "s64",
+              "number": 2,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_SINT64"
+            },
+            {
+              "name": "flag_true",
+              "number": 3,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_BOOL"
+            },
+            {
+              "name": "flag_false",
+              "number": 4,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_BOOL"
+            },
+            {
+              "name": "title",
+              "number": 5,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "raw_bytes",
+              "number": 6,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_BYTES"
+            },
+            {
+              "name": "f32",
+              "number": 7,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_FLOAT"
+            },
+            {
+              "name": "f64",
+              "number": 8,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "name": "primary",
+              "number": 9,
+              "label": "LABEL_OPTIONAL",
+              "type": "TYPE_MESSAGE",
+              "typeName": ".omnibuf.golden.SubItem"
+            },
+            {
+              "name": "tags",
+              "number": 10,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_STRING"
+            },
+            {
+              "name": "u32_arr",
+              "number": 11,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_UINT32"
+            },
+            {
+              "name": "s64_arr",
+              "number": 12,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_SINT64"
+            },
+            {
+              "name": "f32_arr",
+              "number": 13,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_FLOAT"
+            },
+            {
+              "name": "f64_arr",
+              "number": 14,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "name": "items",
+              "number": 15,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_MESSAGE",
+              "typeName": ".omnibuf.golden.SubItem"
+            },
+            {
+              "name": "metrics",
+              "number": 16,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_MESSAGE",
+              "typeName": ".omnibuf.golden.AllWireTypesMsg.MetricsEntry"
+            },
+            {
+              "name": "code_labels",
+              "number": 17,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_MESSAGE",
+              "typeName": ".omnibuf.golden.AllWireTypesMsg.CodeLabelsEntry"
+            },
+            {
+              "name": "named_items",
+              "number": 18,
+              "label": "LABEL_REPEATED",
+              "type": "TYPE_MESSAGE",
+              "typeName": ".omnibuf.golden.AllWireTypesMsg.NamedItemsEntry"
+            }
+          ],
+          "nestedType": [
+            {
+              "name": "MetricsEntry",
+              "field": [
+                {
+                  "name": "key",
+                  "number": 1,
+                  "label": "LABEL_OPTIONAL",
+                  "type": "TYPE_STRING"
+                },
+                {
+                  "name": "value",
+                  "number": 2,
+                  "label": "LABEL_OPTIONAL",
+                  "type": "TYPE_UINT64"
+                }
+              ],
+              "options": {
+                "mapEntry": true
+              }
+            },
+            {
+              "name": "CodeLabelsEntry",
+              "field": [
+                {
+                  "name": "key",
+                  "number": 1,
+                  "label": "LABEL_OPTIONAL",
+                  "type": "TYPE_UINT64"
+                },
+                {
+                  "name": "value",
+                  "number": 2,
+                  "label": "LABEL_OPTIONAL",
+                  "type": "TYPE_STRING"
+                }
+              ],
+              "options": {
+                "mapEntry": true
+              }
+            },
+            {
+              "name": "NamedItemsEntry",
+              "field": [
+                {
+                  "name": "key",
+                  "number": 1,
+                  "label": "LABEL_OPTIONAL",
+                  "type": "TYPE_STRING"
+                },
+                {
+                  "name": "value",
+                  "number": 2,
+                  "label": "LABEL_OPTIONAL",
+                  "type": "TYPE_MESSAGE",
+                  "typeName": ".omnibuf.golden.SubItem"
+                }
+              ],
+              "options": {
+                "mapEntry": true
+              }
+            }
+          ]
+        }
+      ],
+      "syntax": "proto3"
+    }
+  ]
+}

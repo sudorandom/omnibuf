@@ -1,0 +1,87 @@
+---
+import { formatProfiles, opponentKeys } from '../data/benchmarks';
+import RadarChart from './RadarChart.astro';
+---
+
+<section
+  id="comparisons"
+  class="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+>
+  <div class="max-w-3xl mb-12">
+    <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+      How OmniBuf compares to{' '}
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">other formats.</span>
+    </h2>
+  </div>
+
+  <div class="space-y-10">
+    {opponentKeys.map((oppKey) => {
+      const opp = formatProfiles[oppKey];
+      return (
+        <div class="os-window-lg overflow-hidden">
+          <div class="os-titlebar bg-[#E5E0D5]">
+            <span class="font-mono text-sm sm:text-base font-bold uppercase">
+              OmniBuf vs. {opp.name}
+            </span>
+            <div class="os-stripes" />
+          </div>
+
+          <div class="p-6 sm:p-8 bg-[#FAF8F2]">
+            <div class="grid lg:grid-cols-12 gap-6 items-stretch">
+              <!-- Left Column: Radar + Bottom Line -->
+              <div class="lg:col-span-5 bg-ink text-paper border-2 border-ink rounded-md p-6 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between border-b border-paper/15 pb-3 mb-4 font-mono text-sm">
+                    <span class="flex items-center gap-2 font-bold text-acid">
+                      <span class="w-3 h-3 bg-acid inline-block border border-ink" /> OmniBuf
+                    </span>
+                    <span class="flex items-center gap-2 font-bold text-[#FF4F18]">
+                      <span class="w-3 h-3 bg-[#FF4F18] inline-block border border-ink" />{' '}
+                      {opp.name}
+                    </span>
+                  </div>
+                  <RadarChart oppKey={oppKey} />
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-paper/20">
+                  <p class="text-sm sm:text-base text-paper/95 leading-relaxed">{opp.verdict}</p>
+                </div>
+              </div>
+
+              <!-- Right Column: Stacked Pros & Cons -->
+              <div class="lg:col-span-7 flex flex-col gap-5 justify-between">
+                <div class="p-6 bg-acid/30 border-2 border-ink rounded-md shadow-[4px_4px_0px_#111] flex-1 flex flex-col justify-center">
+                  <div class="font-mono text-sm font-bold uppercase text-ink mb-3 pb-2 border-b-2 border-ink/20">
+                    Why Choose OmniBuf Over {opp.name}
+                  </div>
+                  <ul class="text-base space-y-2.5 font-medium text-ink">
+                    {opp.omniWinsList?.map((item) => (
+                      <li class="flex items-start gap-2.5">
+                        <span class="font-bold text-ink mt-0.5">&check;</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div class="p-6 bg-white border-2 border-ink rounded-md shadow-[4px_4px_0px_#111]">
+                  <div class="font-mono text-sm font-bold uppercase text-ink/75 mb-2.5 pb-2 border-b-2 border-ink/15">
+                    When {opp.name} Wins
+                  </div>
+                  <ul class="text-base space-y-2.5 text-ink/90">
+                    {opp.oppWinsList?.map((item) => (
+                      <li class="flex items-start gap-2.5">
+                        <span class="font-bold text-[#FF4F18] mt-0.5">&rarr;</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</section>

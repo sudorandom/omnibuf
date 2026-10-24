@@ -1,0 +1,1955 @@
+{
+  "version": "2.1.0",
+  "specification": "OmniBuf Wire Format v2.1 (TZCNT Prefix-Varints + 4-Bit Explicit WireTypes + Index-Free Concat-Compatible Stream)",
+  "valid_vectors": [
+    {
+      "name": "varint_zero",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT=0 minimum (0 -\u003e 1 byte 0x01)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "varint_1b_max_127",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT=0 maximum (127 -\u003e 1 byte 0xFF)",
+      "schema": "TestAllTypes",
+      "wire_hex": "21ff41ff79019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 127,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 127,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "varint_2b_min_128",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT=1 minimum (128 -\u003e 2 bytes)",
+      "schema": "TestAllTypes",
+      "wire_hex": "21020241020279019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 70,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 128,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 128,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "varint_2b_max_16383",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT=1 maximum (16383 -\u003e 2 bytes 0xFF 0xFF)",
+      "schema": "TestAllTypes",
+      "wire_hex": "21feff41feff79019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 70,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 16383,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 16383,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "varint_4b_min_16384",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT=2 minimum (16384 -\u003e 4 bytes)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2104000200410400020079019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 74,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 16384,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 16384,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "varint_4b_max_536870911",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT=2 maximum (536870911 -\u003e 4 bytes)",
+      "schema": "TestAllTypes",
+      "wire_hex": "21fcffffff41fcffffff79019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 74,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 536870911,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 536870911,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "varint_9b_min_536870912",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT\u003e=3 minimum (536870912 -\u003e 9 bytes with 0x00 prefix)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2100ffffffff000000004100000000200000000079019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 84,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 4294967295,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 536870912,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "varint_9b_max_uint64",
+      "category": "A_PrefixVarintBoundaries",
+      "description": "TZCNT\u003e=3 maximum (MaxUint64 -\u003e 9 bytes 0x00 + 8x0xFF)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2100ffffffff000000004100ffffffffffffffff79019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 84,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 4294967295,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 18446744073709551615,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_minus_one",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "ZigZag(-1) == 1 (1 byte)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179039903a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": -1,
+        "field_4": -1,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_plus_one",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "ZigZag(+1) == 2 (1 byte)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179059905a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 1,
+        "field_4": 1,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_1b_boundary_neg64",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "ZigZag(-64) == 127 (max 1-byte signed)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179ff99ffa3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": -64,
+        "field_4": -64,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_2b_boundary_pos64",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "ZigZag(+64) == 128 (min 2-byte signed)",
+      "schema": "TestAllTypes",
+      "wire_hex": "21014101790202990202a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 70,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 64,
+        "field_4": 64,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_2b_boundary_neg8192",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "ZigZag(-8192) == 16383 (max 2-byte signed)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179feff99feffa3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 70,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": -8192,
+        "field_4": -8192,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_4b_boundary_pos8192",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "ZigZag(+8192) == 16384 (min 4-byte signed)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179040002009904000200a3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 74,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 8192,
+        "field_4": 8192,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_int_min_max",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "MinInt32 / MinInt64 and MaxInt32 / MaxInt64 extremes",
+      "schema": "TestAllTypes",
+      "wire_hex": "210141017900ffffffff000000009900ffffffffffffffffa3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 84,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": -2147483648,
+        "field_4": -9223372036854775808,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "zigzag_int_max_extremes",
+      "category": "B_ZigZagSignedBoundaries",
+      "description": "MaxInt32 and MaxInt64",
+      "schema": "TestAllTypes",
+      "wire_hex": "210141017900feffffff000000009900feffffffffffffffa3c701e9015a020600019e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 84,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 2147483647,
+        "field_4": 9223372036854775807,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "float_negative_zero",
+      "category": "C_IEEE754FloatsAndFixed",
+      "description": "IEEE-754 negative zero (-0.0) sign-bit preservation",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c701e9015a020600019e02060001e202020026030a0030016a0300000080ae030000000000000080ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": -0,
+        "field_14": -0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "float_pos_infinity",
+      "category": "C_IEEE754FloatsAndFixed",
+      "description": "IEEE-754 +Inf in float32 and float64",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c701e9015a020600019e02060001e202020026030a0030016a030000807fae03000000000000f07fea03efbeadde2e0478563412bebafeca0e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ]
+    },
+    {
+      "name": "float_neg_infinity",
+      "category": "C_IEEE754FloatsAndFixed",
+      "description": "IEEE-754 -Inf in float32 and float64",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c701e9015a020600019e02060001e202020026030a0030016a03000080ffae03000000000000f0ffea03ffffffff2e04ffffffffffffffff0e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ]
+    },
+    {
+      "name": "float_nan_canonical",
+      "category": "C_IEEE754FloatsAndFixed",
+      "description": "IEEE-754 quiet NaN bit-pattern preservation",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c701e9015a020600019e02060001e202020026030a0030016a030000c07fae03010000000000f87fea03010000002e0401000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ]
+    },
+    {
+      "name": "float_subnormal_and_max",
+      "category": "C_IEEE754FloatsAndFixed",
+      "description": "SmallestNonzero subnormal and MaxFloat",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c701e9015a020600019e02060001e202020026030a0030016a0301000000ae030100000000000000ea032a0000002e0463000000000000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 1e-45,
+        "field_14": 5e-324,
+        "field_15": 5.9e-44,
+        "field_16": 4.9e-322,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "float_max_values",
+      "category": "C_IEEE754FloatsAndFixed",
+      "description": "MaxFloat32 and MaxFloat64",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c701e9015a020600019e02060001e202020026030a0030016a03ffff7f7fae03ffffffffffffef7fea0340e201002e04ea16b04c020000000e0501",
+      "wire_byte_len": 68,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 3.4028235e+38,
+        "field_14": 1.7976931348623157e+308,
+        "field_15": 1.72999e-40,
+        "field_16": 4.8796606997e-314,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "string_utf8_multilingual_emoji",
+      "category": "D_StringsAndBytesBoundaries",
+      "description": "UTF-8 CJK, Arabic, Emoji, and embedded NUL byte",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c76fe38193e38293e381abe381a1e381afe4b896e7958c20f09f8c8df09f9a8020d985d8b1d8add8a8d8a72000206e756c6c2d696e73696465e90b00ff7f80015a024a00090dceb1ceb2ceb309f09f9a800107656e649e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 145,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "こんにちは世界 🌍🚀 مرحبا \u0000 null-inside",
+        "field_7": "AP9/gAE=",
+        "field_9": [
+          "αβγ",
+          "🚀",
+          "",
+          "end"
+        ]
+      }
+    },
+    {
+      "name": "string_len_127_max_1b_varint",
+      "category": "D_StringsAndBytesBoundaries",
+      "description": "127-byte string (maximum 1-byte Prefix-Varint length)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c7ff61616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161e9ff616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161615a02060203ff616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161619e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 450,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "field_7": "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==",
+        "field_9": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "name": "string_len_128_min_2b_varint",
+      "category": "D_StringsAndBytesBoundaries",
+      "description": "128-byte string (minimum 2-byte Prefix-Varint length)",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410179019901a3c702026262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262e9020262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262625a020e0203020262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262629e02060001e202020026030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 456,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "field_7": "YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI=",
+        "field_9": [
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ]
+      }
+    },
+    {
+      "name": "container_len_252_string_packet",
+      "category": "E_ContainerLengthBoundaries",
+      "description": "Single string field with 252-byte payload (1B tag + 2B Prefix-Varint length + 252B UTF-8 = 255B total)",
+      "schema": "ManualSingleString",
+      "wire_hex": "27f203787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878",
+      "wire_byte_len": 255,
+      "present_fields": [
+        1
+      ],
+      "expected_blind": {
+        "field_1": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "name": "container_len_253_string_packet",
+      "category": "E_ContainerLengthBoundaries",
+      "description": "Single string field with 253-byte payload (1B tag + 2B Prefix-Varint length + 253B UTF-8 = 256B total)",
+      "schema": "ManualSingleString",
+      "wire_hex": "27f60379797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979797979",
+      "wire_byte_len": 256,
+      "present_fields": [
+        1
+      ],
+      "expected_blind": {
+        "field_1": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      }
+    },
+    {
+      "name": "sparse_empty_message",
+      "category": "F_SparseFieldsAndHeaderHop",
+      "description": "Empty message with 0 present fields (0 bytes on wire)",
+      "schema": "EmptyMessage",
+      "wire_hex": "",
+      "wire_byte_len": 0,
+      "present_fields": null
+    },
+    {
+      "name": "sparse_only_field_14",
+      "category": "F_SparseFieldsAndHeaderHop",
+      "description": "Only Field #14 present (testing early termination on absent lower fields 1..13)",
+      "schema": "SparseField14",
+      "wire_hex": "ae03182d4454fb210940",
+      "wire_byte_len": 10,
+      "present_fields": [
+        14
+      ],
+      "expected_blind": {
+        "field_14": 3.141592653589793
+      }
+    },
+    {
+      "name": "sparse_odd_fields_1_3_5_7_9_11_13",
+      "category": "F_SparseFieldsAndHeaderHop",
+      "description": "Alternating odd fields (#1, #3, #5, #7, #9, #11, #13) testing branchless TZCNT header-hop lookup",
+      "schema": "TestAllTypes",
+      "wire_hex": "21cb797609a5e9070707075a023e00050d6e696e652d610d6e696e652d62e20236002e00213611470d656c656d2d306a0300005841",
+      "wire_byte_len": 53,
+      "present_fields": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13
+      ],
+      "expected_blind": {
+        "field_1": 101,
+        "field_11": [
+          {
+            "field_1": 1101,
+            "field_2": "elem-0"
+          }
+        ],
+        "field_13": 13.5,
+        "field_3": -303,
+        "field_5": true,
+        "field_7": "BwcH",
+        "field_9": [
+          "nine-a",
+          "nine-b"
+        ]
+      }
+    },
+    {
+      "name": "complex_submsg_arr_and_sorted_map",
+      "category": "G_NestedSubMsgArrAndMap",
+      "description": "20-element WireSubMsgArr, WireSubMsg, sorted WireMap lookup, and Field #20",
+      "schema": "TestAllTypes",
+      "wire_hex": "219b410179019901a3c701e90116025e0021e20d47196e65737465642d6368696c646599ec6918005a020600019e02060001e202fe12e20021a20f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d6172726179659901e60021a60f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963993e9cee0021aa0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fc700200ee0021ae0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997ca90300ee0021b20f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fce10400ee0021b60f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997c1a0600ee0021ba0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fc520700ee0021be0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997c8b0800ee0021c20f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fcc30900ee0021c60f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997cfc0a00ee0021ca0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fc340c00ee0021ce0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997c6d0d00ee0021d20f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fca50e00ee0021d60f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997cde0f00ee0021da0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fc161100ee0021de0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997c4f1200ee0021e20f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fc871300ee0021e60f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997cc01400ee0021ea0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d61727261796599fcf81500ee0021ee0f47617375626d73672d656c656d656e742d70616464696e672d666f722d6c656e6774682d70726566697865642d617272617963997c31170026035201300f01010361030b616c706861ff1d616c7068615f657874656e6465640202096265746104000200216f6d6567615f6d61785f75696e74363400ffffffffffffffff21f09f9a805f756e69636f64655f6b6579556a0300000000ae030000000000000000ea03000000002e0400000000000000000e052f6f766572666c6f772d6669656c642d32302d76616c7565",
+      "wire_byte_len": 1415,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 77,
+        "field_10": [],
+        "field_11": [
+          {
+            "field_1": 1000,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": 0
+          },
+          {
+            "field_1": 1001,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -5000
+          },
+          {
+            "field_1": 1002,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -10000
+          },
+          {
+            "field_1": 1003,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -15000
+          },
+          {
+            "field_1": 1004,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -20000
+          },
+          {
+            "field_1": 1005,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -25000
+          },
+          {
+            "field_1": 1006,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -30000
+          },
+          {
+            "field_1": 1007,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -35000
+          },
+          {
+            "field_1": 1008,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -40000
+          },
+          {
+            "field_1": 1009,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -45000
+          },
+          {
+            "field_1": 1010,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -50000
+          },
+          {
+            "field_1": 1011,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -55000
+          },
+          {
+            "field_1": 1012,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -60000
+          },
+          {
+            "field_1": 1013,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -65000
+          },
+          {
+            "field_1": 1014,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -70000
+          },
+          {
+            "field_1": 1015,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -75000
+          },
+          {
+            "field_1": 1016,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -80000
+          },
+          {
+            "field_1": 1017,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -85000
+          },
+          {
+            "field_1": 1018,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": true,
+            "field_4": -90000
+          },
+          {
+            "field_1": 1019,
+            "field_2": "submsg-element-padding-for-length-prefixed-array",
+            "field_3": false,
+            "field_4": -95000
+          }
+        ],
+        "field_12": {
+          "": 0,
+          "a": 1,
+          "alpha": 127,
+          "alpha_extended": 128,
+          "beta": 16384,
+          "omega_max_uint64": 18446744073709551615,
+          "🚀_unicode_key": 42
+        },
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "overflow-field-20-value",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_8": {
+          "field_1": 888,
+          "field_2": "nested-child",
+          "field_3": true,
+          "field_4": -99999
+        },
+        "field_9": []
+      }
+    },
+    {
+      "name": "self_describing_field0_sparse",
+      "category": "H_SelfDescribingField0",
+      "description": "Self-describing packet with Field #0 (WireSubMsg SchemaMeta) naming sparse fields #2, #5, #14",
+      "schema": "SelfDescribingSparse",
+      "wire_hex": "0bd200271f53706172736554656c656d6574727953820003070515757074696d655f7365630b0d6163746976651d116370755f6c6f616441b454a12fa5ae03000000000000ec3f",
+      "wire_byte_len": 71,
+      "present_fields": [
+        0,
+        2,
+        5,
+        14
+      ],
+      "expected_blind": {
+        "active": true,
+        "cpu_load": 0.875,
+        "uptime_sec": 99887766
+      }
+    },
+    {
+      "name": "peer_update_canonical_4way_equivalent",
+      "category": "I_CanonicalPeerUpdate",
+      "description": "Canonical BGP PeerUpdate verified byte-for-byte identical across Encoder, Direct, Table, and protoc-gen-omnibuf Plugin",
+      "schema": "PeerUpdate",
+      "wire_hex": "2104e007004741656467652d7274722d66726130312e636f72652e6261636b626f6e652e6e657465819cbbe100b9f7d7713d0ad7a370db3fed8a00090b746965723109656267701565752d63656e7472616c156978702d64652d6369781e028e000d0400005004000852000000a8c00000000000000010ac0000000044404040042040405602da00271965752d63656e7472616c2d31471f4652412d457175696e69782d46523567134672616e6b667572748155b590714842d5e2e90a41a2027602720021723447276165302e667261312e6c6576656c332e6e6574614a0d857a00214e14472b66666d2d62352d6c696e6b2e74656c69612e6e657461620e85ba0021ba02474b6265323034302e63637234312e66726130332e61746c61732e636f67656e74636f2e636f6d61821185b600218a2d474961652d31322e7232342e66726e6b676530382e64652e62622e67696e2e6e74742e6e657461520f83c20200ea16b04c02000000",
+      "wire_byte_len": 362,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "expected_blind": {
+        "field_1": 64512,
+        "field_10": [
+          {
+            "field_1": 3356,
+            "field_2": "ae0.fra1.level3.net",
+            "field_3": 850,
+            "field_4": true
+          },
+          {
+            "field_1": 1299,
+            "field_2": "ffm-b5-link.telia.net",
+            "field_3": 920,
+            "field_4": true
+          },
+          {
+            "field_1": 174,
+            "field_2": "be2040.ccr41.fra03.atlas.cogentco.com",
+            "field_3": 1120,
+            "field_4": true
+          },
+          {
+            "field_1": 2914,
+            "field_2": "ae-12.r24.frnkge08.de.bb.gin.ntt.net",
+            "field_3": 980,
+            "field_4": false
+          }
+        ],
+        "field_11": 9876543210,
+        "field_2": "edge-rtr-fra01.core.backbone.net",
+        "field_3": true,
+        "field_4": 1849203,
+        "field_5": -62,
+        "field_6": 0.42875,
+        "field_7": [
+          "tier1",
+          "ebgp",
+          "eu-central",
+          "ixp-de-cix"
+        ],
+        "field_8": [
+          167772160,
+          172032000,
+          3232235520,
+          2886729728,
+          134744072,
+          134743040
+        ],
+        "field_9": {
+          "field_1": "eu-central-1",
+          "field_2": "FRA-Equinix-FR5",
+          "field_3": "Frankfurt",
+          "field_4": 42,
+          "field_5": 50.1109,
+          "field_6": 8.6821
+        }
+      }
+    },
+    {
+      "name": "nested_recursive_tree_6_levels",
+      "category": "J_DeepNestedMessages",
+      "description": "6-level self-referential TreeNode with *TreeNode, []TreeNode, []*TreeNode, and empty sub-messages",
+      "schema": "TreeNode",
+      "wire_hex": "21034709726f6f74791e038b72032105471f6c6576656c2d322d7072696d6172797942068be2022107471f6c6576656c2d332d7072696d617279795e09b15e020a022109471f6c6576656c2d342d6368696c642d617901b10200d18a013601210b471d6c6576656c2d352d6272616e636879a20f8baa00210d47196c6576656c2d362d6c6561667901b10200d10200f33e0030050b64657074680d096c65616603b10200d10200f30a0030014600210147017901b10200d10200f30a003001f30a0030014600210147017901b10200d10200f30a003001d10200f30a003001b10200d10200f30a003001b17e016a00211547137369626c696e672d3179a9b10200d10200f30a0030010601211747397369626c696e672d322d776974682d656d7074792d7072696d61727979018b4600210147017901b10200d10200f30a003001b10200d10200f30a003001d18e008600212947196272616e63682d7074722d317901b10200d10200f31a003003056f6b03f34600300509726f6f74030f76657273696f6e05",
+      "wire_byte_len": 390,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "expected_blind": {
+        "field_1": 1,
+        "field_2": "root",
+        "field_3": -100,
+        "field_4": {
+          "field_1": 2,
+          "field_2": "level-2-primary",
+          "field_3": 200,
+          "field_4": {
+            "field_1": 3,
+            "field_2": "level-3-primary",
+            "field_3": -300,
+            "field_5": [
+              {
+                "field_1": 4,
+                "field_2": "level-4-child-a",
+                "field_3": 0,
+                "field_5": [],
+                "field_6": [
+                  {
+                    "field_1": 5,
+                    "field_2": "level-5-branch",
+                    "field_3": 500,
+                    "field_4": {
+                      "field_1": 6,
+                      "field_2": "level-6-leaf",
+                      "field_3": 0,
+                      "field_5": [],
+                      "field_6": [],
+                      "field_7": {
+                        "depth": 6,
+                        "leaf": 1
+                      }
+                    },
+                    "field_5": [],
+                    "field_6": [],
+                    "field_7": {}
+                  },
+                  {
+                    "field_1": 0,
+                    "field_2": "",
+                    "field_3": 0,
+                    "field_5": [],
+                    "field_6": [],
+                    "field_7": {}
+                  }
+                ],
+                "field_7": {}
+              },
+              {
+                "field_1": 0,
+                "field_2": "",
+                "field_3": 0,
+                "field_5": [],
+                "field_6": [],
+                "field_7": {}
+              }
+            ],
+            "field_6": [],
+            "field_7": {}
+          },
+          "field_5": [],
+          "field_6": [],
+          "field_7": {}
+        },
+        "field_5": [
+          {
+            "field_1": 10,
+            "field_2": "sibling-1",
+            "field_3": 42,
+            "field_5": [],
+            "field_6": [],
+            "field_7": {}
+          },
+          {
+            "field_1": 11,
+            "field_2": "sibling-2-with-empty-primary",
+            "field_3": 0,
+            "field_4": {
+              "field_1": 0,
+              "field_2": "",
+              "field_3": 0,
+              "field_5": [],
+              "field_6": [],
+              "field_7": {}
+            },
+            "field_5": [],
+            "field_6": [],
+            "field_7": {}
+          }
+        ],
+        "field_6": [
+          {
+            "field_1": 20,
+            "field_2": "branch-ptr-1",
+            "field_3": 0,
+            "field_5": [],
+            "field_6": [],
+            "field_7": {
+              "ok": 1
+            }
+          }
+        ],
+        "field_7": {
+          "root": 1,
+          "version": 2
+        }
+      }
+    },
+    {
+      "name": "nested_3level_submsg_arr_cluster_rack_server_nic",
+      "category": "J_DeepNestedMessages",
+      "description": "3-level nested WireSubMsgArr inside WireSubMsgArr (Cluster -\u003e []Rack -\u003e []Server -\u003e []NIC)",
+      "schema": "NestedCluster",
+      "wire_hex": "271d65752d6672612d70726f642d3031510a03ee0121cb4709617a2d3171c2014e01210347157372762d30312e617a31710a0186002103472330303a31313a32323a33333a34343a35356f2600050c0000501400005076002105472330303a31313a32323a33333a34343a35366f1600030c0800506600210547257372762d30322e617a312d6e6f2d6e6963737102000e01212a034709617a2d3271de00d600210747157372762d30312e617a327192008a002115472361613a62623a63633a64643a65653a66666f2a0003000101a8c000000000610001f1536500000000",
+      "wire_byte_len": 223,
+      "present_fields": [
+        1,
+        2,
+        3
+      ],
+      "expected_blind": {
+        "field_1": "eu-fra-prod-01",
+        "field_2": [
+          {
+            "field_1": 101,
+            "field_2": "az-1",
+            "field_3": [
+              {
+                "field_1": 1,
+                "field_2": "srv-01.az1",
+                "field_3": [
+                  {
+                    "field_1": 1,
+                    "field_2": "00:11:22:33:44:55",
+                    "field_3": [
+                      167772161,
+                      167772162
+                    ]
+                  },
+                  {
+                    "field_1": 2,
+                    "field_2": "00:11:22:33:44:56",
+                    "field_3": [
+                      167772417
+                    ]
+                  }
+                ]
+              },
+              {
+                "field_1": 2,
+                "field_2": "srv-02.az1-no-nics",
+                "field_3": []
+              }
+            ]
+          },
+          {
+            "field_1": 202,
+            "field_2": "az-2",
+            "field_3": [
+              {
+                "field_1": 3,
+                "field_2": "srv-01.az2",
+                "field_3": [
+                  {
+                    "field_1": 10,
+                    "field_2": "aa:bb:cc:dd:ee:ff",
+                    "field_3": [
+                      3232235777
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "field_3": 1700000001
+      }
+    },
+    {
+      "name": "nested_mixed_sizes_and_empty_submsgs",
+      "category": "J_DeepNestedMessages",
+      "description": "WireSubMsgArr mixing 0-field empty sub-message (0B), small sub-message, and large \u003e=256B sub-message",
+      "schema": "TestAllTypes",
+      "wire_hex": "219e0f410179019901a3c701e90116021e00210147016399015a020600019e02060001e202ee041e002101470163990142002103471374696e792d656c656d659903320421054712044c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c63990942002107471374696e792d656c656d65990d26030a0030016a0300000000ae030000000000000000ea03000000002e0400000000000000000e0501",
+      "wire_byte_len": 395,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 999,
+        "field_10": [],
+        "field_11": [
+          {
+            "field_1": 0,
+            "field_2": "",
+            "field_3": false,
+            "field_4": 0
+          },
+          {
+            "field_1": 1,
+            "field_2": "tiny-elem",
+            "field_3": true,
+            "field_4": -1
+          },
+          {
+            "field_1": 2,
+            "field_2": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+            "field_3": false,
+            "field_4": 2
+          },
+          {
+            "field_1": 3,
+            "field_2": "tiny-elem",
+            "field_3": true,
+            "field_4": 3
+          }
+        ],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_8": {
+          "field_1": 0,
+          "field_2": "",
+          "field_3": false,
+          "field_4": 0
+        },
+        "field_9": []
+      }
+    },
+    {
+      "name": "concat_two_messages_full_merge",
+      "category": "K_ConcatenationAndOutOfOrder",
+      "description": "Raw byte concatenation append(msgA, msgB...) verifying last-write-wins scalars and merged arrays/maps/sub-messages",
+      "schema": "TestAllTypes",
+      "wire_hex": "21c941220379779901a3c71d696e697469616c2d737472696e67e90116025e00210347217375622d6c6162656c2d66726f6d2d416599275a021e00050561310561329e020e00051529e20252004a0021cb47156172722d656c656d2d306599421f260376003005176b6565705f66726f6d5f61df176f766572726964655f6d657a036a0300000000ae030000000000000440ea03000000002e0400000000000000000e051f6f766572666c6f772d66726f6d2d416a030000a03f260376003005156e65775f66726f6d5f623605176f766572726964655f6d659e0fe20256004e00212a0347156172722d656c656d2d316399823e9e020e00053d515a021e000505623105623216021200994f2105c71f6f76657272696464656e2d62792d42a5997e0c219e0f",
+      "wire_byte_len": 294,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20,
+        13,
+        12,
+        11,
+        10,
+        9,
+        8,
+        6,
+        5,
+        4,
+        1
+      ],
+      "expected_blind": {
+        "field_1": 999,
+        "field_10": [
+          10,
+          20,
+          30,
+          40
+        ],
+        "field_11": [
+          {
+            "field_1": 101,
+            "field_2": "arr-elem-0",
+            "field_3": true,
+            "field_4": 1000
+          },
+          {
+            "field_1": 202,
+            "field_2": "arr-elem-1",
+            "field_3": false,
+            "field_4": 2000
+          }
+        ],
+        "field_12": {
+          "keep_from_a": 111,
+          "new_from_b": 333,
+          "override_me": 999
+        },
+        "field_13": 1.25,
+        "field_14": 2.5,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 200,
+        "field_20": "overflow-from-A",
+        "field_3": -30,
+        "field_4": -400,
+        "field_5": true,
+        "field_6": "overridden-by-B",
+        "field_7": "",
+        "field_8": {
+          "field_1": 2,
+          "field_2": "sub-label-from-A",
+          "field_3": true,
+          "field_4": -20
+        },
+        "field_9": [
+          "a1",
+          "a2",
+          "b1",
+          "b2"
+        ]
+      }
+    },
+    {
+      "name": "concat_two_self_describing_field0_messages",
+      "category": "K_ConcatenationAndOutOfOrder",
+      "description": "Concatenation of two self-describing Field #0 packets where their SchemaMeta blocks merge recursively",
+      "schema": "SelfDescribingConcat",
+      "wire_hex": "0b5600534a000305030761736e0513726f757465725f696421a4df0700470f6f6c642d7274720b6a00535e0003050513726f757465725f6964171173657175656e6365470f6e65772d727472c20255",
+      "wire_byte_len": 79,
+      "present_fields": [
+        0,
+        1,
+        2,
+        0,
+        2,
+        11
+      ],
+      "expected_blind": {
+        "asn": 64500,
+        "router_id": "new-rtr",
+        "sequence": 42
+      }
+    }
+  ],
+  "invalid_cases": [
+    {
+      "name": "malformed_truncated_1b_of_2b_tag",
+      "category": "TruncatedTag",
+      "description": "1-byte slice containing the first byte of a 2-byte Prefix-Varint tag (TZCNT=1)",
+      "wire_hex": "02"
+    },
+    {
+      "name": "malformed_truncated_2b_of_4b_tag",
+      "category": "TruncatedTag",
+      "description": "2-byte slice containing only 2 bytes of a 4-byte Prefix-Varint tag (TZCNT=2)",
+      "wire_hex": "0400"
+    },
+    {
+      "name": "malformed_truncated_2b_varint_payload",
+      "category": "TruncatedVarint",
+      "description": "Field #1 WireUint tag followed by 1 byte of a 2-byte Prefix-Varint (TZCNT=1)",
+      "wire_hex": "2102"
+    },
+    {
+      "name": "malformed_truncated_4b_varint_payload",
+      "category": "TruncatedVarint",
+      "description": "Field #1 WireUint tag followed by 2 bytes of a 4-byte Prefix-Varint (TZCNT=2)",
+      "wire_hex": "210400"
+    },
+    {
+      "name": "malformed_truncated_9b_varint_payload",
+      "category": "TruncatedVarint",
+      "description": "Field #1 WireUint tag followed by 0x00 and only 3 bytes of an 8-byte uint64",
+      "wire_hex": "2100112233"
+    },
+    {
+      "name": "malformed_string_length_exceeds_packet",
+      "category": "LengthOutOfBounds",
+      "description": "Field #2 WireString claims length 100 in a 3-byte packet",
+      "wire_hex": "47c961"
+    },
+    {
+      "name": "malformed_bytes_uint64_max_length_overflow",
+      "category": "LengthOutOfBounds",
+      "description": "Field #7 WireBytes with 9-byte MaxUint64 length (tests integer overflow guard)",
+      "wire_hex": "e900ffffffffffffffff"
+    },
+    {
+      "name": "malicious_uint_arr_inner_varint_size_mismatch",
+      "category": "SizeMismatch",
+      "description": "WireUintArr outer byteLen=3 cuts off in the middle of a 2-byte element varint",
+      "wire_hex": "1e0207020002"
+    },
+    {
+      "name": "malicious_string_arr_inner_len_exceeds_outer",
+      "category": "SizeMismatch",
+      "description": "WireStringArr outer byteLen=2 contains an element claiming 10 bytes",
+      "wire_hex": "5a0207031561"
+    },
+    {
+      "name": "malicious_submsg_outer_len_exceeds_packet",
+      "category": "SizeMismatch",
+      "description": "WireSubMsg outer length claims 50 bytes when only 2 bytes follow",
+      "wire_hex": "5602652103"
+    },
+    {
+      "name": "malicious_submsg_inner_truncated_field",
+      "category": "CorruptSubMsg",
+      "description": "WireSubMsg outer length is 2 bytes, cutting off an inner 2-byte Prefix-Varint value",
+      "wire_hex": "1602052102"
+    },
+    {
+      "name": "malicious_submsg_arr_elem_len_exceeds_array",
+      "category": "CorruptSubMsgArr",
+      "description": "WireSubMsgArr element length claims 20 bytes inside a 3-byte array container",
+      "wire_hex": "a20207292103"
+    },
+    {
+      "name": "malicious_submsg_arr_truncated_elem_len",
+      "category": "CorruptSubMsgArr",
+      "description": "WireSubMsgArr body ends in the middle of an element's 2-byte length prefix",
+      "wire_hex": "e2020302"
+    },
+    {
+      "name": "malicious_submsg_arr_corrupt_inner_element",
+      "category": "CorruptSubMsgArr",
+      "description": "WireSubMsgArr element contains an invalid 4-bit wire type (15)",
+      "wire_hex": "e20207052102"
+    },
+    {
+      "name": "malformed_truncated_fixed32",
+      "category": "TruncatedFixed",
+      "description": "Field #5 WireFixed32 with only 2 payload bytes instead of 4",
+      "wire_hex": "b51122"
+    },
+    {
+      "name": "malformed_truncated_fixed64",
+      "category": "TruncatedFixed",
+      "description": "Field #6 WireFixed64 with only 5 payload bytes instead of 8",
+      "wire_hex": "d71122334455"
+    },
+    {
+      "name": "malformed_fixed32_arr_unaligned_byte_len",
+      "category": "TruncatedFixed",
+      "description": "Field #1 WireFixedArr(WireFixed32) with (byteLen-1)=3 (not divisible by 4)",
+      "wire_hex": "3d090a010203"
+    },
+    {
+      "name": "malformed_fixed64_arr_unaligned_byte_len",
+      "category": "TruncatedFixed",
+      "description": "Field #1 WireFixedArr(WireFixed64) with (byteLen-1)=5 (not divisible by 8)",
+      "wire_hex": "3d0d0b0102030405"
+    },
+    {
+      "name": "malformed_wire_extended_empty_body",
+      "category": "CorruptWireExtended",
+      "description": "Field #1 WireExtended (15) with byteLen=0 (missing required 1B ExtType header)",
+      "wire_hex": "3f01"
+    },
+    {
+      "name": "malformed_wire_map_count_exceeds_body",
+      "category": "CorruptWireMap",
+      "description": "Field #12 WireMap claiming 10,000 entries inside a 2-byte map body",
+      "wire_hex": "26030730429c"
+    },
+    {
+      "name": "malicious_wire_map_trailing_bytes",
+      "category": "CorruptWireMap",
+      "description": "Field #12 WireMap where 2 extra unparsed bytes remain after `count` entries",
+      "wire_hex": "26030f3003036103ffff"
+    },
+    {
+      "name": "malformed_field0_wrong_wire_type",
+      "category": "CorruptField0",
+      "description": "Field #0 tag at byte 0 has WireUint instead of WireSubMsg (0x0B)",
+      "wire_hex": "0105"
+    },
+    {
+      "name": "malicious_field0_corrupt_fields_map",
+      "category": "CorruptField0",
+      "description": "Field #0 SchemaMeta fields map has invalid MapType 0x00 instead of 0x03 (uint32 -\u003e string)",
+      "wire_hex": "0b0953050001"
+    },
+    {
+      "name": "malicious_field0_corrupt_children_map",
+      "category": "CorruptField0",
+      "description": "Field #0 SchemaMeta children map contains a child SchemaMeta with truncated type_name",
+      "wire_hex": "0b13730f05031307271541"
+    },
+    {
+      "name": "malicious_nested_submsg_depth_40_bomb",
+      "category": "MaliciousDepthBomb",
+      "description": "40-level nested WireSubMsg chain exceeding MaxNestingDepth (32)",
+      "wire_hex": "8b9d8b998b958b918b8d8b898b858b818b7d8b798b758b718b6d8b698b658b618b5d8b598b558b518b4d8b498b458b418b3d8b398b358b318b2d8b298b258b218b1d8b198b158b118b0d8b098b058b01"
+    }
+  ]
+}

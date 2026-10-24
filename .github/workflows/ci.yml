@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go (Format, Lint, Test & Fuzz)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tools via mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+
+      - name: Check Go formatting (golangci-lint fmt)
+        run: just go-fmt-check
+
+      - name: Run golangci-lint
+        run: just go-lint
+
+      - name: Run unit & conformance tests
+        run: just test
+
+      - name: Run Go fuzz tests
+        run: just fuzz 10s
+
+  proto:
+    name: Protobuf (Format, Lint, Build & Breaking)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools via mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+
+      - name: Check Protobuf formatting (buf format)
+        run: just buf-fmt-check
+
+      - name: Lint Protobuf schemas (buf lint)
+        run: just buf-lint
+
+      - name: Build Protobuf schemas (buf build)
+        run: just buf-build
+
+      - name: Check for breaking Protobuf schema changes (buf breaking)
+        if: github.event_name == 'pull_request'
+        run: just buf-breaking ".git#branch=${GITHUB_BASE_REF:-main}"
+
+  web:
+    name: Web (Format, Lint, Typecheck & Build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tools via mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+
+      - name: Install frontend dependencies
+        run: just web-install
+
+      - name: Check frontend formatting (Prettier)
+        run: just web-fmt-check
+
+      - name: Lint and typecheck frontend (ESLint + Astro Check)
+        run: just web-lint
+
+      - name: Build production site (omnibuf.com)
+        run: just web-build

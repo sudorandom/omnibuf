@@ -1,0 +1,34 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Capabilities from '../components/Capabilities.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="How It Works | OmniBuf"
+  description="How OmniBuf achieves single-pass forward encoding, branchless Prefix-Varint decoding, raw message concatenation, and schema-less inspection."
+>
+  <Navbar currentPage="how-it-works" />
+
+  <!-- Page Header -->
+  <section class="relative pt-10 pb-8 sm:pt-16 sm:pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <h1 class="text-[2.6rem] sm:text-7xl lg:text-[5.5rem] font-bold tracking-tight leading-[0.94] text-ink uppercase">
+      How OmniBuf
+      <br />
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18] text-[3.1rem] sm:text-8xl lg:text-[6.2rem]">
+        Works on the wire.
+      </span>
+    </h1>
+    <p class="mt-6 max-w-3xl text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
+      What you can do with OmniBuf that you cannot do with Protobuf, and the three wire-format
+      changes that make it possible.
+    </p>
+  </section>
+
+  <Capabilities />
+  <HowItWorks />
+
+  <Footer />
+</Layout>

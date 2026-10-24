@@ -1,0 +1,164 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Benchmarks from '../components/Benchmarks.astro';
+import Comparisons from '../components/Comparisons.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="Benchmarks & Format Comparisons | OmniBuf"
+  description="Full serialization, deserialization, header-hop lookup, and wire size benchmarks comparing OmniBuf against Protobuf, FlatBuffers, Cap'n Proto, MessagePack, and JSON."
+>
+  <Navbar currentPage="benchmarks" />
+
+  <!-- Page Header -->
+  <section class="relative pt-10 pb-8 sm:pt-16 sm:pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <h1 class="text-[2.6rem] sm:text-7xl lg:text-[5.5rem] font-bold tracking-tight leading-[0.94] text-ink uppercase">
+      Benchmarks &amp;
+      <br />
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18] text-[3.1rem] sm:text-8xl lg:text-[6.2rem]">
+        Format Comparisons.
+      </span>
+    </h1>
+
+    <div class="mt-8 max-w-3xl">
+      <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
+        Head-to-head throughput, wire size, and field lookup measurements comparing OmniBuf against
+        Protobuf, FlatBuffers, Cap'n Proto, MessagePack, and JSON.
+      </p>
+    </div>
+  </section>
+
+  <!-- Full Benchmark Bar Charts -->
+  <Benchmarks />
+
+  <!-- Section: No-Plugin Table Engine vs protoc-gen-omnibuf Plugin vs Official Protobuf -->
+  <section
+    id="plugin-tiers"
+    class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+  >
+    <div class="max-w-3xl mb-8">
+      <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+        Integration Tiers &amp;{' '}
+        <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
+          Opaque Splicing.
+        </span>
+      </h2>
+      <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
+        OmniBuf works directly on existing generated Go structs with zero codegen, or via the{' '}
+        <code>protoc-gen-omnibuf</code> plugin for generated single-pass methods and lazy Opaque API
+        wire splicing.
+      </p>
+    </div>
+
+    <div class="os-window-lg overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          Protobuf vs. vtprotobuf vs. OmniBuf
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+
+      <div class="overflow-x-auto bg-[#FAF8F2]">
+        <table class="w-full text-left border-collapse font-mono text-sm sm:text-base">
+          <thead>
+            <tr class="border-b-2 border-ink bg-white">
+              <th class="p-3.5 sm:p-4 font-bold uppercase">Operation</th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase">Protobuf</th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase">vtprotobuf</th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase">OmniBuf (No Plugin)</th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase bg-acid/30">OmniBuf (Plugin)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-ink/15">
+            <tr class="bg-white">
+              <td class="p-3.5 sm:p-4 font-bold">Marshal</td>
+              <td class="p-3.5 sm:p-4">738.9 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">129.6 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">191.7 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">96.3 ns (0 allocs)</td>
+            </tr>
+            <tr class="bg-[#FAF8F2]">
+              <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Safe)</td>
+              <td class="p-3.5 sm:p-4">1,304.0 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">557.2 ns (24 allocs)</td>
+              <td class="p-3.5 sm:p-4">649.0 ns (18 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">497.6 ns (17 allocs)</td>
+            </tr>
+            <tr class="bg-white">
+              <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Zero-Copy)</td>
+              <td class="p-3.5 sm:p-4">1,304.0 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">201.0 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">288.3 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">197.6 ns (0 allocs)</td>
+            </tr>
+            <tr class="bg-[#FAF8F2]">
+              <td class="p-3.5 sm:p-4 font-bold">Read 2 Nested Fields</td>
+              <td class="p-3.5 sm:p-4">970.1 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">202.3 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">288.3 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">144.0 ns (0 allocs, Opaque)</td>
+            </tr>
+            <tr class="bg-white">
+              <td class="p-3.5 sm:p-4 font-bold">Read-Modify-Write</td>
+              <td class="p-3.5 sm:p-4">1,590.0 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">331.3 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">480.0 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">177.8 ns (0 allocs, Splice)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="p-4 sm:p-5 bg-white border-t-2 border-ink text-sm sm:text-base text-ink/85 leading-relaxed">
+        <strong>
+          Why OmniBuf beats <code>vtprotobuf</code> with simpler generated code:
+        </strong>{' '}
+        For <code>schemas/peer.proto</code>, <code>vtprotobuf</code> emits{' '}
+        <strong>1,899 lines</strong> of unrolled per-byte <code>LEB128</code> loops,{' '}
+        <code>SizeVT()</code> passes, and backwards buffer indexing. By contrast,{' '}
+        <code>protoc-gen-omnibuf</code> emits just <strong>781 lines</strong> (including all three{' '}
+        <code>Opaque*</code> lazy readers) that call standard <code>AppendVarint</code> /{' '}
+        <code>DecodeVarint</code> helpers, yet runs <strong>1.35x faster</strong> on Marshal and{' '}
+        <strong>1.86x faster</strong> on Read-Modify-Write because the wire format avoids 2-pass
+        sizing and multi-branch varint loops.
+      </div>
+    </div>
+  </section>
+
+  <!-- Full 5-Format Radar Comparisons -->
+  <Comparisons />
+
+  <!-- Methodology & Test Environment at the End -->
+  <section class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15">
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          Benchmark Environment &amp; Workload Details
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-7 bg-[#FAF8F2] grid md:grid-cols-12 gap-6 items-center">
+        <div class="md:col-span-4 space-y-2 font-mono text-sm">
+          <div class="p-4 bg-ink text-paper rounded border border-ink space-y-1.5">
+            <div class="text-acid font-bold uppercase">Hardware &amp; Runtime</div>
+            <div>CPU: Apple M1 Pro (darwin/arm64)</div>
+            <div>Compiler: Go 1.27.1</div>
+            <div>
+              Command: <code>just bench</code>
+            </div>
+          </div>
+        </div>
+        <div class="md:col-span-8 text-base sm:text-lg text-ink/90 leading-relaxed">
+          All benchmarks serialize and deserialize an identical 11-field BGP/Telemetry{' '}
+          <strong>PeerUpdate</strong> message containing unsigned and ZigZag-signed integers,
+          booleans, IEEE-754 floats, string lists, packed integer arrays, a 6-field nested{' '}
+          <strong>Location</strong> sub-message, and a 4-element repeated <strong>Neighbor</strong>{' '}
+          sub-message list.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Footer />
+</Layout>

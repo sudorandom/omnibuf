@@ -1,0 +1,147 @@
+---
+---
+
+<section id="capabilities" class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+  <div class="max-w-3xl mb-10">
+    <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+      What you can do with OmniBuf{' '}
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
+        that you can't do with Protobuf.
+      </span>
+    </h2>
+  </div>
+
+  <!-- Full-width readable rows -->
+  <div class="space-y-6">
+    <!-- Row 1: Schema-Less Wire Inspection -->
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          1. Schema-Less Type Inspection
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-8 bg-[#FAF8F2] grid lg:grid-cols-12 gap-6 items-center">
+        <div class="lg:col-span-6 space-y-2.5">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase">Every wire type is explicit</h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            In Protobuf, strings, bytes, nested messages, maps, and arrays all share{' '}
+            <code>Wire Type 2</code>. OmniBuf's 4-bit tag identifies every type right on the wire so
+            tools can inspect packets without the original schema.
+          </p>
+        </div>
+        <div class="lg:col-span-6 grid sm:grid-cols-2 gap-3.5 font-mono text-sm">
+          <div class="p-4 bg-white border-2 border-ink rounded">
+            <div class="text-xs font-bold uppercase text-[#FF4F18] mb-1.5">Protobuf Raw</div>
+            <pre class="text-sm text-ink/85 leading-snug"><span class="text-[#FF4F18] font-bold">#3:</span> 1 <span class="text-ink/50">// int or bool?</span>
+<span class="text-[#FF4F18] font-bold">#9:</span> <span class="text-ink/70">"\x1a\x03FRA\x20*"</span></pre>
+          </div>
+          <div class="p-4 bg-ink text-paper border-2 border-ink rounded">
+            <div class="text-xs font-bold uppercase text-acid mb-1.5">OmniBuf Raw</div>
+            <pre class="text-sm text-paper/95 leading-snug"><span class="text-acid font-bold">#3 (bool):</span> <span class="text-[#79C0FF]">true</span>
+<span class="text-acid font-bold">#9 (submsg):</span> &#123;<span class="text-acid">#3:</span><span class="text-[#A5D6FF]">"FRA"</span>&#125;</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Optional Field #0 Inline Field Names -->
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          2. Optional Inline Field Names (Field #0)
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-8 bg-[#FAF8F2] grid lg:grid-cols-12 gap-6 items-center">
+        <div class="lg:col-span-6 space-y-2.5">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase">
+            Named JSON when you want it, compact tags when you don't
+          </h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Send only field numbers in production RPCs for compact 360-byte packets, or include{' '}
+            <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code> mapping field numbers to names
+            and hoisting nested child schemas once per array) so logs and queues decode directly
+            into named JSON without a schema registry.
+          </p>
+        </div>
+        <div class="lg:col-span-6">
+          <div class="p-4 bg-ink text-paper border-2 border-ink rounded font-mono text-sm sm:text-base flex flex-wrap items-center justify-between gap-3">
+            <span>
+              <strong class="text-acid">Field #0:</strong>{' '}
+              <code>&#123;1: "id", 3: "active", 9: "location"&#125;</code>
+            </span>
+            <span class="px-2.5 py-1 bg-acid text-ink font-bold text-xs sm:text-sm rounded shrink-0">
+              &rarr; Named JSON
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Header-Hopping & Raw Concatenation -->
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          3. Header-Hopping &amp; Raw Concatenation
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-8 bg-[#FAF8F2] grid lg:grid-cols-12 gap-6 items-center">
+        <div class="lg:col-span-6 space-y-2.5">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase">
+            Jump over containers in one addition &amp; merge by appending
+          </h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Every container states its total byte length up front so readers jump over arrays or
+            sub-messages in one addition. And because packets are pure <code>[Tag][Value]</code>{' '}
+            streams, concatenating two messages (<code>append(msgA, msgB...)</code>) merges them
+            automatically.
+          </p>
+        </div>
+        <div class="lg:col-span-6">
+          <div class="p-4 bg-white border-2 border-ink rounded font-mono text-sm sm:text-base flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Skip: <code>pos += byteLen</code> &bull; Merge: <code>append(a, b...)</code>
+            </span>
+            <span class="px-2.5 py-1 bg-ink text-acid font-bold text-xs sm:text-sm rounded shrink-0">
+              0-Parse Merge
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: Native Maps & Strict Wire Safety -->
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          4. Native Maps &amp; Strict Validation
+        </span>
+      </div>
+      <div class="p-6 sm:p-8 bg-[#FAF8F2] grid lg:grid-cols-12 gap-6 items-center">
+        <div class="lg:col-span-6 space-y-2.5">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase">
+            Zero-allocation maps without synthetic MapEntry wrappers
+          </h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Maps (<code>WireMap = 9</code>) encode key-value pairs directly inside a single
+            length-prefixed container without Protobuf's synthetic <code>MapEntry</code>{' '}
+            sub-messages. Strict container bounds and a 32-level nesting cap prevent allocation
+            attacks on untrusted inputs.
+          </p>
+        </div>
+        <div class="lg:col-span-6">
+          <div class="p-4 bg-white border-2 border-ink rounded font-mono text-sm sm:text-base flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Direct <code>WireMap</code> + verified container bounds
+            </span>
+            <span class="px-2.5 py-1 bg-ink text-white font-bold text-xs sm:text-sm rounded shrink-0">
+              Zero OOM Risk
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

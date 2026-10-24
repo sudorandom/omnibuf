@@ -1,0 +1,56 @@
+{
+  "asn": 64512,
+  "router_id": "edge-rtr-fra01.core.backbone.net",
+  "active": true,
+  "uptime_sec": "1849203",
+  "rssi_dbm": -62,
+  "cpu_load": 0.42875,
+  "tags": [
+    "tier1",
+    "ebgp",
+    "eu-central",
+    "ixp-de-cix"
+  ],
+  "prefixes": [
+    167772160,
+    172032000,
+    3232235520,
+    2886729728,
+    134744072,
+    134743040
+  ],
+  "location": {
+    "region": "eu-central-1",
+    "datacenter": "FRA-Equinix-FR5",
+    "city": "Frankfurt",
+    "rack": 42,
+    "latitude": 50.1109,
+    "longitude": 8.6821
+  },
+  "neighbors": [
+    {
+      "peer_asn": 3356,
+      "router": "ae0.fra1.level3.net",
+      "latency_us": 850,
+      "established": true
+    },
+    {
+      "peer_asn": 1299,
+      "router": "ffm-b5-link.telia.net",
+      "latency_us": 920,
+      "established": true
+    },
+    {
+      "peer_asn": 174,
+      "router": "be2040.ccr41.fra03.atlas.cogentco.com",
+      "latency_us": 1120,
+      "established": true
+    },
+    {
+      "peer_asn": 2914,
+      "router": "ae-12.r24.frnkge08.de.bb.gin.ntt.net",
+      "latency_us": 980
+    }
+  ],
+  "sequence": "9876543210"
+}

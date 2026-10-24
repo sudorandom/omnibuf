@@ -1,0 +1,104 @@
+---
+import { formatProfiles } from '../data/benchmarks';
+
+interface Props {
+  oppKey: string;
+}
+
+const { oppKey } = Astro.props;
+const omni = formatProfiles.omnibuf.stats;
+const opp = formatProfiles[oppKey].stats;
+
+const cx = 180;
+const cy = 135;
+const rMax = 78;
+const angles = [-90, -18, 54, 126, 198].map((deg) => (deg * Math.PI) / 180);
+
+const levels = [0.25, 0.5, 0.75, 1.0];
+const gridPolygons = levels.map((level) =>
+  angles
+    .map(
+      (a) =>
+        `${(cx + rMax * level * Math.cos(a)).toFixed(1)},${(cy + rMax * level * Math.sin(a)).toFixed(1)}`,
+    )
+    .join(' '),
+);
+
+const labelCoords: { x: number; y: number; anchor: 'middle' | 'start' | 'end' }[] = [
+  { x: 180, y: 32, anchor: 'middle' },
+  { x: 266, y: 108, anchor: 'start' },
+  { x: 238, y: 232, anchor: 'middle' },
+  { x: 122, y: 232, anchor: 'middle' },
+  { x: 94, y: 108, anchor: 'end' },
+];
+
+const axes = angles.map((a, i) => ({
+  x2: (cx + rMax * Math.cos(a)).toFixed(1),
+  y2: (cy + rMax * Math.sin(a)).toFixed(1),
+  label: omni[i].label.toUpperCase(),
+  lx: labelCoords[i].x,
+  ly: labelCoords[i].y,
+  anchor: labelCoords[i].anchor,
+}));
+
+const oppPts = angles
+  .map((a, i) => {
+    const rad = rMax * (opp[i].score / 100);
+    return `${(cx + rad * Math.cos(a)).toFixed(1)},${(cy + rad * Math.sin(a)).toFixed(1)}`;
+  })
+  .join(' ');
+
+const omniPts = angles
+  .map((a, i) => {
+    const rad = rMax * (omni[i].score / 100);
+    return `${(cx + rad * Math.cos(a)).toFixed(1)},${(cy + rad * Math.sin(a)).toFixed(1)}`;
+  })
+  .join(' ');
+
+const dots = angles.map((a, i) => {
+  const r1 = rMax * (omni[i].score / 100);
+  const r2 = rMax * (opp[i].score / 100);
+  return {
+    omniX: (cx + r1 * Math.cos(a)).toFixed(1),
+    omniY: (cy + r1 * Math.sin(a)).toFixed(1),
+    oppX: (cx + r2 * Math.cos(a)).toFixed(1),
+    oppY: (cy + r2 * Math.sin(a)).toFixed(1),
+  };
+});
+---
+
+<svg viewBox="0 0 360 255" class="w-full max-w-[340px] mx-auto select-none">
+  {gridPolygons.map((pts) => (
+    <polygon points={pts} fill="none" stroke="rgba(250,248,242,0.16)" stroke-width="1" />
+  ))}
+  {axes.map((ax) => (
+    <>
+      <line x1={cx} y1={cy} x2={ax.x2} y2={ax.y2} stroke="rgba(250,248,242,0.2)" stroke-width="1" />
+      <text
+        x={ax.lx}
+        y={ax.ly}
+        fill="#FAF8F2"
+        font-family="IBM Plex Mono"
+        font-size="11.5"
+        font-weight="700"
+        text-anchor={ax.anchor}
+      >
+        {ax.label}
+      </text>
+    </>
+  ))}
+  <polygon
+    points={oppPts}
+    fill="rgba(255, 79, 24, 0.28)"
+    stroke="#FF4F18"
+    stroke-width="2"
+    stroke-dasharray="4 2"
+  />
+  <polygon points={omniPts} fill="rgba(212, 255, 51, 0.28)" stroke="#D4FF33" stroke-width="2.5" />
+  {dots.map((d) => (
+    <>
+      <circle cx={d.omniX} cy={d.omniY} r="3.5" fill="#D4FF33" stroke="#111" stroke-width="1.5" />
+      <circle cx={d.oppX} cy={d.oppY} r="3" fill="#FF4F18" stroke="#111" stroke-width="1" />
+    </>
+  ))}
+</svg>

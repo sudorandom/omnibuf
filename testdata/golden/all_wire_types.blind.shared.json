@@ -1,0 +1,78 @@
+{
+  "field_1": 64512,
+  "field_10": [
+    "alpha",
+    "beta",
+    "gamma"
+  ],
+  "field_11": [
+    0,
+    127,
+    128,
+    16384
+  ],
+  "field_12": [
+    -8192,
+    -1,
+    0,
+    1,
+    8192
+  ],
+  "field_13": [
+    -1.5,
+    0,
+    4.25
+  ],
+  "field_14": [
+    -0.5,
+    0.25,
+    1024.125
+  ],
+  "field_15": [
+    {
+      "field_1": 1,
+      "field_2": "item-1",
+      "field_3": true
+    },
+    {
+      "field_1": 2,
+      "field_2": "item-2",
+      "field_3": false
+    }
+  ],
+  "field_16": {
+    "alpha_rx": 100,
+    "beta_tx": 2500,
+    "delta_ok": 42,
+    "gamma_err": 0
+  },
+  "field_17": {
+    "10": "ten",
+    "200": "two-hundred",
+    "3000": "three-thousand"
+  },
+  "field_18": {
+    "first": {
+      "field_1": 10,
+      "field_2": "named-first",
+      "field_3": true
+    },
+    "second": {
+      "field_1": 20,
+      "field_2": "named-second",
+      "field_3": false
+    }
+  },
+  "field_2": -123456789,
+  "field_3": true,
+  "field_4": false,
+  "field_5": "omnibuf-golden-v2",
+  "field_6": "yv66vg==",
+  "field_7": 2.5,
+  "field_8": 3.141592653589793,
+  "field_9": {
+    "field_1": 7,
+    "field_2": "primary-sub",
+    "field_3": true
+  }
+}

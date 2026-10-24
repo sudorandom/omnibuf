@@ -1,0 +1,2075 @@
+---
+import { Code } from 'astro:components';
+
+const protoConsumeVarintCode = `func ConsumeVarint(b []byte) (v uint64, n int) {
+    var y uint64
+    if len(b) <= 0 { return 0, errCodeTruncated }
+    v = uint64(b[0])
+    if v < 0x80 { return v, 1 }
+    v -= 0x80
+
+    if len(b) <= 1 { return 0, errCodeTruncated }
+    y = uint64(b[1]); v += y << 7
+    if y < 0x80 { return v, 2 }
+    v -= 0x80 << 7
+
+    if len(b) <= 2 { return 0, errCodeTruncated }
+    y = uint64(b[2]); v += y << 14
+    if y < 0x80 { return v, 3 }
+    v -= 0x80 << 14
+    // ... repeats 7 more times up to b[9] ...
+}`;
+
+const omniReadVarintCode = `func ReadVarintAt(b []byte, pos int) (uint64, int) {
+    b0 := b[pos]
+    if (b0 & 1) != 0 {
+        return uint64(b0 >> 1), pos + 1
+    }
+    if (b0 & 2) != 0 {
+        return uint64(binary.LittleEndian.Uint16(b[pos:]) >> 2), pos + 2
+    }
+    if (b0 & 4) != 0 {
+        return uint64(binary.LittleEndian.Uint32(b[pos:]) >> 3), pos + 4
+    }
+    return binary.LittleEndian.Uint64(b[pos+1:]), pos + 9
+}`;
+
+const nodeSchemaCode = `message Node {
+  uint32 id = 16;  // 5,000,000 (4B int)
+  bool active = 3; // true
+  string city = 9; // "FRA" (Target)
+}`;
+---
+
+<section
+  id="how-it-works"
+  class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+>
+  <div class="max-w-3xl mb-10">
+    <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+      Three simple changes that make OmniBuf{' '}
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
+        faster and smarter.
+      </span>
+    </h2>
+  </div>
+
+  <!-- Full-width rows for the 3 wire changes -->
+  <div class="space-y-6 mb-12">
+    <!-- Row 1: Prefix-Varints -->
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          Change 1: Prefix-Varints (TZCNT)
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-8 bg-[#FAF8F2] grid lg:grid-cols-12 gap-6 items-center">
+        <div class="lg:col-span-6 space-y-2.5">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase">Decode ints in a single load</h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Instead of checking continuation bits on every byte in a loop, the trailing zeros in
+            Byte 0 tell the CPU the exact byte width (<code>1</code>, <code>2</code>, <code>4</code>
+            , or <code>9</code> bytes) right away via{' '}
+            <a
+              href="https://en.wikipedia.org/wiki/Find_first_set"
+              target="_blank"
+              rel="noopener"
+              class="doc-link"
+            >
+              <code>TZCNT</code>
+            </a>
+            . Signed integers use{' '}
+            <a
+              href="https://protobuf.dev/programming-guides/encoding/#signed-ints"
+              target="_blank"
+              rel="noopener"
+              class="doc-link"
+            >
+              ZigZag encoding
+            </a>
+            .
+          </p>
+        </div>
+        <div class="lg:col-span-6">
+          <div class="p-4 bg-ink text-paper rounded font-mono text-sm sm:text-base grid sm:grid-cols-2 gap-2.5">
+            <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
+              <span>
+                <code class="text-paper/75">vvvvvvv</code>
+                <strong class="text-acid">1</strong>
+              </span>
+              <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded text-xs sm:text-sm">
+                1B (7b)
+              </span>
+            </div>
+            <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
+              <span>
+                <code class="text-paper/75">vvvvvv</code>
+                <strong class="text-acid">10</strong>
+              </span>
+              <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded text-xs sm:text-sm">
+                2B (14b)
+              </span>
+            </div>
+            <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
+              <span>
+                <code class="text-paper/75">vvvvv</code>
+                <strong class="text-acid">100</strong>
+              </span>
+              <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded text-xs sm:text-sm">
+                4B (29b)
+              </span>
+            </div>
+            <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
+              <span>
+                <strong class="text-acid">00000000</strong>
+              </span>
+              <span class="px-2 py-0.5 bg-paper/20 text-paper font-bold rounded text-xs sm:text-sm">
+                9B (64b)
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Single-Pass Encoding -->
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          Change 2: Single-Pass Encoding
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-8 bg-[#FAF8F2] grid lg:grid-cols-12 gap-6 items-center">
+        <div class="lg:col-span-6 space-y-2.5">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase">Reserve 2 bytes &amp; patch after</h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Protobuf requires shortest-length varints, so encoders must measure every child object
+            before writing. In OmniBuf, a 2-byte Prefix-Varint (<code>TZCNT=1</code>) is valid for
+            any length under 16 KB, so the encoder reserves 2 bytes, writes forward in one pass, and
+            fills in the length at the end (automatically expanding in place to 4 or 9 bytes if a
+            container exceeds 16 KB).
+          </p>
+        </div>
+        <div class="lg:col-span-6">
+          <div class="p-4 bg-ink text-paper rounded font-mono text-sm grid sm:grid-cols-2 gap-3">
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+              <div class="text-paper/75 text-xs mb-1.5">1. Reserve 2-byte blank slot</div>
+              <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
+                <span class="px-2 py-0.5 bg-paper/20 rounded">Tag #9</span>
+                <span class="px-2 py-0.5 border border-dashed border-acid text-acid font-bold rounded">
+                  [00 00]
+                </span>
+                <span class="text-paper/70">&rarr; write</span>
+              </div>
+            </div>
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+              <div class="text-paper/75 text-xs mb-1.5">2. Backpatch 2B length at end</div>
+              <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
+                <span class="px-2 py-0.5 bg-paper/20 rounded">Tag #9</span>
+                <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded">Len=7B</span>
+                <span class="px-2 py-0.5 bg-[#FF4F18] text-white rounded">[7B]</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: 4-Bit Self-Describing Tags -->
+    <div class="os-window overflow-hidden">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          Change 3: 4-Bit Self-Describing Tags
+        </span>
+        <div class="os-stripes"></div>
+      </div>
+      <div class="p-6 sm:p-8 bg-[#FAF8F2] grid lg:grid-cols-12 gap-6 items-center">
+        <div class="lg:col-span-6 space-y-2.5">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase">0-byte bools &amp; explicit types</h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Widening wire types from 3 bits to 4 bits (<code>0..15</code>) puts booleans directly
+            inside the tag byte (<strong>0 value bytes</strong>), distinguishes unsigned (
+            <code>WireUint</code>, <code>WireUintArr</code>) from ZigZag-signed (
+            <code>WireSint</code>, <code>WireSintArr</code>) integers on the wire, wraps all arrays
+            and maps in length-prefixed containers for <code>O(1)</code> 1-step skipping, and makes
+            every wire type unambiguous.
+          </p>
+        </div>
+        <div class="lg:col-span-6">
+          <div class="p-4 bg-ink text-paper rounded font-mono text-sm space-y-3">
+            <div class="grid grid-cols-12 text-center text-xs sm:text-sm font-bold rounded overflow-hidden border border-paper/30">
+              <div class="col-span-5 bg-paper/15 py-2 text-paper border-r border-paper/30">
+                Field #
+              </div>
+              <div class="col-span-5 bg-acid text-ink py-2 border-r border-ink">4-Bit Type</div>
+              <div class="col-span-2 bg-[#FF4F18] text-white py-2">TZ</div>
+            </div>
+            <div class="flex flex-wrap justify-between gap-2 text-xs sm:text-sm text-paper/90">
+              <span>
+                <code>Type 1, 2</code> (Bool): <strong class="text-acid">0 Value Bytes</strong>
+              </span>
+              <span>
+                <code>Type 3..9</code>: <strong class="text-paper">Str &ne; SubMsg &ne; Map</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARINT MICROBENCHMARK & CODE COMPARISON: LEB128 vs TZCNT -->
+  <div class="os-window-lg overflow-hidden mb-12">
+    <div class="os-titlebar bg-[#E5E0D5]">
+      <span class="font-mono text-sm sm:text-base font-bold uppercase">
+        Varint Microbenchmarks: LEB128 vs. TZCNT
+      </span>
+      <div class="os-stripes"></div>
+    </div>
+
+    <div class="p-6 sm:p-8 bg-[#FAF8F2] space-y-6">
+      <div class="max-w-4xl space-y-2.5">
+        <h3 class="text-xl sm:text-2xl font-bold uppercase">
+          Why 12 lines of TZCNT beats 100 lines of unrolled LEB128
+        </h3>
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+          In Go's official Protobuf library (<code>protowire.ConsumeVarint</code>), decoding a
+          single integer requires an unrolled 10-step function with 10 sequential bounds checks, 10
+          continuation-bit branches (<code>if y &lt; 0x80</code>), and byte-by-byte shifts. Because
+          it is 100 lines long, the Go compiler cannot inline it. Even code generators like{' '}
+          <code>vtprotobuf</code> that inline a <code>for shift := uint(0); ; shift += 7</code> loop
+          at every field still suffer branch mispredictions and byte-by-byte dependencies. OmniBuf's{' '}
+          <code>ReadVarintAt</code> is 12 lines, inlines everywhere, and loads <code>1</code>,{' '}
+          <code>2</code>, <code>4</code>, or <code>8</code> bytes in a single unaligned hardware
+          instruction.
+        </p>
+      </div>
+
+      <!-- Side-by-Side Code Comparison -->
+      <div class="grid lg:grid-cols-2 gap-6 font-mono text-xs sm:text-sm">
+        <div class="bg-ink border-2 border-ink rounded overflow-hidden flex flex-col">
+          <div class="bg-[#E5E0D5] text-ink px-4 py-2.5 border-b-2 border-ink font-bold flex items-center justify-between">
+            <span>
+              Protobuf: <code>protowire.ConsumeVarint</code>
+            </span>
+            <span class="text-[#FF4F18] text-xs uppercase font-bold">
+              100 Lines &bull; Cannot Inline
+            </span>
+          </div>
+          <div class="p-4 overflow-x-auto leading-relaxed flex-1 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+            <Code code={protoConsumeVarintCode} lang="go" theme="github-dark" />
+          </div>
+        </div>
+
+        <div class="bg-ink border-2 border-ink rounded overflow-hidden flex flex-col">
+          <div class="bg-acid text-ink px-4 py-2.5 border-b-2 border-ink font-bold flex items-center justify-between">
+            <span>
+              OmniBuf: <code>ReadVarintAt</code>
+            </span>
+            <span class="text-ink text-xs uppercase font-bold">
+              12 Lines &bull; Inlines Everywhere
+            </span>
+          </div>
+          <div class="p-4 overflow-x-auto leading-relaxed flex-1 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+            <Code code={omniReadVarintCode} lang="go" theme="github-dark" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Varint Microbenchmark Table -->
+      <div class="overflow-x-auto border-2 border-ink rounded bg-white">
+        <table class="w-full text-left border-collapse font-mono text-sm sm:text-base">
+          <thead>
+            <tr class="border-b-2 border-ink bg-[#E5E0D5]">
+              <th class="p-3.5 sm:p-4 font-bold uppercase">Operation</th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase">
+                Protobuf (<code>protowire</code>)
+              </th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase">
+                <code>vtprotobuf</code>
+              </th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase bg-acid">
+                OmniBuf <code>TZCNT</code>
+              </th>
+              <th class="p-3.5 sm:p-4 font-bold uppercase">Speedup</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-ink/15">
+            <tr class="bg-white">
+              <td class="p-3.5 sm:p-4 font-bold">Decode 1B Int</td>
+              <td class="p-3.5 sm:p-4">1.36 ns</td>
+              <td class="p-3.5 sm:p-4">0.80 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.37 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">2.2x to 3.7x faster</td>
+            </tr>
+            <tr class="bg-[#FAF8F2]">
+              <td class="p-3.5 sm:p-4 font-bold">Decode 2B Int</td>
+              <td class="p-3.5 sm:p-4">1.32 ns</td>
+              <td class="p-3.5 sm:p-4">1.29 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.83 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.6x faster</td>
+            </tr>
+            <tr class="bg-white">
+              <td class="p-3.5 sm:p-4 font-bold">Decode 4B Int</td>
+              <td class="p-3.5 sm:p-4">1.93 ns</td>
+              <td class="p-3.5 sm:p-4">2.25 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">1.00 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.9x to 2.3x faster</td>
+            </tr>
+            <tr class="bg-[#FAF8F2]">
+              <td class="p-3.5 sm:p-4 font-bold">Decode 8B Int</td>
+              <td class="p-3.5 sm:p-4">4.06 ns</td>
+              <td class="p-3.5 sm:p-4">5.11 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">1.38 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">2.9x to 3.7x faster</td>
+            </tr>
+            <tr class="bg-white">
+              <td class="p-3.5 sm:p-4 font-bold">Decode 16 Mixed Ints</td>
+              <td class="p-3.5 sm:p-4">40.8 ns</td>
+              <td class="p-3.5 sm:p-4">42.5 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">26.6 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.5x to 1.6x faster</td>
+            </tr>
+            <tr class="bg-[#FAF8F2]">
+              <td class="p-3.5 sm:p-4 font-bold">Skip 16 Mixed Ints</td>
+              <td class="p-3.5 sm:p-4">38.6 ns</td>
+              <td class="p-3.5 sm:p-4">42.5 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">25.0 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.5x to 1.7x faster</td>
+            </tr>
+            <tr class="bg-white">
+              <td class="p-3.5 sm:p-4 font-bold">Encode 16 Mixed Ints</td>
+              <td class="p-3.5 sm:p-4">62.9 ns</td>
+              <td class="p-3.5 sm:p-4">59.4 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">41.2 ns</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">1.5x faster</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PACKET LAYOUT & HEADER HOPPING VISUALIZATION -->
+  <div class="os-window-lg overflow-hidden">
+    <div class="os-titlebar bg-[#E5E0D5]">
+      <span class="font-mono text-sm sm:text-base font-bold uppercase">
+        Header Hopping: Skipping Fields to Reach a Target
+      </span>
+      <div class="os-stripes"></div>
+    </div>
+
+    <div class="p-5 sm:p-8 bg-[#FAF8F2] space-y-6">
+      <!-- Schema + Explanation + Color Key -->
+      <div class="grid lg:grid-cols-12 gap-5 items-center bg-white border-2 border-ink rounded p-5">
+        <div class="lg:col-span-5 font-mono">
+          <div class="bg-ink text-paper p-4 rounded text-sm leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+            <Code code={nodeSchemaCode} lang="protobuf" theme="github-dark" />
+          </div>
+        </div>
+        <div class="lg:col-span-7 space-y-3">
+          <p class="text-base sm:text-lg text-ink/90 leading-relaxed">
+            To skip past <code>id</code> (a 2-byte tag + 4-byte integer) and <code>active</code> (a
+            boolean) to read <code>city</code>, Protobuf has to bounce across{' '}
+            <strong>every single varint byte</strong> to check continuation bits. OmniBuf reads the
+            width from the first byte and leaps over the entire tag or value in one go.
+          </p>
+          <!-- Simple Color Key -->
+          <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm font-mono pt-1">
+            <span class="flex items-center gap-2 font-bold">
+              <span class="w-4 h-4 bg-ink inline-block border border-ink rounded-sm"></span> Tag
+              Byte
+            </span>
+            <span class="flex items-center gap-2 font-bold">
+              <span class="w-4 h-4 bg-[#E5E0D5] inline-block border border-ink rounded-sm"></span>{' '}
+              Value Byte
+            </span>
+            <span class="flex items-center gap-2 font-bold">
+              <span class="w-4 h-4 bg-acid inline-block border border-ink rounded-sm"></span> Target
+              Field
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESKTOP SVG: Side-by-Side Byte Strips with Bouncing vs Leaping Arrows -->
+      <div class="hidden md:block bg-white border-2 border-ink rounded-md p-4 sm:p-6 shadow-[4px_4px_0px_#111]">
+        <svg
+          viewBox="0 0 860 390"
+          class="w-full h-auto select-none"
+          role="img"
+          aria-label="Comparison of Protobuf byte-by-byte varint bouncing versus OmniBuf header hopping"
+        >
+          <defs>
+            <marker
+              id="hop-proto"
+              viewBox="0 0 10 10"
+              refX="7"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto"
+            >
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#FF4F18" />
+            </marker>
+            <marker
+              id="hop-omni"
+              viewBox="0 0 10 10"
+              refX="7"
+              refY="5"
+              markerWidth="6.5"
+              markerHeight="6.5"
+              orient="auto"
+            >
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#111111" />
+            </marker>
+          </defs>
+
+          <!-- ============================================================ -->
+          <!-- TRACK 1: PROTOBUF (8 Byte-by-Byte Bounces)                   -->
+          <!-- ============================================================ -->
+          <text
+            x="20"
+            y="26"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="14"
+            font-weight="700"
+          >
+            PROTOBUF: Bounces on every varint byte to check continuation bits (8 stops)
+          </text>
+
+          <!-- 8 Bouncing Arcs (Center of each byte to the next) -->
+          <!-- Bounce 1: Tag B1 (55) -> Tag B2 (141) -->
+          <path
+            d="M 55 96 Q 98 52 137 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+          <!-- Bounce 2: Tag B2 (141) -> Int B1 (227) -->
+          <path
+            d="M 141 96 Q 184 52 223 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+          <!-- Bounce 3: Int B1 (227) -> Int B2 (313) -->
+          <path
+            d="M 227 96 Q 270 52 309 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+          <!-- Bounce 4: Int B2 (313) -> Int B3 (399) -->
+          <path
+            d="M 313 96 Q 356 52 395 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+          <!-- Bounce 5: Int B3 (399) -> Int B4 (485) -->
+          <path
+            d="M 399 96 Q 442 52 481 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+          <!-- Bounce 6: Int B4 (485) -> Bool Tag (571) -->
+          <path
+            d="M 485 96 Q 528 52 567 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+          <!-- Bounce 7: Bool Tag (571) -> Bool Val (657) -->
+          <path
+            d="M 571 96 Q 614 52 653 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+          <!-- Bounce 8: Bool Val (657) -> Target (743) -->
+          <path
+            d="M 657 96 Q 700 52 739 94"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.5"
+            marker-end="url(#hop-proto)"
+          />
+
+          <!-- Bounce Stop Dots -->
+          <circle cx="55" cy="96" r="4" fill="#FF4F18" />
+          <circle cx="141" cy="96" r="4" fill="#FF4F18" />
+          <circle cx="227" cy="96" r="4" fill="#FF4F18" />
+          <circle cx="313" cy="96" r="4" fill="#FF4F18" />
+          <circle cx="399" cy="96" r="4" fill="#FF4F18" />
+          <circle cx="485" cy="96" r="4" fill="#FF4F18" />
+          <circle cx="571" cy="96" r="4" fill="#FF4F18" />
+          <circle cx="657" cy="96" r="4" fill="#FF4F18" />
+
+          <!-- Protobuf Byte Cells (y=102, h=52, w=78, gap=8) -->
+          <!-- Cell 0: Tag B1 -->
+          <rect
+            x="16"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="55"
+            y="125"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag B1
+          </text>
+          <text
+            x="55"
+            y="143"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Cell 1: Tag B2 -->
+          <rect
+            x="102"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="141"
+            y="125"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag B2
+          </text>
+          <text
+            x="141"
+            y="143"
+            fill="#D4FF33"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            end: 0
+          </text>
+
+          <!-- Cell 2: Int B1 -->
+          <rect
+            x="188"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="227"
+            y="125"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B1
+          </text>
+          <text
+            x="227"
+            y="143"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Cell 3: Int B2 -->
+          <rect
+            x="274"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="313"
+            y="125"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B2
+          </text>
+          <text
+            x="313"
+            y="143"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Cell 4: Int B3 -->
+          <rect
+            x="360"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="399"
+            y="125"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B3
+          </text>
+          <text
+            x="399"
+            y="143"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Cell 5: Int B4 -->
+          <rect
+            x="446"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="485"
+            y="125"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B4
+          </text>
+          <text
+            x="485"
+            y="143"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            end: 0
+          </text>
+
+          <!-- Cell 6: Bool Tag -->
+          <rect
+            x="532"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="571"
+            y="125"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag
+          </text>
+          <text
+            x="571"
+            y="143"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            text-anchor="middle"
+          >
+            bool
+          </text>
+
+          <!-- Cell 7: Bool Val -->
+          <rect
+            x="618"
+            y="102"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="657"
+            y="125"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Bool
+          </text>
+          <text
+            x="657"
+            y="143"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            text-anchor="middle"
+          >
+            1 byte
+          </text>
+
+          <!-- Cell 8: Target -->
+          <rect
+            x="704"
+            y="102"
+            width="140"
+            height="52"
+            rx="5"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="2.5"
+          />
+          <text
+            x="774"
+            y="125"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Target: city
+          </text>
+          <text
+            x="774"
+            y="143"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            8 stops
+          </text>
+
+          <!-- Group Labels Under Protobuf Cells -->
+          <text
+            x="98"
+            y="174"
+            fill="#555"
+            font-family="IBM Plex Mono"
+            font-size="12"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            2-Byte Varint Tag
+          </text>
+          <text
+            x="356"
+            y="174"
+            fill="#555"
+            font-family="IBM Plex Mono"
+            font-size="12"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            4-Byte Varint Integer
+          </text>
+          <text
+            x="614"
+            y="174"
+            fill="#555"
+            font-family="IBM Plex Mono"
+            font-size="12"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            2-Byte Bool
+          </text>
+
+          <!-- Divider Line -->
+          <line
+            x1="16"
+            y1="200"
+            x2="844"
+            y2="200"
+            stroke="#111111"
+            stroke-opacity="0.15"
+            stroke-width="2"
+            stroke-dasharray="6 6"
+          />
+
+          <!-- ============================================================ -->
+          <!-- TRACK 2: OMNIBUF (3 Direct Header Jumps)                     -->
+          <!-- ============================================================ -->
+          <text
+            x="20"
+            y="234"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="14"
+            font-weight="700"
+          >
+            OMNIBUF: Leaps whole tags &amp; values in one jump (3 stops)
+          </text>
+
+          <!-- Jump 1: Tag B1 (55) -> Int B1 (227) (Leaps over Tag B2) -->
+          <path
+            d="M 55 304 Q 141 245 222 301"
+            fill="none"
+            stroke="#111111"
+            stroke-width="3"
+            marker-end="url(#hop-omni)"
+          />
+          <rect
+            x="92"
+            y="248"
+            width="96"
+            height="20"
+            rx="4"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="1.5"
+          />
+          <text
+            x="140"
+            y="262"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Jump +2B Tag
+          </text>
+
+          <!-- Jump 2: Int B1 (227) -> Bool Tag (571) (Leaps over Int B2, B3, B4) -->
+          <path
+            d="M 227 304 Q 399 235 566 301"
+            fill="none"
+            stroke="#111111"
+            stroke-width="3"
+            marker-end="url(#hop-omni)"
+          />
+          <rect
+            x="342"
+            y="244"
+            width="114"
+            height="20"
+            rx="4"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="1.5"
+          />
+          <text
+            x="399"
+            y="258"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Skip +4B Value
+          </text>
+
+          <!-- Jump 3: Bool Tag (571) -> Target (657) -->
+          <path
+            d="M 571 304 Q 614 256 652 301"
+            fill="none"
+            stroke="#111111"
+            stroke-width="3"
+            marker-end="url(#hop-omni)"
+          />
+          <rect
+            x="572"
+            y="250"
+            width="82"
+            height="20"
+            rx="4"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="1.5"
+          />
+          <text
+            x="613"
+            y="264"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Jump +1B
+          </text>
+
+          <!-- Start Dots (Only 3 touches!) -->
+          <circle cx="55" cy="304" r="5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+          <circle cx="227" cy="304" r="5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+          <circle cx="571" cy="304" r="5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+
+          <!-- OmniBuf Byte Cells (y=310, h=52) -->
+          <!-- Cell 0..1: 2B Tag consumed in one go -->
+          <rect
+            x="16"
+            y="310"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="55"
+            y="333"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag B1
+          </text>
+          <text
+            x="55"
+            y="351"
+            fill="#D4FF33"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            len = 2B
+          </text>
+
+          <rect
+            x="102"
+            y="310"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#111111"
+            fill-opacity="0.55"
+            stroke="#111111"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="141"
+            y="333"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            Tag B2
+          </text>
+          <text
+            x="141"
+            y="351"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            1 load
+          </text>
+
+          <!-- Cell 2: Int B1 (Tells width=4B) -->
+          <rect
+            x="188"
+            y="310"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="227"
+            y="333"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B1
+          </text>
+          <text
+            x="227"
+            y="351"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            len = 4B
+          </text>
+
+          <!-- Cells 3..5: Int B2..B4 (Never even inspected when skipping!) -->
+          <rect
+            x="274"
+            y="310"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            fill-opacity="0.45"
+            stroke="#111111"
+            stroke-opacity="0.4"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="313"
+            y="333"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            text-anchor="middle"
+          >
+            Int B2
+          </text>
+          <text
+            x="313"
+            y="351"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            skipped
+          </text>
+
+          <rect
+            x="360"
+            y="310"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            fill-opacity="0.45"
+            stroke="#111111"
+            stroke-opacity="0.4"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="399"
+            y="333"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            text-anchor="middle"
+          >
+            Int B3
+          </text>
+          <text
+            x="399"
+            y="351"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            skipped
+          </text>
+
+          <rect
+            x="446"
+            y="310"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#E5E0D5"
+            fill-opacity="0.45"
+            stroke="#111111"
+            stroke-opacity="0.4"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="485"
+            y="333"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            text-anchor="middle"
+          >
+            Int B4
+          </text>
+          <text
+            x="485"
+            y="351"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            skipped
+          </text>
+
+          <!-- Cell 6: Bool Tag (0 Value Bytes!) -->
+          <rect
+            x="532"
+            y="310"
+            width="78"
+            height="52"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="571"
+            y="333"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag=True
+          </text>
+          <text
+            x="571"
+            y="351"
+            fill="#D4FF33"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            0 val bytes
+          </text>
+
+          <!-- Cell 7: Target Reached -->
+          <rect
+            x="618"
+            y="310"
+            width="140"
+            height="52"
+            rx="5"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="2.5"
+          />
+          <text
+            x="688"
+            y="333"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Target: city
+          </text>
+          <text
+            x="688"
+            y="351"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            3 jumps
+          </text>
+        </svg>
+      </div>
+
+      <!-- MOBILE SVG: Vertical Side-by-Side Byte Strips with Bouncing vs Leaping Arrows -->
+      <div class="block md:hidden bg-white border-2 border-ink rounded-md p-3 shadow-[4px_4px_0px_#111]">
+        <svg
+          viewBox="0 0 390 600"
+          class="w-full h-auto select-none"
+          role="img"
+          aria-label="Mobile vertical comparison of Protobuf byte-by-byte varint bouncing versus OmniBuf header hopping"
+        >
+          <defs>
+            <marker
+              id="hop-proto-m"
+              viewBox="0 0 10 10"
+              refX="7"
+              refY="5"
+              markerWidth="5.5"
+              markerHeight="5.5"
+              orient="auto"
+            >
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#FF4F18" />
+            </marker>
+            <marker
+              id="hop-omni-m"
+              viewBox="0 0 10 10"
+              refX="7"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto"
+            >
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#111111" />
+            </marker>
+          </defs>
+
+          <!-- Column Headers -->
+          <text
+            x="12"
+            y="22"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="14"
+            font-weight="700"
+          >
+            PROTOBUF
+          </text>
+          <text
+            x="12"
+            y="39"
+            fill="#555"
+            font-family="IBM Plex Mono"
+            font-size="11.5"
+            font-weight="600"
+          >
+            8 byte bounces
+          </text>
+
+          <text
+            x="202"
+            y="22"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="14"
+            font-weight="700"
+          >
+            OMNIBUF
+          </text>
+          <text
+            x="202"
+            y="39"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="11.5"
+            font-weight="600"
+          >
+            3 direct jumps
+          </text>
+
+          <!-- Center Divider -->
+          <line
+            x1="186"
+            y1="10"
+            x2="186"
+            y2="588"
+            stroke="#111111"
+            stroke-opacity="0.15"
+            stroke-width="2"
+            stroke-dasharray="5 5"
+          />
+
+          <!-- ============================================================ -->
+          <!-- LEFT COLUMN: PROTOBUF (8 Vertical Byte-by-Byte Bounces)      -->
+          <!-- ============================================================ -->
+          <!-- Row 0: Tag B1 (y=56..102, mid=79) -->
+          <rect
+            x="12"
+            y="56"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="76"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag B1
+          </text>
+          <text
+            x="64"
+            y="93"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Row 1: Tag B2 (y=116..162, mid=139) -->
+          <rect
+            x="12"
+            y="116"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="136"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag B2
+          </text>
+          <text
+            x="64"
+            y="153"
+            fill="#D4FF33"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            end: 0
+          </text>
+
+          <!-- Row 2: Int B1 (y=176..222, mid=199) -->
+          <rect
+            x="12"
+            y="176"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="196"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B1
+          </text>
+          <text
+            x="64"
+            y="213"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Row 3: Int B2 (y=236..282, mid=259) -->
+          <rect
+            x="12"
+            y="236"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="256"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B2
+          </text>
+          <text
+            x="64"
+            y="273"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Row 4: Int B3 (y=296..342, mid=319) -->
+          <rect
+            x="12"
+            y="296"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="316"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B3
+          </text>
+          <text
+            x="64"
+            y="333"
+            fill="#FF4F18"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            more? 1
+          </text>
+
+          <!-- Row 5: Int B4 (y=356..402, mid=379) -->
+          <rect
+            x="12"
+            y="356"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="376"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B4
+          </text>
+          <text
+            x="64"
+            y="393"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            end: 0
+          </text>
+
+          <!-- Row 6: Bool Tag (y=416..462, mid=439) -->
+          <rect
+            x="12"
+            y="416"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="436"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag
+          </text>
+          <text
+            x="64"
+            y="453"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            bool
+          </text>
+
+          <!-- Row 7: Bool Val (y=476..522, mid=499) -->
+          <rect
+            x="12"
+            y="476"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="64"
+            y="496"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Bool
+          </text>
+          <text
+            x="64"
+            y="513"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            1 byte
+          </text>
+
+          <!-- Row 8: Target (y=536..584, mid=560) -->
+          <rect
+            x="12"
+            y="536"
+            width="104"
+            height="48"
+            rx="5"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="2.5"
+          />
+          <text
+            x="64"
+            y="557"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Target: city
+          </text>
+          <text
+            x="64"
+            y="574"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            8 stops
+          </text>
+
+          <!-- 8 Bouncing Red Arcs on Protobuf Column -->
+          <path
+            d="M 120 79 Q 158 109 123 136"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+          <path
+            d="M 120 139 Q 158 169 123 196"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+          <path
+            d="M 120 199 Q 158 229 123 256"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+          <path
+            d="M 120 259 Q 158 289 123 316"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+          <path
+            d="M 120 319 Q 158 349 123 376"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+          <path
+            d="M 120 379 Q 158 409 123 436"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+          <path
+            d="M 120 439 Q 158 469 123 496"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+          <path
+            d="M 120 499 Q 158 529 123 556"
+            fill="none"
+            stroke="#FF4F18"
+            stroke-width="2.2"
+            marker-end="url(#hop-proto-m)"
+          />
+
+          <!-- Protobuf Bounce Dots -->
+          <circle cx="120" cy="79" r="3.5" fill="#FF4F18" />
+          <circle cx="120" cy="139" r="3.5" fill="#FF4F18" />
+          <circle cx="120" cy="199" r="3.5" fill="#FF4F18" />
+          <circle cx="120" cy="259" r="3.5" fill="#FF4F18" />
+          <circle cx="120" cy="319" r="3.5" fill="#FF4F18" />
+          <circle cx="120" cy="379" r="3.5" fill="#FF4F18" />
+          <circle cx="120" cy="439" r="3.5" fill="#FF4F18" />
+          <circle cx="120" cy="499" r="3.5" fill="#FF4F18" />
+
+          <!-- ============================================================ -->
+          <!-- RIGHT COLUMN: OMNIBUF (3 Direct Vertical Jumps)              -->
+          <!-- ============================================================ -->
+          <!-- Row 0: Tag B1 (len=2B) -->
+          <rect
+            x="202"
+            y="56"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="254"
+            y="76"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag B1
+          </text>
+          <text
+            x="254"
+            y="93"
+            fill="#D4FF33"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            len = 2B
+          </text>
+
+          <!-- Row 1: Tag B2 (Consumed in 1 load) -->
+          <rect
+            x="202"
+            y="116"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#111111"
+            fill-opacity="0.55"
+            stroke="#111111"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="254"
+            y="136"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            Tag B2
+          </text>
+          <text
+            x="254"
+            y="153"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            1 load
+          </text>
+
+          <!-- Row 2: Int B1 (len=4B) -->
+          <rect
+            x="202"
+            y="176"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="254"
+            y="196"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Int B1
+          </text>
+          <text
+            x="254"
+            y="213"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            len = 4B
+          </text>
+
+          <!-- Rows 3..5: Int B2..B4 (Skipped) -->
+          <rect
+            x="202"
+            y="236"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            fill-opacity="0.45"
+            stroke="#111111"
+            stroke-opacity="0.4"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="254"
+            y="256"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            text-anchor="middle"
+          >
+            Int B2
+          </text>
+          <text
+            x="254"
+            y="273"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            skipped
+          </text>
+
+          <rect
+            x="202"
+            y="296"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            fill-opacity="0.45"
+            stroke="#111111"
+            stroke-opacity="0.4"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="254"
+            y="316"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            text-anchor="middle"
+          >
+            Int B3
+          </text>
+          <text
+            x="254"
+            y="333"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            skipped
+          </text>
+
+          <rect
+            x="202"
+            y="356"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#E5E0D5"
+            fill-opacity="0.45"
+            stroke="#111111"
+            stroke-opacity="0.4"
+            stroke-width="1.5"
+            stroke-dasharray="4 3"
+          />
+          <text
+            x="254"
+            y="376"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            text-anchor="middle"
+          >
+            Int B4
+          </text>
+          <text
+            x="254"
+            y="393"
+            fill="#666"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            text-anchor="middle"
+          >
+            skipped
+          </text>
+
+          <!-- Row 6: Tag=True (0 val bytes) -->
+          <rect
+            x="202"
+            y="416"
+            width="104"
+            height="46"
+            rx="5"
+            fill="#111111"
+            stroke="#111111"
+            stroke-width="2"
+          />
+          <text
+            x="254"
+            y="436"
+            fill="#FAF8F2"
+            font-family="IBM Plex Mono"
+            font-size="12.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Tag=True
+          </text>
+          <text
+            x="254"
+            y="453"
+            fill="#D4FF33"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            0 val bytes
+          </text>
+
+          <!-- Row 7: Target Reached -->
+          <rect
+            x="202"
+            y="476"
+            width="104"
+            height="48"
+            rx="5"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="2.5"
+          />
+          <text
+            x="254"
+            y="497"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            Target: city
+          </text>
+          <text
+            x="254"
+            y="514"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            3 jumps
+          </text>
+
+          <!-- 3 Long Leaping Arcs on OmniBuf Column -->
+          <!-- Jump 1: Row 0 (79) -> Row 2 (199) -->
+          <path
+            d="M 310 79 Q 368 139 313 196"
+            fill="none"
+            stroke="#111111"
+            stroke-width="2.6"
+            marker-end="url(#hop-omni-m)"
+          />
+          <rect
+            x="328"
+            y="129"
+            width="52"
+            height="20"
+            rx="4"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="1.5"
+          />
+          <text
+            x="354"
+            y="143"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            +2B
+          </text>
+
+          <!-- Jump 2: Row 2 (199) -> Row 6 (439) -->
+          <path
+            d="M 310 199 Q 382 319 313 436"
+            fill="none"
+            stroke="#111111"
+            stroke-width="2.6"
+            marker-end="url(#hop-omni-m)"
+          />
+          <rect
+            x="330"
+            y="309"
+            width="52"
+            height="20"
+            rx="4"
+            fill="#D4FF33"
+            stroke="#111111"
+            stroke-width="1.5"
+          />
+          <text
+            x="356"
+            y="323"
+            fill="#111111"
+            font-family="IBM Plex Mono"
+            font-size="10.5"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            +4B
+          </text>
+
+          <!-- Jump 3: Row 6 (439) -> Row 7 (499) -->
+          <path
+            d="M 310 439 Q 348 469 313 496"
+            fill="none"
+            stroke="#111111"
+            stroke-width="2.6"
+            marker-end="url(#hop-omni-m)"
+          />
+
+          <!-- OmniBuf Jump Start Dots -->
+          <circle cx="310" cy="79" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+          <circle cx="310" cy="199" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+          <circle cx="310" cy="439" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>

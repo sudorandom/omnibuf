@@ -1,0 +1,5 @@
+name = "omnibuf"
+compatibility_date = "2026-10-24"
+pages_build_output_dir = "./dist"
+
+# Custom domain configured on Cloudflare Pages: omnibuf.com
