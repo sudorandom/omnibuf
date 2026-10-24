@@ -202,17 +202,28 @@ func (x *OpaqueLocation) MarshalAppend(dst []byte) []byte {
 	return omnibuf.SpliceFields(dst, x.raw, x.dirty, 6, func(b []byte, fnum uint16) []byte {
 		switch fnum {
 		case 1:
-			return omnibuf.EncodeString(b, 1, x.f_region)
+			b = append(b, 0x27)
+			b = omnibuf.AppendVarint(b, uint64(len(x.f_region)))
+			return append(b, x.f_region...)
 		case 2:
-			return omnibuf.EncodeString(b, 2, x.f_datacenter)
+			b = append(b, 0x47)
+			b = omnibuf.AppendVarint(b, uint64(len(x.f_datacenter)))
+			return append(b, x.f_datacenter...)
 		case 3:
-			return omnibuf.EncodeString(b, 3, x.f_city)
+			b = append(b, 0x67)
+			b = omnibuf.AppendVarint(b, uint64(len(x.f_city)))
+			return append(b, x.f_city...)
 		case 4:
-			return omnibuf.EncodeUint(b, 4, uint64(x.f_rack))
+			b = append(b, 0x81)
+			return omnibuf.AppendVarint(b, uint64(x.f_rack))
 		case 5:
-			return omnibuf.EncodeFloat32(b, 5, x.f_latitude)
+			b = append(b, 0xb5)
+			v := math.Float32bits(x.f_latitude)
+			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
 		case 6:
-			return omnibuf.EncodeFloat32(b, 6, x.f_longitude)
+			b = append(b, 0xd5)
+			v := math.Float32bits(x.f_longitude)
+			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
 		}
 		return b
 	})
@@ -363,13 +374,20 @@ func (x *OpaqueNeighbor) MarshalAppend(dst []byte) []byte {
 	return omnibuf.SpliceFields(dst, x.raw, x.dirty, 4, func(b []byte, fnum uint16) []byte {
 		switch fnum {
 		case 1:
-			return omnibuf.EncodeUint(b, 1, uint64(x.f_peer_asn))
+			b = append(b, 0x21)
+			return omnibuf.AppendVarint(b, uint64(x.f_peer_asn))
 		case 2:
-			return omnibuf.EncodeString(b, 2, x.f_router)
+			b = append(b, 0x47)
+			b = omnibuf.AppendVarint(b, uint64(len(x.f_router)))
+			return append(b, x.f_router...)
 		case 3:
-			return omnibuf.EncodeUint(b, 3, uint64(x.f_latency_us))
+			b = append(b, 0x61)
+			return omnibuf.AppendVarint(b, uint64(x.f_latency_us))
 		case 4:
-			return omnibuf.EncodeBool(b, 4, x.f_established)
+			if x.f_established {
+				return append(b, 0x85)
+			}
+			return append(b, 0x83)
 		}
 		return b
 	})
@@ -395,9 +413,22 @@ func (x *PeerUpdate) MarshalOmniBufAppend(dst []byte) []byte {
 	b_5 := math.Float64bits(x.CpuLoad)
 	dst = append(dst, byte(b_5), byte(b_5>>8), byte(b_5>>16), byte(b_5>>24), byte(b_5>>32), byte(b_5>>40), byte(b_5>>48), byte(b_5>>56))
 	dst = append(dst, 0xed)
-	dst = omnibuf.EncodeStringArr(dst, x.Tags)
+	lenPos_6 := len(dst)
+	dst = append(dst, 0, 0)
+	dst = omnibuf.AppendVarint(dst, uint64(len(x.Tags)))
+	for _, s := range x.Tags {
+		dst = omnibuf.AppendVarint(dst, uint64(len(s)))
+		dst = append(dst, s...)
+	}
+	dst = omnibuf.BackpatchContainerLen(dst, lenPos_6)
 	dst = append(dst, 0x1e, 0x02)
-	dst = omnibuf.EncodeUintArr(dst, x.Prefixes)
+	lenPos_7 := len(dst)
+	dst = append(dst, 0, 0)
+	dst = omnibuf.AppendVarint(dst, uint64(len(x.Prefixes)))
+	for _, v := range x.Prefixes {
+		dst = omnibuf.AppendVarint(dst, uint64(v))
+	}
+	dst = omnibuf.BackpatchContainerLen(dst, lenPos_7)
 	dst = append(dst, 0x56, 0x02)
 	lenPos_8 := len(dst)
 	dst = append(dst, 0, 0)
@@ -762,19 +793,30 @@ func (x *OpaquePeerUpdate) MarshalAppend(dst []byte) []byte {
 	return omnibuf.SpliceFields(dst, x.raw, x.dirty, 11, func(b []byte, fnum uint16) []byte {
 		switch fnum {
 		case 1:
-			return omnibuf.EncodeUint(b, 1, uint64(x.f_asn))
+			b = append(b, 0x21)
+			return omnibuf.AppendVarint(b, uint64(x.f_asn))
 		case 2:
-			return omnibuf.EncodeString(b, 2, x.f_router_id)
+			b = append(b, 0x47)
+			b = omnibuf.AppendVarint(b, uint64(len(x.f_router_id)))
+			return append(b, x.f_router_id...)
 		case 3:
-			return omnibuf.EncodeBool(b, 3, x.f_active)
+			if x.f_active {
+				return append(b, 0x65)
+			}
+			return append(b, 0x63)
 		case 4:
-			return omnibuf.EncodeUint(b, 4, x.f_uptime_sec)
+			b = append(b, 0x81)
+			return omnibuf.AppendVarint(b, x.f_uptime_sec)
 		case 5:
-			return omnibuf.EncodeSint(b, 5, int64(x.f_rssi_dbm))
+			b = append(b, 0xb9)
+			return omnibuf.AppendVarint(b, omnibuf.EncodeZigZag(int64(x.f_rssi_dbm)))
 		case 6:
-			return omnibuf.EncodeFloat64(b, 6, x.f_cpu_load)
+			b = append(b, 0xd7)
+			v := math.Float64bits(x.f_cpu_load)
+			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24), byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56))
 		case 11:
-			return omnibuf.EncodeUint(b, 11, x.f_sequence)
+			b = append(b, 0xc2, 0x02)
+			return omnibuf.AppendVarint(b, x.f_sequence)
 		}
 		return b
 	})

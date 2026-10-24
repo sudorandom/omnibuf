@@ -148,31 +148,6 @@ func backpatchLargeContainerLen(dst []byte, lenPos int, subLen uint64) []byte {
 	return dst
 }
 
-// readTagAt decodes a field tag at packet[pos:], returning (fieldNum, wireType, nextPos, ok).
-func readTagAt(packet []byte, pos int) (fnum uint16, wt uint8, nextPos int, ok bool) {
-	b0 := packet[pos]
-	if (b0 & 1) != 0 {
-		return uint16(b0 >> 5), (b0 >> 1) & 0x0F, pos + 1, true
-	}
-	if (b0 & 2) != 0 {
-		if pos+2 > len(packet) {
-			return 0, 0, 0, false
-		}
-		u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
-		return u >> 4, uint8(u & 0x0F), pos + 2, true
-	}
-	return readTagMultiAt(packet, pos)
-}
-
-//go:noinline
-func readTagMultiAt(packet []byte, pos int) (uint16, uint8, int, bool) {
-	tag, tn := decodeVarintMulti(packet[pos:])
-	if tn == 0 || tag>>4 > math.MaxUint16 {
-		return 0, 0, 0, false
-	}
-	return uint16(tag >> 4), uint8(tag & 0x0F), pos + tn, true
-}
-
 // fastSkipValue advances pos past a field value of wire type wt in O(1) time without error string allocation.
 func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
 	n := len(packet)
@@ -275,9 +250,9 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 	pos := 0
 	n := len(packet)
 	for pos < n {
-		b0 := packet[pos]
 		var fnum uint16
 		var wt uint8
+		b0 := packet[pos]
 		if (b0 & 1) != 0 {
 			fnum = uint16(b0 >> 5)
 			wt = (b0 >> 1) & 0x0F
@@ -291,11 +266,13 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 			wt = uint8(u & 0x0F)
 			pos += 2
 		} else {
-			var valid bool
-			fnum, wt, pos, valid = readTagMultiAt(packet, pos)
-			if !valid {
+			tag, tn := decodeVarintMulti(packet[pos:])
+			if tn == 0 {
 				return nil, 0, false
 			}
+			fnum = uint16(tag >> 4)
+			wt = uint8(tag & 0x0F)
+			pos += tn
 		}
 
 		if fnum == targetField {
@@ -336,11 +313,11 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 				}
 				pos += 2 + int(binary.LittleEndian.Uint16(packet[pos:pos+2])>>2)
 			} else {
-				var valid bool
-				pos, valid = skipLargeContainer(packet, pos)
-				if !valid {
+				bLen, bn := decodeVarintMulti(packet[pos:])
+				if bn == 0 || bLen > uint64(n-(pos+bn)) {
 					return nil, 0, false
 				}
+				pos += bn + int(bLen)
 			}
 			if pos > n {
 				return nil, 0, false
@@ -369,23 +346,45 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8, minLen uint64) (body []byte, nextPos int, matched bool, valid bool) {
 	n := len(packet)
 	for pos < n {
-		fnum, wt, valPos, validTag := readTagAt(packet, pos)
-		if !validTag {
-			return nil, 0, false, false
+		var fnum uint16
+		var wt uint8
+		b0 := packet[pos]
+		if (b0 & 1) != 0 {
+			fnum = uint16(b0 >> 5)
+			wt = (b0 >> 1) & 0x0F
+			pos++
+		} else if (b0 & 2) != 0 {
+			if pos+2 > n {
+				return nil, 0, false, false
+			}
+			u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
+			fnum = u >> 4
+			wt = uint8(u & 0x0F)
+			pos += 2
+		} else {
+			tag, tn := decodeVarintMulti(packet[pos:])
+			if tn == 0 || tag>>4 > math.MaxUint16 {
+				return nil, 0, false, false
+			}
+			fnum = uint16(tag >> 4)
+			wt = uint8(tag & 0x0F)
+			pos += tn
 		}
+
 		if fnum == targetField {
 			if wt != expWT {
 				return nil, 0, false, false
 			}
-			bLen, bn := DecodeVarint(packet[valPos:])
-			if bn == 0 || bLen < minLen || bLen > uint64(n-(valPos+bn)) {
+			bLen, bn := DecodeVarint(packet[pos:])
+			if bn == 0 || bLen < minLen || bLen > uint64(n-(pos+bn)) {
 				return nil, 0, false, false
 			}
-			valPos += bn
-			return packet[valPos : valPos+int(bLen)], valPos + int(bLen), true, true
+			pos += bn
+			return packet[pos : pos+int(bLen)], pos + int(bLen), true, true
 		}
+
 		var err error
-		pos, err = SkipValue(packet, valPos, wt)
+		pos, err = SkipValue(packet, pos, wt)
 		if err != nil {
 			return nil, 0, false, false
 		}

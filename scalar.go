@@ -11,49 +11,16 @@ import (
 // Scalar Wire Types (WireUint, WireSint, WireBool*, WireFixed32/64, WireString, WireBytes)
 // ============================================================================
 
-// EncodeUint appends an unsigned integer field (WireUint) to b.
-func EncodeUint(b []byte, fieldNum uint16, v uint64) []byte {
-	if tag := (uint32(fieldNum) << 4) | uint32(WireUint); tag <= 127 {
-		b = append(b, byte(tag<<1)|1)
-	} else {
-		b = appendTagMulti(b, tag)
-	}
-	return AppendVarint(b, v)
-}
-
 // WriteUint writes an unsigned integer field (WireUint).
 func (e *Encoder) WriteUint(fieldNum uint16, v uint64) {
 	e.writeTag(fieldNum, WireUint)
 	e.buf = AppendVarint(e.buf, v)
 }
 
-// EncodeSint appends a ZigZag-encoded signed integer field (WireSint) to b.
-func EncodeSint(b []byte, fieldNum uint16, v int64) []byte {
-	if tag := (uint32(fieldNum) << 4) | uint32(WireSint); tag <= 127 {
-		b = append(b, byte(tag<<1)|1)
-	} else {
-		b = appendTagMulti(b, tag)
-	}
-	return AppendVarint(b, EncodeZigZag(v))
-}
-
 // WriteInt writes a ZigZag-encoded signed integer field (WireSint).
 func (e *Encoder) WriteInt(fieldNum uint16, v int64) {
 	e.writeTag(fieldNum, WireSint)
 	e.buf = AppendVarint(e.buf, EncodeZigZag(v))
-}
-
-// EncodeBool appends a boolean field using 0 payload bytes (WireBoolTrue or WireBoolFalse) to b.
-func EncodeBool(b []byte, fieldNum uint16, v bool) []byte {
-	wt := WireBoolFalse
-	if v {
-		wt = WireBoolTrue
-	}
-	if tag := (uint32(fieldNum) << 4) | uint32(wt); tag <= 127 {
-		return append(b, byte(tag<<1)|1)
-	} else {
-		return appendTagMulti(b, tag)
-	}
 }
 
 // WriteBool writes a boolean field using 0 payload bytes (WireBoolTrue or WireBoolFalse).
@@ -65,43 +32,15 @@ func (e *Encoder) WriteBool(fieldNum uint16, v bool) {
 	e.writeTag(fieldNum, wt)
 }
 
-// EncodeFixed32 appends a 4-byte little-endian uint32 field (WireFixed32) to b.
-func EncodeFixed32(b []byte, fieldNum uint16, v uint32) []byte {
-	if tag := (uint32(fieldNum) << 4) | uint32(WireFixed32); tag <= 127 {
-		b = append(b, byte(tag<<1)|1)
-	} else {
-		b = appendTagMulti(b, tag)
-	}
-	return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
-}
-
 // WriteFixed32 writes a 4-byte little-endian uint32 field (WireFixed32).
 func (e *Encoder) WriteFixed32(fieldNum uint16, v uint32) {
 	e.writeTag(fieldNum, WireFixed32)
 	e.buf = append(e.buf, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
 }
 
-// EncodeFloat32 appends a 4-byte IEEE-754 float32 field (WireFixed32) to b.
-func EncodeFloat32(b []byte, fieldNum uint16, v float32) []byte {
-	return EncodeFixed32(b, fieldNum, math.Float32bits(v))
-}
-
 // WriteFloat32 writes a 4-byte IEEE-754 float32 field (WireFixed32).
 func (e *Encoder) WriteFloat32(fieldNum uint16, v float32) {
 	e.WriteFixed32(fieldNum, math.Float32bits(v))
-}
-
-// EncodeFixed64 appends an 8-byte little-endian uint64 field (WireFixed64) to b.
-func EncodeFixed64(b []byte, fieldNum uint16, v uint64) []byte {
-	if tag := (uint32(fieldNum) << 4) | uint32(WireFixed64); tag <= 127 {
-		b = append(b, byte(tag<<1)|1)
-	} else {
-		b = appendTagMulti(b, tag)
-	}
-	return append(b,
-		byte(v), byte(v>>8), byte(v>>16), byte(v>>24),
-		byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56),
-	)
 }
 
 // WriteFixed64 writes an 8-byte little-endian uint64 field (WireFixed64).
@@ -113,25 +52,9 @@ func (e *Encoder) WriteFixed64(fieldNum uint16, v uint64) {
 	)
 }
 
-// EncodeFloat64 appends an 8-byte IEEE-754 float64 field (WireFixed64) to b.
-func EncodeFloat64(b []byte, fieldNum uint16, v float64) []byte {
-	return EncodeFixed64(b, fieldNum, math.Float64bits(v))
-}
-
 // WriteFloat64 writes an 8-byte IEEE-754 float64 field (WireFixed64).
 func (e *Encoder) WriteFloat64(fieldNum uint16, v float64) {
 	e.WriteFixed64(fieldNum, math.Float64bits(v))
-}
-
-// EncodeString appends a UTF-8 string field (WireString) to b.
-func EncodeString(b []byte, fieldNum uint16, s string) []byte {
-	if tag := (uint32(fieldNum) << 4) | uint32(WireString); tag <= 127 {
-		b = append(b, byte(tag<<1)|1)
-	} else {
-		b = appendTagMulti(b, tag)
-	}
-	b = AppendVarint(b, uint64(len(s)))
-	return append(b, s...)
 }
 
 // WriteString writes a UTF-8 string field (WireString).
@@ -139,17 +62,6 @@ func (e *Encoder) WriteString(fieldNum uint16, s string) {
 	e.writeTag(fieldNum, WireString)
 	e.buf = AppendVarint(e.buf, uint64(len(s)))
 	e.buf = append(e.buf, s...)
-}
-
-// EncodeBytes appends a raw byte slice field (WireBytes) to b.
-func EncodeBytes(b []byte, fieldNum uint16, data []byte) []byte {
-	if tag := (uint32(fieldNum) << 4) | uint32(WireBytes); tag <= 127 {
-		b = append(b, byte(tag<<1)|1)
-	} else {
-		b = appendTagMulti(b, tag)
-	}
-	b = AppendVarint(b, uint64(len(data)))
-	return append(b, data...)
 }
 
 // WriteBytes writes a raw byte slice field (WireBytes).

@@ -251,9 +251,22 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 		if f.Desc.IsList() {
 			switch f.Desc.Kind() {
 			case protoreflect.StringKind:
-				g.P("	dst = omnibuf.EncodeStringArr(dst, x.", f.GoName, ")")
+				g.P("	lenPos_", i, " := len(dst)")
+				g.P("	dst = append(dst, 0, 0)")
+				g.P("	dst = omnibuf.AppendVarint(dst, uint64(len(x.", f.GoName, ")))")
+				g.P("	for _, s := range x.", f.GoName, " {")
+				g.P("		dst = omnibuf.AppendVarint(dst, uint64(len(s)))")
+				g.P("		dst = append(dst, s...)")
+				g.P("	}")
+				g.P("	dst = omnibuf.BackpatchContainerLen(dst, lenPos_", i, ")")
 			case protoreflect.Uint32Kind:
-				g.P("	dst = omnibuf.EncodeUintArr(dst, x.", f.GoName, ")")
+				g.P("	lenPos_", i, " := len(dst)")
+				g.P("	dst = append(dst, 0, 0)")
+				g.P("	dst = omnibuf.AppendVarint(dst, uint64(len(x.", f.GoName, ")))")
+				g.P("	for _, v := range x.", f.GoName, " {")
+				g.P("		dst = omnibuf.AppendVarint(dst, uint64(v))")
+				g.P("	}")
+				g.P("	dst = omnibuf.BackpatchContainerLen(dst, lenPos_", i, ")")
 			case protoreflect.MessageKind:
 				g.P("	lenPos_", i, " := len(dst)")
 				g.P("	dst = append(dst, 0, 0)")
@@ -689,21 +702,38 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 		fnum := uint16(f.Desc.Number())
 		privName := "f_" + f.Desc.TextName()
 		g.P("		case ", fnum, ":")
+		if f.Desc.Kind() == protoreflect.BoolKind {
+			tTrue := byte(((fnum<<4)|2)<<1) | 1
+			tFalse := byte(((fnum<<4)|1)<<1) | 1
+			g.P("			if x.", privName, " {")
+			g.P(fmt.Sprintf("				return append(b, 0x%02x)", tTrue))
+			g.P("			}")
+			g.P(fmt.Sprintf("			return append(b, 0x%02x)", tFalse))
+			continue
+		}
+		rawTag := (fnum << 4) | uint16(wireTypeForField(f))
+		if rawTag <= 127 {
+			g.P(fmt.Sprintf("			b = append(b, 0x%02x)", byte(rawTag<<1)|1))
+		} else {
+			tag2 := (rawTag << 2) | 2
+			g.P(fmt.Sprintf("			b = append(b, 0x%02x, 0x%02x)", byte(tag2), byte(tag2>>8)))
+		}
 		switch f.Desc.Kind() {
 		case protoreflect.Uint32Kind:
-			g.P("			return omnibuf.EncodeUint(b, ", fnum, ", uint64(x.", privName, "))")
+			g.P("			return omnibuf.AppendVarint(b, uint64(x.", privName, "))")
 		case protoreflect.Uint64Kind:
-			g.P("			return omnibuf.EncodeUint(b, ", fnum, ", x.", privName, ")")
+			g.P("			return omnibuf.AppendVarint(b, x.", privName, ")")
 		case protoreflect.Sint32Kind, protoreflect.Int32Kind:
-			g.P("			return omnibuf.EncodeSint(b, ", fnum, ", int64(x.", privName, "))")
-		case protoreflect.BoolKind:
-			g.P("			return omnibuf.EncodeBool(b, ", fnum, ", x.", privName, ")")
+			g.P("			return omnibuf.AppendVarint(b, omnibuf.EncodeZigZag(int64(x.", privName, ")))")
 		case protoreflect.FloatKind:
-			g.P("			return omnibuf.EncodeFloat32(b, ", fnum, ", x.", privName, ")")
+			g.P("			v := math.Float32bits(x.", privName, ")")
+			g.P("			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))")
 		case protoreflect.DoubleKind:
-			g.P("			return omnibuf.EncodeFloat64(b, ", fnum, ", x.", privName, ")")
+			g.P("			v := math.Float64bits(x.", privName, ")")
+			g.P("			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24), byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56))")
 		case protoreflect.StringKind:
-			g.P("			return omnibuf.EncodeString(b, ", fnum, ", x.", privName, ")")
+			g.P("			b = omnibuf.AppendVarint(b, uint64(len(x.", privName, ")))")
+			g.P("			return append(b, x.", privName, "...)")
 		}
 	}
 	g.P("		}")

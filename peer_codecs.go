@@ -226,13 +226,25 @@ func EncodePeerOmniBufDirect(dst []byte, p *PeerUpdate) []byte {
 	)
 
 	// Field 7: Tags (WireStringArr, 1B tag since fieldNum=7, backpatched length)
-	dst = append(dst, byte((FieldPeerTags<<4|uint16(WireStringArr))<<1)|1)
-	dst = EncodeStringArr(dst, p.Tags)
+	dst = append(dst, byte((FieldPeerTags<<4|uint16(WireStringArr))<<1)|1, 0, 0)
+	tagsLenPos := len(dst) - 2
+	dst = AppendVarint(dst, uint64(len(p.Tags)))
+	for i := range p.Tags {
+		s := p.Tags[i]
+		dst = AppendVarint(dst, uint64(len(s)))
+		dst = append(dst, s...)
+	}
+	dst = BackpatchContainerLen(dst, tagsLenPos)
 
 	// Field 8: Prefixes (WireUintArr, 2B tag since fieldNum=8, backpatched length)
 	tag8 := ((FieldPeerPrefixes<<4 | uint16(WireUintArr)) << 2) | 2
-	dst = append(dst, byte(tag8), byte(tag8>>8))
-	dst = EncodeUintArr(dst, p.Prefixes)
+	dst = append(dst, byte(tag8), byte(tag8>>8), 0, 0)
+	prefLenPos := len(dst) - 2
+	dst = AppendVarint(dst, uint64(len(p.Prefixes)))
+	for i := range p.Prefixes {
+		dst = AppendVarint(dst, uint64(p.Prefixes[i]))
+	}
+	dst = BackpatchContainerLen(dst, prefLenPos)
 
 	// Field 9: Location (WireSubMsg, 1-pass backpatched)
 	tag9 := ((FieldPeerLocation<<4 | uint16(WireSubMsg)) << 2) | 2
@@ -337,17 +349,37 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 			var byteLen64 uint64
 			byteLen64, pos = ReadVarintAt(packet, pos)
 			end := pos + int(byteLen64)
+			var c64 uint64
+			c64, p := ReadVarintAt(packet, pos)
 			alreadySeen := (seenMask & (1 << FieldPeerTags)) != 0
 			seenMask |= (1 << FieldPeerTags)
-			out.Tags, _ = appendStringArrBody(sliceForDecode(&out.Tags, alreadySeen), packet[pos:end], zeroCopyStrings)
+			var start int
+			out.Tags, start = growSlice(sliceForDecode(&out.Tags, alreadySeen), int(c64))
+			tags := out.Tags[start:]
+			for i := range tags {
+				var sLen64 uint64
+				sLen64, p = ReadVarintAt(packet, p)
+				sLen := int(sLen64)
+				tags[i] = DecodeStr(packet[p:p+sLen], zeroCopyStrings)
+				p += sLen
+			}
 			pos = end
 		case FieldPeerPrefixes:
 			var byteLen64 uint64
 			byteLen64, pos = ReadVarintAt(packet, pos)
 			end := pos + int(byteLen64)
+			var c64 uint64
+			c64, p := ReadVarintAt(packet, pos)
 			alreadySeen := (seenMask & (1 << FieldPeerPrefixes)) != 0
 			seenMask |= (1 << FieldPeerPrefixes)
-			out.Prefixes, _ = appendUintArrBody(sliceForDecode(&out.Prefixes, alreadySeen), packet[pos:end])
+			var start int
+			out.Prefixes, start = growSlice(sliceForDecode(&out.Prefixes, alreadySeen), int(c64))
+			prefs := out.Prefixes[start:]
+			for i := range prefs {
+				var v uint64
+				v, p = ReadVarintAt(packet, p)
+				prefs[i] = uint32(v)
+			}
 			pos = end
 		case FieldPeerLocation:
 			var subLen64 uint64

@@ -74,38 +74,38 @@ import Footer from '../components/Footer.astro';
           <tbody class="divide-y divide-ink/15">
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Marshal</td>
-              <td class="p-3.5 sm:p-4">562.6 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4">127.7 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4">200.3 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">99.1 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">561.4 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">163.2 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">201.8 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">102.4 ns (0 allocs)</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Safe)</td>
-              <td class="p-3.5 sm:p-4">976.4 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">555.5 ns (24 allocs)</td>
-              <td class="p-3.5 sm:p-4">778.1 ns (19 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">494.4 ns (17 allocs)</td>
+              <td class="p-3.5 sm:p-4">959.9 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">604.7 ns (24 allocs)</td>
+              <td class="p-3.5 sm:p-4">735.0 ns (19 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">511.3 ns (17 allocs)</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Zero-Copy)</td>
-              <td class="p-3.5 sm:p-4">976.4 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">201.3 ns (0 allocs, Pool)</td>
-              <td class="p-3.5 sm:p-4">303.7 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">198.3 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4">959.9 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">225.8 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">309.0 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">198.8 ns (0 allocs)</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Read 2 Nested Fields</td>
-              <td class="p-3.5 sm:p-4">978.0 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">202.0 ns (0 allocs, Pool)</td>
-              <td class="p-3.5 sm:p-4">303.7 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">128.1 ns (0 allocs, Opaque)</td>
+              <td class="p-3.5 sm:p-4">992.0 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">219.5 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">309.0 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">125.5 ns (0 allocs, Opaque)</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Read-Modify-Write</td>
-              <td class="p-3.5 sm:p-4">1,550.0 ns (25 allocs)</td>
-              <td class="p-3.5 sm:p-4">332.2 ns (0 allocs, Pool)</td>
-              <td class="p-3.5 sm:p-4">504.0 ns (0 allocs)</td>
-              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">153.5 ns (0 allocs, Splice)</td>
+              <td class="p-3.5 sm:p-4">1,612.0 ns (25 allocs)</td>
+              <td class="p-3.5 sm:p-4">359.7 ns (0 allocs, Pool)</td>
+              <td class="p-3.5 sm:p-4">510.8 ns (0 allocs)</td>
+              <td class="p-3.5 sm:p-4 font-bold bg-acid/25">143.5 ns (0 allocs, Splice)</td>
             </tr>
           </tbody>
         </table>
@@ -117,10 +117,10 @@ import Footer from '../components/Footer.astro';
         For <code>schemas/peer.proto</code>, <code>vtprotobuf</code> emits{' '}
         <strong>1,899 lines</strong> of unrolled per-byte <code>LEB128</code> loops,{' '}
         <code>SizeVT()</code> passes, and backwards buffer indexing. By contrast,{' '}
-        <code>protoc-gen-omnibuf</code> emits just <strong>781 lines</strong> (including all three{' '}
+        <code>protoc-gen-omnibuf</code> emits just <strong>848 lines</strong> (including all three{' '}
         <code>Opaque*</code> lazy readers with full scalar splice support) that call standard{' '}
         <code>AppendVarint</code> / <code>DecodeVarint</code> helpers, yet runs{' '}
-        <strong>1.29x faster</strong> on Marshal and <strong>2.16x faster</strong> on
+        <strong>1.59x faster</strong> on Marshal and <strong>2.51x faster</strong> on
         Read-Modify-Write because the wire format avoids 2-pass sizing and multi-branch varint
         loops.
       </div>
