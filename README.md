@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/sudorandom/omnibuf/actions/workflows/ci.yml/badge.svg)](https://github.com/sudorandom/omnibuf/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/sudorandom/omnibuf.svg)](https://pkg.go.dev/github.com/sudorandom/omnibuf)
-[![Go Report Card](https://goreportcard.com/badge/github.com/sudorandom/omnibuf)](https://goreportcard.com/report/github.com/sudorandom/omnibuf)
 [![Website](https://img.shields.io/badge/website-omnibuf.com-111111?style=flat&labelColor=111111&color=D4FF33)](https://omnibuf.com)
 
 **[Website (omnibuf.com)](https://omnibuf.com)** · **[How It Works](https://omnibuf.com/how-it-works)** · **[Benchmarks](https://omnibuf.com/benchmarks)** · **[Wire Format Specification](https://omnibuf.com/spec)**

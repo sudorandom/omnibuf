@@ -14,7 +14,7 @@
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "pages:preview": "astro build && wrangler pages dev ./dist",
-    "pages:deploy": "astro build && wrangler pages deploy ./dist --project-name=omnibuf"
+    "pages:deploy": "astro build && (wrangler pages project list | grep -q omnibuf || wrangler pages project create omnibuf --production-branch=main) && wrangler pages deploy ./dist --project-name=omnibuf --branch=main"
   },
   "dependencies": {
     "@astrojs/tailwind": "^6.0.2",
