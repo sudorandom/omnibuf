@@ -23,7 +23,7 @@
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           No byte-by-byte varint loops. No two-pass encoding.
         </h3>
-        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[68ch]">
+        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
           Protobuf's{' '}
           <a
             href="https://en.wikipedia.org/wiki/LEB128"
@@ -63,7 +63,7 @@
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Inspect packets without a schema &amp; use normal structs.
         </h3>
-        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[68ch]">
+        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
           Protobuf lumps strings, byte slices, sub-messages, maps, and packed arrays into a single
           wire type (<code>Wire Type 2</code>). Without the <code>.proto</code> file, a decoder can
           only guess what a payload contains. OmniBuf uses a 4-bit wire type (~6% larger on the
@@ -91,7 +91,7 @@
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Read, drop, or replace individual fields on raw bytes.
         </h3>
-        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[68ch]">
+        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
           Because every integer and container carries its exact byte width in its header, OmniBuf
           can jump over unrelated fields in a single addition without parsing their contents.
           Generated <code>Opaque</code> views let routers and storage engines read a single nested
@@ -115,7 +115,7 @@
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Keep your .proto files, schema evolution, and compact payloads.
         </h3>
-        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[68ch]">
+        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
           OmniBuf works directly with your existing <code>.proto</code> files and generated{' '}
           <code>.pb.go</code> structs. You keep field numbers, forward/backward compatibility,
           compact payloads (40% smaller than FlatBuffers), and raw byte concatenation (

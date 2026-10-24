@@ -6,6 +6,19 @@
   :root {
     --bg-paper: #f4f0e6;
     --ink: #111111;
+    caret-color: #ff4f18;
+    scrollbar-color: #111111 #e5e0d5;
+    scrollbar-width: thin;
+  }
+
+  .bg-ink {
+    scrollbar-color: #d4ff33 #111111;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
 
   body {
@@ -166,6 +179,7 @@
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #111111;
     scroll-margin-top: 4.5rem;
+    overflow-wrap: anywhere;
   }
 
   .spec-prose h2:first-child {
@@ -179,6 +193,7 @@
     margin-top: 2rem;
     margin-bottom: 0.75rem;
     scroll-margin-top: 4.5rem;
+    overflow-wrap: anywhere;
   }
 
   .spec-prose h4 {
@@ -232,6 +247,7 @@
   .spec-prose p {
     margin-bottom: 1rem;
     color: rgba(17, 17, 17, 0.9);
+    max-width: 65ch;
   }
 
   .spec-prose ul,
@@ -251,6 +267,7 @@
   .spec-prose li {
     margin-bottom: 0.5rem;
     color: rgba(17, 17, 17, 0.9);
+    max-width: 65ch;
   }
 
   .spec-prose li > ul,
@@ -308,6 +325,7 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.875rem;
     text-align: left;
+    font-variant-numeric: tabular-nums;
   }
 
   .spec-prose th {
@@ -333,7 +351,13 @@
     scroll-behavior: auto !important;
   }
 
-  .os-btn {
+  *,
+  *::before,
+  *::after,
+  .os-btn,
+  .nav-link,
+  .doc-link,
+  .spec-anchor {
     transition: none !important;
   }
 }

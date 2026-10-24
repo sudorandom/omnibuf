@@ -130,7 +130,7 @@ const nodeSchemaCode = `message Node {
             <span>
               Protobuf: <code>protowire.ConsumeVarint</code>
             </span>
-            <span class="text-[#FF4F18] text-xs uppercase font-bold">
+            <span class="text-[#C23000] text-xs uppercase font-bold">
               100 Lines &bull; Cannot Inline
             </span>
           </div>
@@ -178,49 +178,49 @@ const nodeSchemaCode = `message Node {
               <td class="p-3.5 sm:p-4">1.27 ns</td>
               <td class="p-3.5 sm:p-4">0.79 ns</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.35 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">2x to 4x faster</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#C23000]">2x to 4x faster</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Decode 2B Int</td>
               <td class="p-3.5 sm:p-4">1.26 ns</td>
               <td class="p-3.5 sm:p-4">1.26 ns</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.78 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~40% faster</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#C23000]">~40% faster</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Decode 4B Int</td>
               <td class="p-3.5 sm:p-4">1.81 ns</td>
               <td class="p-3.5 sm:p-4">2.28 ns</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">0.97 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~2x faster</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#C23000]">~2x faster</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Decode 8B Int</td>
               <td class="p-3.5 sm:p-4">4.83 ns</td>
               <td class="p-3.5 sm:p-4">5.04 ns</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">1.54 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">Over 3x faster</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#C23000]">Over 3x faster</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Decode 16 Mixed Ints</td>
               <td class="p-3.5 sm:p-4">38.1 ns</td>
               <td class="p-3.5 sm:p-4">39.7 ns</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">25.2 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~35% faster</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#C23000]">~35% faster</td>
             </tr>
             <tr class="bg-[#FAF8F2]">
               <td class="p-3.5 sm:p-4 font-bold">Skip 16 Mixed Ints</td>
               <td class="p-3.5 sm:p-4">38.3 ns</td>
               <td class="p-3.5 sm:p-4">39.7 ns</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">24.7 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~35% faster</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#C23000]">~35% faster</td>
             </tr>
             <tr class="bg-white">
               <td class="p-3.5 sm:p-4 font-bold">Encode 16 Mixed Ints</td>
               <td class="p-3.5 sm:p-4">60.4 ns</td>
               <td class="p-3.5 sm:p-4">59.4 ns</td>
               <td class="p-3.5 sm:p-4 font-bold bg-acid/25">37.6 ns</td>
-              <td class="p-3.5 sm:p-4 font-bold text-[#FF4F18]">~35% faster</td>
+              <td class="p-3.5 sm:p-4 font-bold text-[#C23000]">~35% faster</td>
             </tr>
           </tbody>
         </table>
@@ -258,7 +258,7 @@ const nodeSchemaCode = `message Node {
             <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
               <span class="px-2 py-0.5 bg-paper/20 rounded">Tag #9</span>
               <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded">Len=7B</span>
-              <span class="px-2 py-0.5 bg-[#FF4F18] text-white rounded">[7B]</span>
+              <span class="px-2 py-0.5 bg-[#FF4F18] text-ink font-bold rounded">[7B]</span>
             </div>
           </div>
         </div>
@@ -288,7 +288,7 @@ const nodeSchemaCode = `message Node {
                 Field #
               </div>
               <div class="col-span-5 bg-acid text-ink py-2 border-r border-ink">4-Bit Type</div>
-              <div class="col-span-2 bg-[#FF4F18] text-white py-2">TZ</div>
+              <div class="col-span-2 bg-[#FF4F18] text-ink font-bold py-2">TZ</div>
             </div>
             <div class="flex flex-wrap justify-between gap-2 text-xs sm:text-sm text-paper/90">
               <span>
