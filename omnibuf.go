@@ -3,6 +3,7 @@ package omnibuf
 import (
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"math"
 	"sort"
 	"unsafe"
@@ -344,7 +345,7 @@ func (e *Encoder) WriteStringArr(fieldNum uint16, items []string) {
 	lenPos := len(e.buf)
 	e.buf = append(e.buf, 0, 0) // Reserve 2B Prefix-Varint byte length
 	e.buf = AppendVarint(e.buf, uint64(len(items)))
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		s := items[i]
 		e.buf = AppendVarint(e.buf, uint64(len(s)))
 		e.buf = append(e.buf, s...)
@@ -358,7 +359,7 @@ func (e *Encoder) WriteUint32Arr(fieldNum uint16, items []uint32) {
 	lenPos := len(e.buf)
 	e.buf = append(e.buf, 0, 0) // Reserve 2B Prefix-Varint byte length
 	e.buf = AppendVarint(e.buf, uint64(len(items)))
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		e.buf = AppendVarint(e.buf, uint64(items[i]))
 	}
 	e.buf = BackpatchContainerLen(e.buf, lenPos)
@@ -370,7 +371,7 @@ func (e *Encoder) WriteSintArr(fieldNum uint16, items []int64) {
 	lenPos := len(e.buf)
 	e.buf = append(e.buf, 0, 0) // Reserve 2B Prefix-Varint byte length
 	e.buf = AppendVarint(e.buf, uint64(len(items)))
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		e.buf = AppendVarint(e.buf, EncodeZigZag(items[i]))
 	}
 	e.buf = BackpatchContainerLen(e.buf, lenPos)
@@ -381,7 +382,7 @@ func (e *Encoder) WriteFloat32Arr(fieldNum uint16, items []float32) {
 	e.writeTag(fieldNum, WireFixedArr)
 	e.buf = AppendVarint(e.buf, uint64(1+len(items)*4))
 	e.buf = append(e.buf, WireFixed32)
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		bits := math.Float32bits(items[i])
 		e.buf = append(e.buf, byte(bits), byte(bits>>8), byte(bits>>16), byte(bits>>24))
 	}
@@ -392,7 +393,7 @@ func (e *Encoder) WriteFloat64Arr(fieldNum uint16, items []float64) {
 	e.writeTag(fieldNum, WireFixedArr)
 	e.buf = AppendVarint(e.buf, uint64(1+len(items)*8))
 	e.buf = append(e.buf, WireFixed64)
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		bits := math.Float64bits(items[i])
 		e.buf = append(e.buf,
 			byte(bits), byte(bits>>8), byte(bits>>16), byte(bits>>24),
@@ -1370,7 +1371,7 @@ func LookupMapStringUint(packet []byte, fieldNum uint16, targetKey string) (uint
 				return 0, false
 			}
 			p := 1 + cn
-			for i := uint64(0); i < count; i++ {
+			for range count {
 				kLen, kn := DecodeVarint(body[p:])
 				if kn == 0 || kLen > uint64(len(body)-(p+kn)) {
 					return 0, false
@@ -1576,9 +1577,7 @@ func mergeSchemaMeta(base, next *SchemaMeta) *SchemaMeta {
 		cp := &SchemaMeta{TypeName: next.TypeName}
 		if len(next.Fields) > 0 {
 			cp.Fields = make(map[uint32]string, len(next.Fields))
-			for k, v := range next.Fields {
-				cp.Fields[k] = v
-			}
+			maps.Copy(cp.Fields, next.Fields)
 		}
 		if len(next.Children) > 0 {
 			cp.Children = make(map[uint32]*SchemaMeta, len(next.Children))
@@ -1595,9 +1594,7 @@ func mergeSchemaMeta(base, next *SchemaMeta) *SchemaMeta {
 		if base.Fields == nil {
 			base.Fields = make(map[uint32]string, len(next.Fields))
 		}
-		for k, v := range next.Fields {
-			base.Fields[k] = v
-		}
+		maps.Copy(base.Fields, next.Fields)
 	}
 	if len(next.Children) > 0 {
 		if base.Children == nil {
@@ -1735,9 +1732,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 				return nil, err
 			}
 			if prevMap, ok := out[name].(map[string]any); ok {
-				for k, v := range subMap {
-					prevMap[k] = v
-				}
+				maps.Copy(prevMap, subMap)
 			} else {
 				out[name] = subMap
 			}
@@ -1927,7 +1922,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 				elems = []map[string]any{}
 			}
 			p := 0
-			for i := 0; i < elemCount; i++ {
+			for range elemCount {
 				el, en := DecodeVarint(arrPayload[p:])
 				p += en
 				elemMap, err := decodeBlindWithSchema(arrPayload[p:p+int(el)], childSchema, depth+1)

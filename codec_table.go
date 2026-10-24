@@ -172,8 +172,8 @@ func parseStructField(sf reflect.StructField, pbTag string, building map[reflect
 	fnum := uint16(fnum64)
 	name := strings.ToLower(sf.Name)
 	for _, p := range parts[2:] {
-		if strings.HasPrefix(p, "name=") {
-			name = strings.TrimPrefix(p, "name=")
+		if after, ok := strings.CutPrefix(p, "name="); ok {
+			name = after
 		}
 	}
 
@@ -518,7 +518,7 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 			nElems := sh.Len
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
-			for j := 0; j < nElems; j++ {
+			for j := range nElems {
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
 				elemPtr := unsafe.Add(sh.Data, uintptr(j)*fc.elemSize)
@@ -531,7 +531,7 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 			nElems := len(ptrs)
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
-			for j := 0; j < nElems; j++ {
+			for j := range nElems {
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
 				if ptrs[j] != nil {
@@ -759,7 +759,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			} else {
 				sl = sl[:total]
 			}
-			for j := 0; j < c; j++ {
+			for j := range c {
 				sLen, sn := DecodeVarint(data[p:end])
 				if sn == 0 || sLen > uint64(end-(p+sn)) {
 					return fmt.Errorf("omnibuf: invalid string array elem length at %d", p)
@@ -799,7 +799,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			} else {
 				sl = sl[:total]
 			}
-			for j := 0; j < c; j++ {
+			for j := range c {
 				v, vn := DecodeVarint(data[p:end])
 				if vn == 0 {
 					return fmt.Errorf("omnibuf: truncated uint32 array elem at %d", p)
@@ -838,7 +838,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			} else {
 				sl = sl[:total]
 			}
-			for j := 0; j < c; j++ {
+			for j := range c {
 				v, vn := DecodeVarint(data[p:end])
 				if vn == 0 {
 					return fmt.Errorf("omnibuf: truncated uint64 array elem at %d", p)
@@ -877,7 +877,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			} else {
 				sl = sl[:total]
 			}
-			for j := 0; j < c; j++ {
+			for j := range c {
 				v, vn := DecodeVarint(data[p:end])
 				if vn == 0 {
 					return fmt.Errorf("omnibuf: truncated int32 array elem at %d", p)
@@ -916,7 +916,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			} else {
 				sl = sl[:total]
 			}
-			for j := 0; j < c; j++ {
+			for j := range c {
 				v, vn := DecodeVarint(data[p:end])
 				if vn == 0 {
 					return fmt.Errorf("omnibuf: truncated int64 array elem at %d", p)
@@ -954,7 +954,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			} else {
 				sl = sl[:total]
 			}
-			for j := 0; j < c; j++ {
+			for j := range c {
 				sl[start+j] = binary.LittleEndian.Uint32(data[pStart+j*4 : pStart+(j+1)*4])
 			}
 			*(*[]uint32)(fPtr) = sl
@@ -984,7 +984,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			} else {
 				sl = sl[:total]
 			}
-			for j := 0; j < c; j++ {
+			for j := range c {
 				sl[start+j] = binary.LittleEndian.Uint64(data[pStart+j*8 : pStart+(j+1)*8])
 			}
 			*(*[]uint64)(fPtr) = sl
@@ -1045,7 +1045,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				sh.Len = total
 			}
 			p := 0
-			for j := 0; j < elemCount; j++ {
+			for j := range elemCount {
 				el, en := DecodeVarint(arrPayload[p:])
 				p += en
 				elemPtr := unsafe.Add(sh.Data, uintptr(start+j)*fc.elemSize)
@@ -1077,7 +1077,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				slabPtr := slab.UnsafePointer()
 				next := make([]unsafe.Pointer, total)
 				copy(next, ptrs[:start])
-				for j := 0; j < elemCount; j++ {
+				for j := range elemCount {
 					next[start+j] = unsafe.Add(slabPtr, uintptr(j)*fc.elemSize)
 				}
 				ptrs = next
@@ -1087,7 +1087,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				*(*[]unsafe.Pointer)(fPtr) = ptrs
 			}
 			p := 0
-			for j := 0; j < elemCount; j++ {
+			for j := range elemCount {
 				el, en := DecodeVarint(arrPayload[p:])
 				p += en
 				if ptrs[start+j] == nil {
@@ -1122,7 +1122,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 				m = make(map[string]uint64, mCount)
 			}
 			p := 1 + cn
-			for j := 0; j < mCount; j++ {
+			for range mCount {
 				kLen, kn := DecodeVarint(body[p:])
 				if kn == 0 || kLen > uint64(len(body)-(p+kn)) {
 					return fmt.Errorf("omnibuf: truncated WireMap key at %d", p)

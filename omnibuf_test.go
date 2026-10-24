@@ -1039,7 +1039,7 @@ func BenchmarkVarint_Decode_16Mixed_OmniBuf_TZCNT(b *testing.B) {
 	var sink uint64
 	for i := 0; i < b.N; i++ {
 		pos := 0
-		for j := 0; j < 16; j++ {
+		for range 16 {
 			var v uint64
 			v, pos = ReadVarintAt(buf, pos)
 			sink += v
@@ -1059,7 +1059,7 @@ func BenchmarkVarint_Decode_16Mixed_Protobuf_Protowire(b *testing.B) {
 	var sink uint64
 	for i := 0; i < b.N; i++ {
 		pos := 0
-		for j := 0; j < 16; j++ {
+		for range 16 {
 			v, n := protowire.ConsumeVarint(buf[pos:])
 			pos += n
 			sink += v
@@ -1079,7 +1079,7 @@ func BenchmarkVarint_Decode_16Mixed_VTProtobuf_InlinedLoop(b *testing.B) {
 	var sink uint64
 	for i := 0; i < b.N; i++ {
 		pos := 0
-		for j := 0; j < 16; j++ {
+		for range 16 {
 			var v uint64
 			for shift := uint(0); ; shift += 7 {
 				b0 := buf[pos]
@@ -1134,7 +1134,7 @@ func BenchmarkVarint_Skip_16Mixed_OmniBuf_TZCNT(b *testing.B) {
 	var sink int
 	for i := 0; i < b.N; i++ {
 		pos := 0
-		for j := 0; j < 16; j++ {
+		for range 16 {
 			b0 := buf[pos]
 			if (b0 & 1) != 0 {
 				pos += 1
@@ -1162,7 +1162,7 @@ func BenchmarkVarint_Skip_16Mixed_Protobuf_Protowire(b *testing.B) {
 	var sink int
 	for i := 0; i < b.N; i++ {
 		pos := 0
-		for j := 0; j < 16; j++ {
+		for range 16 {
 			_, n := protowire.ConsumeVarint(buf[pos:])
 			pos += n
 		}

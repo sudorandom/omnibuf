@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  go:
-    name: Go (Format, Lint, Test & Fuzz)
+  go-lint:
+    name: Go (Format & Lint)
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -29,6 +29,28 @@ jobs:
 
       - name: Run golangci-lint
         run: just go-lint
+
+  go-test:
+    name: Go ${{ matrix.go-version }} (Test & Fuzz)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.25", "1.26", "1.27"]
+    env:
+      MISE_GO_VERSION: ${{ matrix.go-version }}
+      GOTOOLCHAIN: local
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install tools via mise
+        uses: jdx/mise-action@v5
+        with:
+          install: true
+
+      - name: Verify Go version
+        run: go version
 
       - name: Run unit & conformance tests
         run: just test

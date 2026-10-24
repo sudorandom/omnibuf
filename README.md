@@ -13,7 +13,7 @@
 3. **Schema-less value decoding (`DecodeBlind`)** via explicit 4-bit wire types (`0..15`), with optional inline field names via **Field `#0`**.
 4. **Simple, index-free wire layout** with outer container byte lengths and full Protocol Buffers concatenation merge semantics (`append(msgA, msgB...)`), enabling branchless header-hop field lookup (`LocateField`) and zero-decode wire splicing without vtables or footer offset tables.
 
-> **Language Support:** OmniBuf is currently a **Go-only** implementation (`github.com/sudorandom/omnibuf`). Because the wire format is intentionally simple (4 integer widths and 16 wire types, with no vtables or pointer graphs), porting takes only a few hundred lines of code. If there is interest, support for more languages will be added!
+> **Language Support:** OmniBuf is currently a **Go-only** implementation (`github.com/sudorandom/omnibuf`). Because the wire format is a flat `[Tag][Value]` stream with 4 integer widths and 16 wire types (no vtables or relative pointer graphs), it is straightforward to port. If there is interest, support for more languages will be added!
 
 ---
 

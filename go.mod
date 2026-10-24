@@ -1,6 +1,6 @@
 module github.com/sudorandom/omnibuf
 
-go 1.27.1
+go 1.25.0
 
 require (
 	capnproto.org/go/capnp/v3 v3.1.0-alpha.2

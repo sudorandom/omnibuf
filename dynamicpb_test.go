@@ -390,7 +390,7 @@ func allDynamicFieldSpecs() []dynFieldSpec {
 			typeName: ".omnibuf.dynamic.ChildMsg",
 			populate: func(m *dynamicpb.Message, fd protoreflect.FieldDescriptor, subDesc protoreflect.MessageDescriptor) {
 				l := m.Mutable(fd).List()
-				for idx := 0; idx < 3; idx++ {
+				for idx := range 3 {
 					elem := dynamicpb.NewMessage(subDesc)
 					elem.Set(subDesc.Fields().ByNumber(1), protoreflect.ValueOfUint32(uint32(100+idx)))
 					elem.Set(subDesc.Fields().ByNumber(2), protoreflect.ValueOfString(fmt.Sprintf("item-%d", idx)))

@@ -146,7 +146,7 @@ const tocSections = [
         </span>
       </h1>
       <p class="mt-6 max-w-3xl text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
-        Complete binary encoding specification for OmniBuf (Version 2.0, Little-Endian).
+        Complete binary encoding specification for OmniBuf (Version 1.0).
       </p>
     </div>
 
@@ -249,12 +249,12 @@ const tocSections = [
             child schemas at byte <code>0</code> of the root message (or any nested sub-message).
           </li>
           <li>
-            <strong>Advanced Wire Techniques with Simple, Compact Implementation:</strong>
+            <strong>Advanced Wire Techniques with a Flat Stream Layout:</strong>
             Rather than requiring vtables, footer offset tables, relative pointer graphs, or arena
             allocators, OmniBuf achieves single-pass encoding, fast zero-copy unmarshaling, raw byte
             concatenation (<code>append(msgA, msgB...)</code>), and rapid header-hop field/array/map
-            traversal using a single contiguous stream of <code>[Tag][Value]</code> fields that can
-            be implemented in a few hundred lines of clean code in any language.
+            traversal using a single contiguous stream of <code>[Tag][Value]</code> fields with 4
+            integer widths and 16 explicit wire types.
           </li>
         </ol>
 
@@ -1644,7 +1644,7 @@ Example: Field #8 (prefixes = [10, 300]):
             <code>pos + tn + byteLen</code>) without needing to understand <code>ExtType</code>.
           </li>
           <li>
-            In Version 2.0, no <code>ExtType</code> values are assigned; schema-less decoders (
+            In Version 1.0, no <code>ExtType</code> values are assigned; schema-less decoders (
             <code>DecodeBlind</code>) MUST reject unrecognized <code>ExtType</code> values, while
             schema-aware decoders MUST skip unknown fields carrying <code>WireExtended</code>.
           </li>

@@ -380,7 +380,7 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 				out.Tags = out.Tags[:total]
 			}
 			tags := out.Tags[start:total]
-			for i := 0; i < c; i++ {
+			for i := range c {
 				var sLen64 uint64
 				sLen64, p = readVarintAt(packet, p)
 				sLen := int(sLen64)
@@ -409,7 +409,7 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 				out.Prefixes = out.Prefixes[:total]
 			}
 			prefs := out.Prefixes[start:total]
-			for i := 0; i < c; i++ {
+			for i := range c {
 				var v uint64
 				v, p = readVarintAt(packet, p)
 				prefs[i] = uint32(v)
@@ -442,7 +442,7 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 			}
 			neighs := out.Neighbors[start:total]
 			p := 0
-			for i := 0; i < elemCount; i++ {
+			for i := range elemCount {
 				var elemLen64 uint64
 				elemLen64, p = readVarintAt(arrPayload, p)
 				elemLen := int(elemLen64)
@@ -979,7 +979,7 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 			out.Tags = out.Tags[:vecLen]
 		}
 		vecStart := tab.Vector(o)
-		for i := 0; i < vecLen; i++ {
+		for i := range vecLen {
 			elemPos := vecStart + flatbuffers.UOffsetT(i*4)
 			out.Tags[i] = decodeStr(tab.ByteVector(elemPos), zeroCopy)
 		}
@@ -992,7 +992,7 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 			out.Prefixes = out.Prefixes[:vecLen]
 		}
 		vecStart := tab.Vector(o)
-		for i := 0; i < vecLen; i++ {
+		for i := range vecLen {
 			out.Prefixes[i] = tab.GetUint32(vecStart + flatbuffers.UOffsetT(i*4))
 		}
 	}
@@ -1026,7 +1026,7 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 			out.Neighbors = out.Neighbors[:vecLen]
 		}
 		vecStart := tab.Vector(o)
-		for i := 0; i < vecLen; i++ {
+		for i := range vecLen {
 			nbPos := tab.Indirect(vecStart + flatbuffers.UOffsetT(i*4))
 			nbTab := flatbuffers.Table{Bytes: buf, Pos: nbPos}
 			if no := flatbuffers.UOffsetT(nbTab.Offset(4)); no != 0 {
@@ -1213,7 +1213,7 @@ func DecodePeerCapnpInto(data []byte, out *PeerUpdate, zeroCopy bool) error {
 	} else {
 		out.Tags = out.Tags[:tLen]
 	}
-	for i := 0; i < tLen; i++ {
+	for i := range tLen {
 		b, _ := tagsList.BytesAt(i)
 		out.Tags[i] = decodeStr(b, zeroCopy)
 	}
@@ -1226,7 +1226,7 @@ func DecodePeerCapnpInto(data []byte, out *PeerUpdate, zeroCopy bool) error {
 	} else {
 		out.Prefixes = out.Prefixes[:pLen]
 	}
-	for i := 0; i < pLen; i++ {
+	for i := range pLen {
 		out.Prefixes[i] = prefList.At(i)
 	}
 
@@ -1250,7 +1250,7 @@ func DecodePeerCapnpInto(data []byte, out *PeerUpdate, zeroCopy bool) error {
 	} else {
 		out.Neighbors = out.Neighbors[:nLen]
 	}
-	for i := 0; i < nLen; i++ {
+	for i := range nLen {
 		elem := neighList.Struct(i)
 		out.Neighbors[i].PeerASN = elem.Uint32(0)
 		out.Neighbors[i].LatencyUS = elem.Uint32(4)
@@ -1403,7 +1403,7 @@ func LookupMsgpackNestedCity(b []byte) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	for i := 0; i < n; i++ {
+	for range n {
 		k, err := dec.DecodeString()
 		if err != nil {
 			return "", false
@@ -1413,7 +1413,7 @@ func LookupMsgpackNestedCity(b []byte) (string, bool) {
 			if err != nil {
 				return "", false
 			}
-			for j := 0; j < ln; j++ {
+			for range ln {
 				lk, err := dec.DecodeString()
 				if err != nil {
 					return "", false

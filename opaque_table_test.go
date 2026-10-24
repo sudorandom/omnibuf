@@ -270,7 +270,7 @@ func BenchmarkPlugin_Opaque_UnmarshalAndReadALLFields(b *testing.B) {
 		lon := loc.GetLongitude()
 		nLen := msg.NeighborsLen()
 		var lastRtr string
-		for j := 0; j < nLen; j++ {
+		for j := range nLen {
 			nb := msg.GetNeighbors(j)
 			_ = nb.GetPeerAsn()
 			lastRtr = nb.GetRouter()
@@ -314,7 +314,7 @@ func BenchmarkProtobufOfficial_UnmarshalAndReadALLFields(b *testing.B) {
 		lon := loc.Longitude
 		neighs := msg.GetNeighbors()
 		var lastRtr string
-		for j := 0; j < len(neighs); j++ {
+		for j := range neighs {
 			nb := neighs[j]
 			_ = nb.PeerAsn
 			lastRtr = nb.Router

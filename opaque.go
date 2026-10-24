@@ -557,7 +557,7 @@ func (p *OpaquePeerUpdate) MaterializeInto(out *PeerUpdate) error {
 	} else {
 		out.Neighbors = out.Neighbors[:nLen]
 	}
-	for i := 0; i < nLen; i++ {
+	for i := range nLen {
 		nb := p.GetNeighbors(i)
 		out.Neighbors[i].PeerASN = nb.GetPeerASN()
 		out.Neighbors[i].Router = nb.GetRouter()

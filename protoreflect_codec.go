@@ -81,7 +81,7 @@ func buildProtoReflectSchemaMeta(md protoreflect.MessageDescriptor, depth int) *
 		TypeName: string(md.Name()),
 		Fields:   make(map[uint32]string, nFields),
 	}
-	for i := 0; i < nFields; i++ {
+	for i := range nFields {
 		fd := fields.Get(i)
 		fnum := uint32(fd.Number())
 		meta.Fields[fnum] = string(fd.Name())
@@ -140,7 +140,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 	fields := m.Descriptor().Fields()
 	nFields := fields.Len()
 
-	for i := 0; i < nFields; i++ {
+	for i := range nFields {
 		fd := fields.Get(i)
 		fnum := uint16(fd.Number())
 		val := m.Get(fd)
@@ -203,7 +203,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 				lenPos := len(dst)
 				dst = append(dst, 0, 0)
 				dst = AppendVarint(dst, uint64(c))
-				for j := 0; j < c; j++ {
+				for j := range c {
 					s := list.Get(j).String()
 					dst = AppendVarint(dst, uint64(len(s)))
 					dst = append(dst, s...)
@@ -214,7 +214,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 				lenPos := len(dst)
 				dst = append(dst, 0, 0)
 				dst = AppendVarint(dst, uint64(c))
-				for j := 0; j < c; j++ {
+				for j := range c {
 					b := list.Get(j).Bytes()
 					dst = AppendVarint(dst, uint64(len(b)))
 					dst = append(dst, b...)
@@ -225,7 +225,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 				lenPos := len(dst)
 				dst = append(dst, 0, 0)
 				dst = AppendVarint(dst, uint64(c))
-				for j := 0; j < c; j++ {
+				for j := range c {
 					switch fd.Kind() {
 					case protoreflect.EnumKind:
 						dst = AppendVarint(dst, uint64(list.Get(j).Enum()))
@@ -245,7 +245,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 				lenPos := len(dst)
 				dst = append(dst, 0, 0)
 				dst = AppendVarint(dst, uint64(c))
-				for j := 0; j < c; j++ {
+				for j := range c {
 					dst = AppendVarint(dst, EncodeZigZag(list.Get(j).Int()))
 				}
 				dst = BackpatchContainerLen(dst, lenPos)
@@ -253,7 +253,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 				dst = appendRawTag(dst, fnum, WireFixedArr)
 				dst = AppendVarint(dst, uint64(1+c*4))
 				dst = append(dst, WireFixed32)
-				for j := 0; j < c; j++ {
+				for j := range c {
 					var bits uint32
 					switch fd.Kind() {
 					case protoreflect.FloatKind:
@@ -269,7 +269,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 				dst = appendRawTag(dst, fnum, WireFixedArr)
 				dst = AppendVarint(dst, uint64(1+c*8))
 				dst = append(dst, WireFixed64)
-				for j := 0; j < c; j++ {
+				for j := range c {
 					var bits uint64
 					switch fd.Kind() {
 					case protoreflect.DoubleKind:
@@ -288,7 +288,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 				dst = appendRawTag(dst, fnum, WireSubMsgArr)
 				arrLenPos := len(dst)
 				dst = append(dst, 0, 0)
-				for j := 0; j < c; j++ {
+				for j := range c {
 					elemLenPos := len(dst)
 					dst = append(dst, 0, 0)
 					var err error
@@ -477,7 +477,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 					return true
 				})
 			}
-			for i := uint64(0); i < count; i++ {
+			for range count {
 				mk, nextP, err := decodeMapEntryKey(data, p, end, fd.MapKey())
 				if err != nil {
 					return err
@@ -523,7 +523,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 					return fmt.Errorf("omnibuf: invalid WireStringArr count at %d", pos)
 				}
 				p := pos + cn
-				for i := uint64(0); i < count; i++ {
+				for range count {
 					sLen, sn := DecodeVarint(data[p:end])
 					if sn == 0 || sLen > uint64(end-(p+sn)) {
 						return fmt.Errorf("omnibuf: invalid WireStringArr elem at %d", p)
@@ -562,7 +562,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 					return fmt.Errorf("omnibuf: invalid WireUintArr count at %d", pos)
 				}
 				p := pos + cn
-				for i := uint64(0); i < count; i++ {
+				for range count {
 					v, vn := DecodeVarint(data[p:end])
 					if vn == 0 {
 						return fmt.Errorf("omnibuf: truncated WireUintArr elem at %d", p)
@@ -603,7 +603,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 					return fmt.Errorf("omnibuf: invalid WireSintArr count at %d", pos)
 				}
 				p := pos + cn
-				for i := uint64(0); i < count; i++ {
+				for range count {
 					v, vn := DecodeVarint(data[p:end])
 					if vn == 0 {
 						return fmt.Errorf("omnibuf: truncated WireSintArr elem at %d", p)
@@ -700,7 +700,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 					return fmt.Errorf("omnibuf: corrupt WireSubMsgArr at %d", pos)
 				}
 				p := 0
-				for i := 0; i < elemCount; i++ {
+				for range elemCount {
 					el, en := DecodeVarint(arrPayload[p:])
 					p += en
 					elemMsg := list.NewElement().Message()

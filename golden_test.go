@@ -289,7 +289,7 @@ func verifyGoldenCase(t *testing.T, baseName string, md protoreflect.MessageDesc
 		t.Fatalf("[%s] Marshal(shared) failed: %v", baseName, err)
 	}
 	// Verify 25 consecutive runs produce byte-for-byte identical output
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		again, err := MarshalOptions{Deterministic: true, SelfDescribing: false}.Marshal(msg)
 		if err != nil || !bytes.Equal(again, wireShared) {
 			t.Fatalf("[%s] non-deterministic shared encoding on iteration %d", baseName, i)
@@ -303,7 +303,7 @@ func verifyGoldenCase(t *testing.T, baseName string, md protoreflect.MessageDesc
 	if err != nil {
 		t.Fatalf("[%s] Marshal(field0) failed: %v", baseName, err)
 	}
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		again, err := MarshalOptions{Deterministic: true, SelfDescribing: true}.Marshal(msg)
 		if err != nil || !bytes.Equal(again, wireField0) {
 			t.Fatalf("[%s] non-deterministic field0 encoding on iteration %d", baseName, i)

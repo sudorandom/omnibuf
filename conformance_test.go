@@ -1498,7 +1498,7 @@ func buildInvalidWireCases() []InvalidWireCase {
 
 	// 18. 40-Level Deeply Nested WireSubMsg Bomb (exceeds MaxNestingDepth = 32)
 	var deepBomb []byte // innermost empty sub-message (0 bytes)
-	for d := 0; d < 40; d++ {
+	for range 40 {
 		var outer []byte
 		outer = appendTag(outer, 4, WireSubMsg) // Field #4 (Primary in TreeNode)
 		outer = AppendVarint(outer, uint64(len(deepBomb)))
