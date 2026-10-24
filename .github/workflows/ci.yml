@@ -14,13 +14,13 @@ concurrency:
 jobs:
   go:
     name: Go (Format, Lint, Test & Fuzz)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install tools via mise
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
         with:
           install: true
 
@@ -38,15 +38,15 @@ jobs:
 
   proto:
     name: Protobuf (Format, Lint, Build & Breaking)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install tools via mise
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
         with:
           install: true
 
@@ -65,13 +65,13 @@ jobs:
 
   web:
     name: Web (Format, Lint, Typecheck & Build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install tools via mise
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
         with:
           install: true
 

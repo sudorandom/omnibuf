@@ -15,16 +15,16 @@ concurrency:
 jobs:
   deploy:
     name: Build & Deploy to Cloudflare Pages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       deployments: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install tools via mise
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
         with:
           install: true
 
@@ -41,13 +41,10 @@ jobs:
 
       - name: Deploy to Cloudflare Pages (omnibuf.com)
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: web
-          command: pages deploy ./dist --project-name=omnibuf --branch=main
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: web
+        run: |
+          pnpm exec wrangler pages project list | grep -q "omnibuf" || pnpm exec wrangler pages project create omnibuf --production-branch=main
+          pnpm exec wrangler pages deploy ./dist --project-name=omnibuf --branch=main
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
