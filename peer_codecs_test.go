@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// Canonical benchmark schema types matching schemas/peer.{proto,fbs,capnp}.
+// Canonical benchmark schema types matching proto/omnibuf/bench/peer.proto and testdata/schemas/peer.{fbs,capnp}.
 
 type Location struct {
 	Region     string  `omnibuf:"1,name=region" protobuf:"bytes,1,opt,name=region,proto3" json:"region" msgpack:"region"`

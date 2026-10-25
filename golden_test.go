@@ -350,7 +350,7 @@ func verifyGoldenCase(t *testing.T, baseName string, md protoreflect.MessageDesc
 }
 
 func TestGoldenWireFiles(t *testing.T) {
-	// Case 1: Canonical PeerUpdate schema (schemas/peer.proto)
+	// Case 1: Canonical PeerUpdate schema (proto/omnibuf/bench/peer.proto)
 	rawPeer := SamplePeerUpdate()
 	peerSample := SamplePBPeerUpdate(&rawPeer)
 	peerFD := peerSample.ProtoReflect().Descriptor().ParentFile()

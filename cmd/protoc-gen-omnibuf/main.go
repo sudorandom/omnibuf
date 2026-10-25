@@ -18,8 +18,8 @@ import (
 )
 
 func main() {
-	selfGenOut := flag.String("self-gen", "", "Run protogen on schemas/peer.proto descriptor and write generated file to path")
-	vtGenOut := flag.String("vtproto-gen", "", "Run vtprotobuf generator on schemas/peer.proto descriptor and write generated file to path")
+	selfGenOut := flag.String("self-gen", "", "Run protogen on omnibuf/bench/peer.proto descriptor and write generated file to path")
+	vtGenOut := flag.String("vtproto-gen", "", "Run vtprotobuf generator on omnibuf/bench/peer.proto descriptor and write generated file to path")
 	flag.Parse()
 
 	if *selfGenOut != "" {
@@ -66,10 +66,10 @@ func peerProtoRequest() *pluginpb.CodeGeneratorRequest {
 	rep := descriptorpb.FieldDescriptorProto_LABEL_REPEATED
 	fdp := &descriptorpb.FileDescriptorProto{
 		Syntax:  proto.String("proto3"),
-		Name:    proto.String("schemas/peer.proto"),
+		Name:    proto.String("omnibuf/bench/peer.proto"),
 		Package: proto.String("omnibuf.bench"),
 		Options: &descriptorpb.FileOptions{
-			GoPackage: proto.String("github.com/sudorandom/omnibuf/pb;pb"),
+			GoPackage: proto.String("github.com/sudorandom/omnibuf/internal/pb;pb"),
 		},
 		MessageType: []*descriptorpb.DescriptorProto{
 			{
@@ -111,7 +111,7 @@ func peerProtoRequest() *pluginpb.CodeGeneratorRequest {
 		},
 	}
 	return &pluginpb.CodeGeneratorRequest{
-		FileToGenerate: []string{"schemas/peer.proto"},
+		FileToGenerate: []string{"omnibuf/bench/peer.proto"},
 		ProtoFile:      []*descriptorpb.FileDescriptorProto{fdp},
 	}
 }
@@ -150,7 +150,7 @@ func runVTProtoGen(outPath string) error {
 		Poolable:        vtgenerator.NewObjectSet(),
 		PoolableExclude: vtgenerator.NewObjectSet(),
 	}
-	_ = cfg.Poolable.Set("github.com/sudorandom/omnibuf/pb.*")
+	_ = cfg.Poolable.Set("github.com/sudorandom/omnibuf/internal/pb.*")
 	gen, err := vtgenerator.NewGenerator(plugin, []string{"marshal", "size", "unmarshal", "unmarshal_unsafe", "pool"}, &cfg)
 	if err != nil {
 		return err

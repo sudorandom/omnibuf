@@ -1,12 +1,10 @@
 version: v2
 modules:
-  - path: schemas
+  - path: proto
 lint:
   use:
     - STANDARD
   except:
-    - DIRECTORY_SAME_PACKAGE
-    - PACKAGE_DIRECTORY_MATCH
     - PACKAGE_VERSION_SUFFIX
 breaking:
   use:

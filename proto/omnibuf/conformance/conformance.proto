@@ -1,7 +1,7 @@
 syntax = "proto3";
 package omnibuf.conformance;
 
-option go_package = "github.com/sudorandom/omnibuf/pb;pb";
+option go_package = "github.com/sudorandom/omnibuf/internal/pb;pb";
 
 // WireFormat identifies the serialization format of payloads in ConformanceRequest and ConformanceResponse.
 enum WireFormat {

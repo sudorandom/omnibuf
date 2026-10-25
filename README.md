@@ -91,8 +91,8 @@ package main
 import (
 	"fmt"
 
+	"example.com/yourproject/pb"
 	"github.com/sudorandom/omnibuf"
-	"github.com/sudorandom/omnibuf/pb"
 )
 
 func main() {

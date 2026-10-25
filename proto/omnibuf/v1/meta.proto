@@ -1,7 +1,7 @@
 syntax = "proto3";
 package omnibuf.v1;
 
-option go_package = "github.com/sudorandom/omnibuf/pb;pb";
+option go_package = "github.com/sudorandom/omnibuf/internal/pb;pb";
 
 // SchemaMeta is the optional inline schema header encoded as Field #0
 // (Tag = 0x0B, WireSubMsg = 5) at byte 0 of an OmniBuf message.

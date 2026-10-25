@@ -51,10 +51,10 @@ go-fmt-check:
 bench:
     GOEXPERIMENT=jsonv2 go test -bench=. -benchmem . | tee testdata/benchmarks.txt
 
-# Regenerate pb/peer_omnibuf.pb.go and pb/peer_vtproto.pb.go
+# Regenerate internal/pb/peer_omnibuf.pb.go and internal/pb/peer_vtproto.pb.go
 generate:
-    go run ./cmd/protoc-gen-omnibuf -self-gen=pb/peer_omnibuf.pb.go
-    go run ./cmd/protoc-gen-omnibuf -vtproto-gen=pb/peer_vtproto.pb.go
+    go run ./cmd/protoc-gen-omnibuf -self-gen=internal/pb/peer_omnibuf.pb.go
+    go run ./cmd/protoc-gen-omnibuf -vtproto-gen=internal/pb/peer_vtproto.pb.go
 
 # Build the omnibuf CLI binary into ./bin/omnibuf
 build-cli:

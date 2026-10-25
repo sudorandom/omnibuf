@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	. "github.com/sudorandom/omnibuf"
-	"github.com/sudorandom/omnibuf/pb"
+	"github.com/sudorandom/omnibuf/internal/pb"
 )
 
 func TestGenericTableMarshalUnmarshal_ExistingPBStruct(t *testing.T) {

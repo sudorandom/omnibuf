@@ -1,7 +1,7 @@
 {
   "file": [
     {
-      "name": "schemas/peer.proto",
+      "name": "omnibuf/bench/peer.proto",
       "package": "omnibuf.bench",
       "messageType": [
         {

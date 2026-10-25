@@ -13,8 +13,8 @@ import (
 	"testing"
 
 	. "github.com/sudorandom/omnibuf"
-	"github.com/sudorandom/omnibuf/conformance"
-	"github.com/sudorandom/omnibuf/pb"
+	"github.com/sudorandom/omnibuf/internal/conformance"
+	"github.com/sudorandom/omnibuf/internal/pb"
 	. "github.com/sudorandom/omnibuf/wire"
 )
 

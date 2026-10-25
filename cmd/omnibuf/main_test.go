@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sudorandom/omnibuf/pb"
+	"github.com/sudorandom/omnibuf/internal/pb"
 	obwire "github.com/sudorandom/omnibuf/wire"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"

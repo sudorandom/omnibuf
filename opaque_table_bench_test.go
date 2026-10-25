@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/sudorandom/omnibuf"
-	"github.com/sudorandom/omnibuf/pb"
+	"github.com/sudorandom/omnibuf/internal/pb"
 	"google.golang.org/protobuf/proto"
 )
 

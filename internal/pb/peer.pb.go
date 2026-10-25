@@ -1,4 +1,4 @@
-// Code generated for schemas/peer.proto. DO NOT EDIT.
+// Code generated for omnibuf/bench/peer.proto. DO NOT EDIT.
 package pb
 
 import (
@@ -199,7 +199,7 @@ func file_schemas_peer_proto_init() {
 	rep := descriptorpb.FieldDescriptorProto_LABEL_REPEATED
 	fdp := &descriptorpb.FileDescriptorProto{
 		Syntax:  proto.String("proto3"),
-		Name:    proto.String("schemas/peer.proto"),
+		Name:    proto.String("omnibuf/bench/peer.proto"),
 		Package: proto.String("omnibuf.bench"),
 		MessageType: []*descriptorpb.DescriptorProto{
 			{
