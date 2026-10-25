@@ -17,7 +17,7 @@ export interface BenchmarkRow {
   name: string;
   val: number;
   highlight?: boolean;
-  color: string;
+  baseline?: boolean;
 }
 
 export interface BenchmarkCategory {
@@ -47,14 +47,14 @@ export const formatProfiles: Record<string, FormatProfile> = {
     verdict:
       'OmniBuf stays within ~6% of Protobuf wire size while encoding up to 6x faster, decoding up to 8x faster, and making every wire type inspectable without a schema.',
     omniWinsList: [
-      '2x to 6x faster encoding by writing in one pass instead of measuring nested messages twice.',
-      '2x to 8x faster decoding by reading integer byte widths from the first byte instead of looping byte-by-byte.',
+      'OmniBuf encodes 2x to 6x faster because it writes in a single pass instead of measuring nested messages twice.',
+      'OmniBuf decodes 2x to 8x faster because it reads integer byte widths from the first byte instead of looping byte-by-byte.',
       'Explicit 4-bit wire types and optional Field #0 names remove Wire Type 2 ambiguity.',
-      'Faster field skipping while keeping raw message concatenation (append(msgA, msgB...)).',
+      'OmniBuf skips fields in one step while keeping raw message concatenation (append(msgA, msgB...)).',
     ],
     oppWinsList: [
-      'Supported everywhere when you need wire compatibility with existing third-party Protobuf services.',
-      'Roughly 6% smaller wire payloads because Protobuf uses 3-bit tags and 1-byte lengths on small nested messages.',
+      'Protobuf is supported everywhere when you need wire compatibility with existing third-party services.',
+      'Protobuf payloads are roughly 6% smaller because Protobuf uses 3-bit tags and 1-byte lengths on small nested messages.',
     ],
     stats: [
       { label: 'Wire Size', score: 100 },
@@ -71,13 +71,13 @@ export const formatProfiles: Record<string, FormatProfile> = {
     verdict:
       'OmniBuf is 40% smaller on the wire, 6x faster to encode, and faster on full message decodes while using standard .proto schemas instead of bottom-up builders.',
     omniWinsList: [
-      '40% smaller packets on the wire because there are no VTables or alignment padding.',
-      '6x faster encoding with normal top-down writes instead of bottom-up builders.',
-      'Faster full message decoding and supports raw byte concatenation.',
-      'Works directly with standard .proto schemas and Go structs.',
+      'OmniBuf packets are 40% smaller on the wire because there are no VTables or alignment padding.',
+      'OmniBuf encodes 6x faster with normal top-down writes instead of bottom-up builders.',
+      'OmniBuf decodes full messages faster and supports raw byte concatenation.',
+      'OmniBuf works directly with standard .proto schemas and plain structs.',
     ],
     oppWinsList: [
-      'Faster single-field random access when reading one field out of a large message via VTable offsets.',
+      'FlatBuffers has faster single-field random access when reading one field out of a large message via VTable offsets.',
     ],
     stats: [
       { label: 'Wire Size', score: 57 },
@@ -94,14 +94,14 @@ export const formatProfiles: Record<string, FormatProfile> = {
     verdict:
       'On framed network packets, OmniBuf is 36% smaller, 10x faster to encode, and over 6x faster to decode without segment pointer bounds checking.',
     omniWinsList: [
-      '36% smaller network packets without 64-bit pointers or 8-byte word padding.',
-      '10x faster encoding with zero heap allocations.',
-      'Over 6x faster full decoding and nearly 3x faster single-field reads on framed network packets.',
-      'Uses standard .proto schemas and supports raw message concatenation.',
+      'OmniBuf network packets are 36% smaller because they do not carry 64-bit pointers or 8-byte word padding.',
+      'OmniBuf encodes 10x faster with zero heap allocations.',
+      'OmniBuf is over 6x faster on full decoding and nearly 3x faster on single-field reads over framed network packets.',
+      'OmniBuf uses standard .proto schemas and supports raw message concatenation.',
     ],
     oppWinsList: [
-      'Includes a built-in RPC system with promise pipelining.',
-      'Fixed-offset struct layout jumps directly to fields in shared memory without scanning preceding field headers.',
+      "Cap'n Proto includes a built-in RPC system with promise pipelining.",
+      "Cap'n Proto's fixed-offset struct layout jumps directly to fields in shared memory without scanning preceding field headers.",
     ],
     stats: [
       { label: 'Wire Size', score: 61 },
@@ -116,15 +116,16 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'MessagePack',
     url: 'https://msgpack.org/',
     verdict:
-      'OmniBuf is 45% smaller than MessagePack in standard mode, and still smaller even with Field #0 inline field names enabled while encoding over 6x faster.',
+      'OmniBuf is 45% smaller than MessagePack (and still smaller even with Field #0 inline field names enabled), encoding 16x faster with generated code or ~7x faster using plain struct tags without a .proto file.',
     omniWinsList: [
-      '45% smaller packets in standard .proto mode, and 5% smaller even with Field #0 inline names enabled.',
-      '16x faster encoding (or over 6x faster with Field #0 inline field names included).',
-      'Over 20x faster full decoding and nearly 8x faster single-field skipping.',
-      'Stores nested child field names once in Field #0 instead of repeating key strings inside every array element.',
+      'OmniBuf packets are 45% smaller in standard mode, and 5% smaller even with Field #0 inline names enabled.',
+      'OmniBuf encodes 16x faster with generated code, and ~7x faster on plain structs using omnibuf struct tags.',
+      'OmniBuf decodes full messages over 20x faster with generated code, and 4x to 6x faster when decoding directly into tagged structs.',
+      'OmniBuf stores nested child field names once in Field #0 instead of repeating key strings inside every array element.',
     ],
     oppWinsList: [
-      'Good fit for schemaless maps with arbitrary keys when you do not have a .proto schema.',
+      'MessagePack can encode untyped dynamic maps (such as map[string]any) when you do not have a struct or assigned field numbers.',
+      'MessagePack has broad multi-language library support when interoperating with non-Go services today.',
     ],
     stats: [
       { label: 'Wire Size', score: 52 },
@@ -139,15 +140,15 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'JSON',
     url: 'https://www.json.org/',
     verdict:
-      'OmniBuf is less than half the size of JSON and 18x to 32x faster, while still letting you use standard ProtoJSON for plain-text debugging from the same .proto file.',
+      'OmniBuf is less than half the size of JSON and 18x to 32x faster with generated code (or 5x to 11x faster using plain struct tags against both encoding/json and encoding/json/v2), while still supporting standard ProtoJSON.',
     omniWinsList: [
-      '55% smaller on the wire (and 23% smaller even when Field #0 field names are embedded).',
-      '18x faster encoding and 32x faster decoding.',
-      '50x faster single-field extraction without scanning text brackets or quotes.',
-      'Compatible with official ProtoJSON so you can still accept or emit plain text JSON from the same .proto schema.',
+      'OmniBuf is 55% smaller on the wire, and 23% smaller even when Field #0 field names are embedded.',
+      'OmniBuf encodes 18x faster with generated code, and over 7x faster on plain structs with omnibuf tags than both encoding/json and encoding/json/v2.',
+      'OmniBuf decodes 23x to 32x faster with generated code, and 5x to 11x faster on plain structs than both encoding/json and encoding/json/v2.',
+      'OmniBuf extracts a single nested field 50x faster without scanning text brackets or quotes, while remaining compatible with official ProtoJSON.',
     ],
     oppWinsList: [
-      'Readable as plain text in browser devtools and curl when no CLI tool is installed.',
+      'JSON is readable as plain text in browser devtools and curl when no CLI tool is installed.',
     ],
     stats: [
       { label: 'Wire Size', score: 42 },
@@ -167,14 +168,16 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 1800,
     methodology:
-      'Serializes a populated 11-field message (scalars, strings, packed int arrays, a 6-field nested sub-message, and 4 repeated sub-messages) into a reused byte buffer or FlatBuffers builder.',
+      'This benchmark measures how long it takes to serialize an 11-field message into a reused byte buffer. OmniBuf performs extremely well with encoding because it writes forward in a single pass, reserves 2-byte length slots instead of pre-calculating sub-message sizes, and encodes integers without byte-by-byte varint loops.',
     rows: [
-      { name: 'OmniBuf', val: 94, highlight: true, color: '#FF4F18' },
-      { name: 'Protobuf', val: 561, color: '#78716C' },
-      { name: 'FlatBuffers', val: 562, color: '#78716C' },
-      { name: "Cap'n Proto", val: 1016, color: '#A8A29E' },
-      { name: 'MessagePack', val: 1552, color: '#A8A29E' },
-      { name: 'JSON', val: 1720, color: '#A8A29E' },
+      { name: 'OmniBuf (Generated)', val: 94, highlight: true, baseline: true },
+      { name: 'OmniBuf (Go Struct Tags)', val: 232, highlight: true },
+      { name: 'Protobuf', val: 561 },
+      { name: 'FlatBuffers', val: 562 },
+      { name: "Cap'n Proto", val: 1016 },
+      { name: 'MessagePack', val: 1590 },
+      { name: 'JSON (encoding/json)', val: 1705 },
+      { name: 'JSON (encoding/json/v2)', val: 1753 },
     ],
   },
   {
@@ -182,14 +185,16 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 4000,
     methodology:
-      "Deserializes the encoded packet back into a reusable Go struct with zero-copy string slices. For FlatBuffers and Cap'n Proto, all 11 fields and nested structures are read out of the root table into the target struct so every format performs equivalent work.",
+      'This benchmark measures how long it takes to decode the full 11-field message back into a struct. OmniBuf performs extremely well with decoding because the trailing zeros of the first byte reveal the exact integer width for a single-step read, booleans require zero value bytes, and arrays are decoded from a single length-prefixed block.',
     rows: [
-      { name: 'OmniBuf', val: 120, highlight: true, color: '#FF4F18' },
-      { name: 'FlatBuffers', val: 170, color: '#78716C' },
-      { name: "Cap'n Proto", val: 772, color: '#A8A29E' },
-      { name: 'Protobuf', val: 960, color: '#78716C' },
-      { name: 'MessagePack', val: 2496, color: '#A8A29E' },
-      { name: 'JSON', val: 3850, color: '#A8A29E' },
+      { name: 'OmniBuf (Generated)', val: 120, highlight: true, baseline: true },
+      { name: 'FlatBuffers', val: 170 },
+      { name: 'OmniBuf (Go Struct Tags)', val: 343, highlight: true },
+      { name: "Cap'n Proto", val: 772 },
+      { name: 'Protobuf', val: 960 },
+      { name: 'MessagePack', val: 2185 },
+      { name: 'JSON (encoding/json/v2)', val: 2778 },
+      { name: 'JSON (encoding/json)', val: 3891 },
     ],
   },
   {
@@ -197,14 +202,14 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 1050,
     methodology:
-      "Extracts a single string inside a nested sub-message from a raw packet without decoding the rest of the message. OmniBuf skips preceding fields via header hopping, FlatBuffers and unframed Cap'n Proto follow offset pointers directly, framed Cap'n Proto parses the segment frame header first, and Protobuf unmarshals the message.",
+      "This benchmark is about extracting a string from a nested message without decoding the rest of the message. Although OmniBuf isn't optimized for single-field random access like pointer-table formats (FlatBuffers and Cap'n Proto), it still performs quite well by hopping over preceding field headers in a single addition per field.",
     rows: [
-      { name: "Cap'n Proto (Unframed Shared Memory)", val: 5, color: '#78716C' },
-      { name: 'FlatBuffers', val: 13, color: '#78716C' },
-      { name: 'OmniBuf', val: 76, highlight: true, color: '#FF4F18' },
-      { name: "Cap'n Proto (Framed Packet)", val: 221, color: '#A8A29E' },
-      { name: 'MessagePack', val: 590, color: '#A8A29E' },
-      { name: 'Protobuf', val: 983, color: '#78716C' },
+      { name: "Cap'n Proto (Unframed Shared Memory)", val: 5 },
+      { name: 'FlatBuffers', val: 13 },
+      { name: 'OmniBuf', val: 76, highlight: true, baseline: true },
+      { name: "Cap'n Proto (Framed Packet)", val: 221 },
+      { name: 'MessagePack', val: 590 },
+      { name: 'Protobuf', val: 983 },
     ],
   },
   {
@@ -212,15 +217,15 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'B',
     maxVal: 850,
     methodology:
-      'Measures the exact serialized byte length of the identical 11-field payload across all formats, including OmniBuf both in standard .proto mode and with Field #0 inline field names enabled.',
+      "This benchmark compares the encoded byte size of the same 11-field message across formats. OmniBuf only uses a little bit more bytes on the wire than Protobuf (~6% on this message) to make every wire type and container length self-describing, while staying much smaller than FlatBuffers, Cap'n Proto, MessagePack, and JSON.",
     rows: [
-      { name: 'Protobuf', val: 341, color: '#78716C' },
-      { name: 'OmniBuf', val: 362, highlight: true, color: '#FF4F18' },
-      { name: "Cap'n Proto", val: 560, color: '#A8A29E' },
-      { name: 'FlatBuffers', val: 600, color: '#A8A29E' },
-      { name: 'OmniBuf (With Field #0 Names)', val: 622, highlight: true, color: '#FF4F18' },
-      { name: 'MessagePack', val: 656, color: '#A8A29E' },
-      { name: 'JSON', val: 803, color: '#A8A29E' },
+      { name: 'Protobuf', val: 341 },
+      { name: 'OmniBuf', val: 362, highlight: true, baseline: true },
+      { name: "Cap'n Proto", val: 560 },
+      { name: 'FlatBuffers', val: 600 },
+      { name: 'OmniBuf (With Field #0 Names)', val: 622, highlight: true },
+      { name: 'MessagePack', val: 656 },
+      { name: 'JSON', val: 803 },
     ],
   },
 ];

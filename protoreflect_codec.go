@@ -32,7 +32,7 @@ func (o MarshalOptions) MarshalAppend(dst []byte, v any) ([]byte, error) {
 	if pr, ok := v.(protoreflect.Message); ok {
 		return o.marshalProtoReflectAppend(dst, pr)
 	}
-	return marshalTableAppend(dst, v, o.Deterministic)
+	return marshalTableAppend(dst, v, o)
 }
 
 // MarshalDeterministic encodes any struct pointer or protoreflect.Message with

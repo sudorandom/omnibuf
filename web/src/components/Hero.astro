@@ -17,7 +17,7 @@
   <div class="mt-8 max-w-4xl space-y-5">
     <!-- prettier-ignore -->
     <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
-      <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> got schemas right, mostly, but the wire format from 2001 made two costly mistakes: <strong>it requires the schema just to decode values</strong>, and its byte-by-byte <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a> are slow as hell.
+      <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> got schemas right, mostly, but the wire format from 2001 made two costly mistakes: <strong>it requires the schema just to decode values</strong>, and its byte-by-byte <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a> are slow as hell with real hardware.
     </p>
     <p class="text-base sm:text-xl font-mono text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md">
       <strong>OmniBuf</strong> gives you <strong>all the benefits of Protobuf</strong> (your
@@ -38,6 +38,12 @@
         class="os-btn px-5 py-3 bg-[#FAF8F2] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
       >
         Benchmarks &amp; Comparisons &rarr;
+      </a>
+      <a
+        href="/go"
+        class="os-btn px-5 py-3 bg-[#FAF8F2] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
+      >
+        OmniBuf for Go &rarr;
       </a>
     </div>
   </div>
@@ -340,7 +346,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          Over 6x-8x faster &amp; near-Protobuf size
+          6x to 8x faster &amp; near-Protobuf size
         </text>
       </svg>
 
@@ -568,7 +574,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          Over 6x-8x faster
+          6x to 8x faster
         </text>
         <text
           x="80"

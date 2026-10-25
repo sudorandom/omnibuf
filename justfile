@@ -36,7 +36,7 @@ go-fmt-check:
 
 # Run all Go benchmarks with memory allocation stats and persist raw output to testdata/benchmarks.txt
 bench:
-    go test -bench=. -benchmem . | tee testdata/benchmarks.txt
+    GOEXPERIMENT=jsonv2 go test -bench=. -benchmem . | tee testdata/benchmarks.txt
 
 # Regenerate pb/peer_omnibuf.pb.go and pb/peer_vtproto.pb.go
 generate:

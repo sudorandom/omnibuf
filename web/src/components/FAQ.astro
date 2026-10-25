@@ -1,6 +1,7 @@
 ---
 interface FAQItem {
   question: string;
+  questionHtml?: string;
   paragraphs: string[];
 }
 
@@ -9,36 +10,32 @@ const faqItems: FAQItem[] = [
     question: 'Why is it named OmniBuf?',
     paragraphs: [
       'The name reflects a more complete Protobuf that goes further than the original wire encoding. Standard Protobuf requires a schema just to make sense of raw bytes, and it will never compromise on carrying field metadata on the wire.',
-      'OmniBuf payloads can always be parsed into explicit types without a schema, and can optionally embed field names (Field #0) when you want full named JSON output straight from a binary packet.',
+      'OmniBuf payloads can always be parsed into explicit types without a schema, and can optionally embed field names (<code>Field #0</code>) when you want full named JSON output straight from a binary packet.',
     ],
   },
   {
     question: 'Why a new format?',
     paragraphs: [
       'The main goal is simple: we want a better Protobuf, and showing a concrete re-imagining of the wire format can help push the ecosystem further.',
-      "Protobuf is generally fine, and JSON is generally fine, but both have rough edges. Protobuf's 2001 wire format is slow to decode and opaque in logs; JSON is bulky and breaks on 64-bit integers and binary data. At the same time, Protobuf's IDL methodology is genuinely great: schema-first development with explicit field numbers lets systems adapt and evolve at a much faster pace. OmniBuf keeps the .proto schema workflow intact and shows what becomes possible when you modernize the wire encoding underneath it.",
-    ],
-  },
-  {
-    question: 'How does it compare to vtprotobuf?',
-    paragraphs: [
-      'vtprotobuf speeds up Go Protobuf by generating unrolled varint loops and a separate size-calculation pass before writing backwards into the buffer, because the 2001 Protobuf wire format requires knowing every sub-message length up front.',
-      'OmniBuf does not need a separate sizing pass (it reserves a 2-byte length slot and fills it in after writing) and reads integers in one step instead of a byte-by-byte loop. As a result, protoc-gen-omnibuf runs over 50% faster on Marshal and over 2x faster on Read-Modify-Write while generating less than half the code.',
+      "Protobuf is generally fine, and JSON is generally fine, but both have rough edges. Protobuf's 2001 wire format is slow to decode and opaque in logs; JSON is bulky and breaks on 64-bit integers and binary data. At the same time, Protobuf's IDL methodology is genuinely great: schema-first development with explicit field numbers lets systems adapt and evolve at a much faster pace. OmniBuf keeps the <code>.proto</code> schema workflow intact and shows what becomes possible when you modernize the wire encoding underneath it.",
     ],
   },
   {
     question: 'Do I have to rewrite my .proto files?',
+    questionHtml: 'Do I have to rewrite my <code>.proto</code> files?',
     paragraphs: [
-      'No. OmniBuf compiles standard proto3 and Editions (2023, 2024) definitions using protoc-gen-omnibuf. By default it attaches fast encode and decode methods directly onto your existing .pb.go structs, so you do not have to rewrite application code around a custom builder API.',
+      'No. OmniBuf uses standard <code>proto3</code> and Editions (<code>2023</code>, <code>2024</code>) field numbers, scalar types, nested messages, repeated lists, and maps without requiring a custom IDL or builder API.',
     ],
   },
   {
     question: 'What languages are supported?',
     paragraphs: [
-      'Right now, only Go is implemented. The wire specification is language-agnostic and built around standard little-endian loads and hardware bit-scans, with additional language implementations planned as the specification stabilizes.',
+      'Right now, <a href="/go" class="doc-link">Go</a> is implemented (supporting existing <code>.pb.go</code> structs, <code>protoc-gen-omnibuf</code> codegen, and plain Go structs with <code>omnibuf</code> struct tags). The wire specification is language-agnostic and built around standard little-endian loads and hardware bit-scans, with additional language implementations planned as the specification stabilizes.',
     ],
   },
 ];
+
+const stripHtml = (s: string) => s.replace(/<[^>]+>/g, '');
 
 const faqJsonLd = {
   '@context': 'https://schema.org',
@@ -48,7 +45,7 @@ const faqJsonLd = {
     name: item.question,
     acceptedAnswer: {
       '@type': 'Answer',
-      text: item.paragraphs.join('\n\n'),
+      text: item.paragraphs.map(stripHtml).join('\n\n'),
     },
   })),
 };
@@ -68,12 +65,13 @@ const faqJsonLd = {
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
     {faqItems.map((item) => (
       <div class="py-7 sm:py-9 grid lg:grid-cols-12 gap-4 lg:gap-8 items-start">
-        <h3 class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug">
-          {item.question}
-        </h3>
-        <div class="lg:col-span-7 space-y-3.5 text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
+        <h3
+          class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug"
+          set:html={item.questionHtml ?? item.question}
+        />
+        <div class="lg:col-span-7 space-y-3.5 text-base sm:text-lg text-ink/90 leading-relaxed max-w-[65ch] min-w-0">
           {item.paragraphs.map((paragraph) => (
-            <p>{paragraph}</p>
+            <p set:html={paragraph} />
           ))}
         </div>
       </div>

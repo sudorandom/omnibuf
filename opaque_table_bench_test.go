@@ -214,6 +214,33 @@ func BenchmarkTable_Marshal_ValueStruct_ReuseBuf(b *testing.B) {
 	}
 }
 
+func BenchmarkTable_Marshal_ValueStruct_SelfDescribing_ReuseBuf(b *testing.B) {
+	orig := SamplePeerUpdate()
+	buf := make([]byte, 0, 768)
+	opts := MarshalOptions{SelfDescribing: true}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var err error
+		buf, err = opts.MarshalAppend(buf, &orig)
+		if err != nil || len(buf) == 0 {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkTable_Marshal_ValueStruct_FreshAlloc(b *testing.B) {
+	orig := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pkt, err := Marshal(&orig)
+		if err != nil || len(pkt) == 0 {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkTable_Unmarshal_ExistingPBStruct_ZeroCopyReuse(b *testing.B) {
 	orig := SamplePeerUpdate()
 	pkt := EncodePeerOmniBufDirect(nil, &orig)

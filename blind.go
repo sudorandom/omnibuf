@@ -603,6 +603,18 @@ func decodeMapKeyBlind(body []byte, p int, keyWT uint8) (string, int, error) {
 			return "", 0, fmt.Errorf("omnibuf: truncated WireMap fixed64 key at %d", p)
 		}
 		return fmt.Sprintf("%d", binary.LittleEndian.Uint64(body[p:p+8])), p + 8, nil
+	case WireBoolTrue, WireBoolFalse:
+		if len(body)-p < 1 {
+			return "", 0, fmt.Errorf("omnibuf: truncated WireMap bool key at %d", p)
+		}
+		b := body[p]
+		if b != 0 && b != 1 {
+			return "", 0, fmt.Errorf("omnibuf: invalid WireMap bool key %d at %d", b, p)
+		}
+		if b == 1 {
+			return "true", p + 1, nil
+		}
+		return "false", p + 1, nil
 	default:
 		return "", 0, fmt.Errorf("omnibuf: invalid WireMap key wire type %d", keyWT)
 	}

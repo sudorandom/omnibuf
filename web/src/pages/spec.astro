@@ -114,7 +114,7 @@ const tocSections = [
 >
   <Navbar currentPage="spec" />
 
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+  <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
     <!-- Spec Header -->
     <div class="mb-12">
       <h1 class="text-[2.6rem] sm:text-7xl lg:text-[5.5rem] font-bold tracking-tight uppercase leading-[0.94] text-ink">
@@ -131,25 +131,39 @@ const tocSections = [
 
     <!-- Sticky Mobile Section Jump Bar (< lg viewports) -->
     <div class="lg:hidden sticky top-14 z-30 mb-6 flex items-start gap-2 font-mono text-sm no-print">
-      <details
-        id="mobile-spec-toc"
-        class="flex-1 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#111]"
-      >
-        <summary class="px-4 py-2.5 font-bold uppercase cursor-pointer">
-          Jump to Spec Section
+      <details id="mobile-spec-toc" class="flex-1 os-window bg-[#FAF8F2]">
+        <summary class="px-4 py-2.5 font-bold uppercase cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          <span id="mobile-spec-toc-label">Jump to Spec Section</span>
         </summary>
         <nav
           aria-label="Mobile specification sections"
           class="p-3 border-t-2 border-ink space-y-1 max-h-64 overflow-y-auto"
         >
           {tocSections.map((sec) => (
-            <a
-              href={`#${sec.id}`}
-              data-mobile-spec-link
-              class="block px-2.5 py-1.5 rounded hover:bg-ink/5"
-            >
-              {sec.label}
-            </a>
+            <div>
+              <a
+                href={`#${sec.id}`}
+                data-mobile-spec-link={sec.id}
+                data-active="false"
+                class="block px-2.5 py-1.5 rounded font-bold hover:bg-ink/5 data-[active=true]:bg-acid data-[active=true]:text-ink"
+              >
+                {sec.label}
+              </a>
+              {sec.children.length > 0 && (
+                <div class="pl-3 ml-2.5 mt-0.5 mb-1 space-y-0.5 border-l-2 border-ink/25">
+                  {sec.children.map((sub) => (
+                    <a
+                      href={`#${sub.id}`}
+                      data-mobile-spec-link={sub.id}
+                      data-active="false"
+                      class="block px-2 py-1 rounded text-xs text-ink/80 hover:text-ink hover:bg-ink/5 data-[active=true]:bg-acid/40 data-[active=true]:text-ink data-[active=true]:font-bold"
+                    >
+                      {sub.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </nav>
       </details>
@@ -164,9 +178,15 @@ const tocSections = [
     <div class="grid lg:grid-cols-12 gap-8 items-start">
       <!-- Left Sticky Table of Contents -->
       <aside class="hidden lg:block lg:col-span-3 lg:sticky lg:top-16 no-print">
-        <div class="bg-[#FAF8F2] border-2 border-ink rounded-md p-4 shadow-[4px_4px_0px_#111] lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto">
-          <div class="font-mono text-sm font-bold uppercase pb-2.5 mb-2.5 border-b-2 border-ink">
-            Specification Contents
+        <div class="os-window bg-[#FAF8F2] p-4 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto">
+          <div class="font-mono text-sm font-bold uppercase pb-2.5 mb-2.5 border-b-2 border-ink flex items-center justify-between gap-2">
+            <span>Specification Contents</span>
+            <a
+              href="#main-content"
+              class="text-xs px-2 py-0.5 bg-white border border-ink rounded hover:bg-acid transition"
+            >
+              Top &uarr;
+            </a>
           </div>
           <nav aria-label="Specification sections" class="space-y-1 font-mono text-sm">
             {tocSections.map((sec) => (
@@ -182,7 +202,10 @@ const tocSections = [
                 {sec.children.length > 0 && (
                   <div
                     data-subtoc={sec.id}
-                    class="hidden pl-3 ml-2.5 mt-1 mb-1.5 space-y-1 border-l-2 border-ink/25"
+                    class:list={[
+                      'pl-3 ml-2.5 mt-1 mb-1.5 space-y-1 border-l-2 border-ink/25',
+                      sec.id === 'sec-6' ? 'block' : 'hidden',
+                    ]}
                   >
                     {sec.children.map((sub) => (
                       <a
@@ -203,10 +226,7 @@ const tocSections = [
       </aside>
 
       <!-- Main Specification Document Sheet -->
-      <main
-        id="main-content"
-        class="lg:col-span-9 min-w-0 bg-[#FAF8F2] border-2 border-ink rounded-md p-6 sm:p-10 lg:p-12 shadow-[10px_10px_0px_#111] spec-prose"
-      >
+      <article class="lg:col-span-9 min-w-0 os-window-lg bg-[#FAF8F2] p-6 sm:p-10 lg:p-12 spec-prose">
         <!-- SECTION 1 -->
         <h2 id="sec-1">1. Design Goals &amp; Overview</h2>
 
@@ -614,7 +634,19 @@ const tocSections = [
         </p>
 
         <h3 id="sec-4-1">4.1 ZigZag Formulas</h3>
-        <Code code={zigZagGoCode} lang="go" theme="github-dark" />
+        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">ZigZag Bitwise Mapping</div>
+            <button
+              type="button"
+              data-copy={zigZagGoCode}
+              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+            >
+              Copy
+            </button>
+          </div>
+          <Code code={zigZagGoCode} lang="go" theme="github-dark" />
+        </div>
 
         <h3 id="sec-4-2">4.2 ZigZag Binary &amp; Hex Examples</h3>
         <div class="table-wrap">
@@ -751,7 +783,7 @@ const tocSections = [
                 <div class="col-span-4 bg-acid text-ink py-2 border-r border-ink">
                   WireType (4b)
                 </div>
-                <div class="col-span-1 bg-[#FFAB70] text-ink py-2">1</div>
+                <div class="col-span-1 bg-[#FF4F18] text-white py-2">1</div>
               </div>
               <div class="text-xs text-paper/80 pt-1">
                 Byte 0 = (FieldNum &lt;&lt; 5) | (WireType &lt;&lt; 1) | 1
@@ -783,7 +815,7 @@ const tocSections = [
                 <div class="col-span-3 bg-acid text-ink py-2 border-r border-ink">
                   WireType (4b)
                 </div>
-                <div class="col-span-1 bg-[#FFAB70] text-ink py-2">10</div>
+                <div class="col-span-1 bg-[#FF4F18] text-white py-2">10</div>
               </div>
               <div class="text-xs text-paper/80 pt-1">
                 LE16 = (FieldNum &lt;&lt; 6) | (WireType &lt;&lt; 2) | 2
@@ -912,7 +944,7 @@ const tocSections = [
               id: 4,
               sym: 'WireBytes',
               href: '#sec-6-3',
-              types: 'bytes ([]byte)',
+              types: 'bytes',
               layout: '[ByteLen][Raw Bytes]',
             },
             {
@@ -995,7 +1027,7 @@ const tocSections = [
           ].map((wt) => (
             <a
               href={wt.href}
-              class="group block p-3.5 bg-white border-2 border-ink rounded-md hover:bg-[#FAF8F2] hover:shadow-[3px_3px_0px_#121212] transition"
+              class="group block p-3.5 bg-white border-2 border-ink rounded-md hover:bg-[#FAF8F2] hover:shadow-[3px_3px_0px_#111111] focus-visible:bg-[#FAF8F2] focus-visible:shadow-[3px_3px_0px_#111111] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink transition"
             >
               <div class="flex items-center justify-between gap-2 mb-1.5">
                 <div class="flex items-center gap-2">
@@ -1037,11 +1069,11 @@ const tocSections = [
           </li>
         </ul>
         <pre><code><span class="text-paper/75">// Example 1: Field #1 (asn = 64512, WireUint = 0)</span>
-<span class="text-acid font-bold">21</span>   <span class="text-[#79C0FF] font-bold">04 e0 07 00</span>
+<span class="text-acid font-bold">21</span>   <span class="text-paper font-bold">04 e0 07 00</span>
 <span class="text-acid">Tag</span>  <span class="text-paper/85">64512 as 4B Prefix-Varint (LE32: 0x0007E004 &gt;&gt; 3)</span>
 
 <span class="text-paper/75">// Example 2: Field #5 (rssi_dbm = -62, WireSint = 12)</span>
-<span class="text-acid font-bold">b9</span>   <span class="text-[#79C0FF] font-bold">f7</span>
+<span class="text-acid font-bold">b9</span>   <span class="text-paper font-bold">f7</span>
 <span class="text-acid">Tag</span>  <span class="text-paper/85">-62 -&gt; ZigZag 123 -&gt; 1B Prefix-Varint (0xF7 &gt;&gt; 1 = 123)</span></code></pre>
 
         <h3 id="sec-6-2">
@@ -1058,64 +1090,64 @@ const tocSections = [
           6.3 <code>WireString</code> (3) &amp; <code>WireBytes</code> (4)
         </h3>
         <p>
-          Followed by <code>[ByteLen (Prefix-Varint)]</code> and <code>[ByteLen raw bytes]</code>.
-          Strings are UTF-8 without a NUL terminator.
+          The tag is followed by <code>[ByteLen (Prefix-Varint)]</code> and{' '}
+          <code>[ByteLen raw bytes]</code>. Strings are UTF-8 encoded without a NUL terminator.
         </p>
-        <pre><code><span class="text-acid font-bold">47</span>   <span class="text-[#FFAB70] font-bold">09</span>     <span class="text-[#A5D6FF] font-bold">72 74 72 31</span>
-<span class="text-acid">Tag</span>  <span class="text-[#FFAB70]">Len=4</span>  <span class="text-paper/85">"rtr1" (Field #2, 4 UTF-8 bytes)</span></code></pre>
+        <pre><code><span class="text-acid font-bold">47</span>   <span class="text-[#FF4F18] font-bold">09</span>     <span class="text-paper font-bold">72 74 72 31</span>
+<span class="text-acid">Tag</span>  <span class="text-[#FF4F18]">Len=4</span>  <span class="text-paper/85">"rtr1" (Field #2, 4 UTF-8 bytes)</span></code></pre>
 
         <h3 id="sec-6-4">
           6.4 <code>WireSubMsg</code> (5)
         </h3>
         <p>
-          Encodes a nested message as <code>[ByteLen (Prefix-Varint)][Inner Message Bytes]</code>.
-          Single-pass encoders reserve a 2-byte Prefix-Varint slot (<code>TZCNT = 1</code>) for{' '}
-          <code>ByteLen</code> and patch it after writing the nested fields; decoders accept any
-          valid Prefix-Varint width.
+          <code>WireSubMsg</code> encodes a nested message as{' '}
+          <code>[ByteLen (Prefix-Varint)][Inner Message Bytes]</code>. Single-pass encoders reserve
+          a 2-byte Prefix-Varint slot (<code>TZCNT = 1</code>) for <code>ByteLen</code> and patch it
+          after writing the nested fields; decoders accept any valid Prefix-Varint width.
         </p>
         <pre><code><span class="text-paper/75">// Inner Location message (city = "FRA" at #3, rack = 42 at #4):</span>
-<span class="text-acid font-bold">67</span> <span class="text-[#FFAB70]">07</span> <span class="text-[#A5D6FF]">46 52 41</span>   <span class="text-paper/75">// #3: "FRA" (5 bytes)</span>
-<span class="text-acid font-bold">81</span> <span class="text-[#79C0FF]">55</span>            <span class="text-paper/75">// #4: 42    (2 bytes)</span>
+<span class="text-acid font-bold">67</span> <span class="text-[#FF4F18]">07</span> <span class="text-paper">46 52 41</span>   <span class="text-paper/75">// #3: "FRA" (5 bytes)</span>
+<span class="text-acid font-bold">81</span> <span class="text-paper">55</span>            <span class="text-paper/75">// #4: 42    (2 bytes)</span>
 
 <span class="text-paper/75">// Outer Field #9 wrapping the 7-byte inner message:</span>
-<span class="text-acid font-bold">56 02</span>  <span class="text-[#FFAB70] font-bold">1e 00</span>  <span class="text-[#79C0FF] font-bold">67 07 46 52 41 81 55</span>
-<span class="text-acid">Tag#9</span>  <span class="text-[#FFAB70]">Len=7</span>  <span class="text-paper/85">Inner Sub-Message (7 bytes)</span></code></pre>
+<span class="text-acid font-bold">56 02</span>  <span class="text-[#FF4F18] font-bold">1e 00</span>  <span class="text-paper font-bold">67 07 46 52 41 81 55</span>
+<span class="text-acid">Tag#9</span>  <span class="text-[#FF4F18]">Len=7</span>  <span class="text-paper/85">Inner Sub-Message (7 bytes)</span></code></pre>
 
         <h3 id="sec-6-5">
           6.5 <code>WireStringArr</code> (6)
         </h3>
         <p>
-          Encodes <code>repeated string</code> or <code>repeated bytes</code> with an outer{' '}
-          <code>ByteLen</code> prefix followed by <code>ElemCount</code> and each length-prefixed
-          element, so a reader can skip the entire list in one addition (<code>pos += ByteLen</code>
-          ):
+          <code>WireStringArr</code> encodes <code>repeated string</code> or{' '}
+          <code>repeated bytes</code> with an outer <code>ByteLen</code> prefix followed by{' '}
+          <code>ElemCount</code> and each length-prefixed element, so a reader can skip the entire
+          list in one addition (<code>pos += ByteLen</code>):
         </p>
         <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemCount] [StrLen_0][Bytes_0] ... [StrLen_N-1][Bytes_N-1]</span>
 
 <span class="text-paper/75">// Example: Field #7 (tags = ["a", "bc"])</span>
-<span class="text-acid font-bold">ed</span>   <span class="text-[#FFAB70] font-bold">1a 00</span>  <span class="text-acid">05</span>   <span class="text-[#79C0FF]">03 61</span>   <span class="text-[#A5D6FF]">05 62 63</span>
-<span class="text-acid">Tag</span>  <span class="text-[#FFAB70]">Len=6</span>  <span class="text-acid">N=2</span>  <span class="text-paper/85">"a"     "bc"</span></code></pre>
+<span class="text-acid font-bold">ed</span>   <span class="text-[#FF4F18] font-bold">1a 00</span>  <span class="text-acid">05</span>   <span class="text-paper">03 61</span>   <span class="text-paper">05 62 63</span>
+<span class="text-acid">Tag</span>  <span class="text-[#FF4F18]">Len=6</span>  <span class="text-acid">N=2</span>  <span class="text-paper/85">"a"     "bc"</span></code></pre>
 
         <h3 id="sec-6-6">
           6.6 <code>WireUintArr</code> (7) &amp; <code>WireSintArr</code> (13)
         </h3>
         <p>
-          Encodes a packed array of unsigned (<code>WireUintArr</code>) or ZigZag-signed (
-          <code>WireSintArr</code>) varints with an outer <code>ByteLen</code> prefix and{' '}
-          <code>ElemCount</code>:
+          These wire types encode a packed array of unsigned (<code>WireUintArr</code>) or
+          ZigZag-signed (<code>WireSintArr</code>) varints with an outer <code>ByteLen</code> prefix
+          and <code>ElemCount</code>:
         </p>
         <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemCount] [Elem_0] ... [Elem_N-1]</span>
 
 <span class="text-paper/75">// Example: Field #8 (prefixes = [10, 300])</span>
-<span class="text-acid font-bold">1e 02</span>  <span class="text-[#FFAB70] font-bold">12 00</span>  <span class="text-acid">05</span>   <span class="text-[#79C0FF]">15</span>  <span class="text-[#A5D6FF]">b2 04</span>
-<span class="text-acid">Tag#8</span>  <span class="text-[#FFAB70]">Len=4</span>  <span class="text-acid">N=2</span>  <span class="text-paper/85">10  300</span></code></pre>
+<span class="text-acid font-bold">1e 02</span>  <span class="text-[#FF4F18] font-bold">12 00</span>  <span class="text-acid">05</span>   <span class="text-paper">15</span>  <span class="text-paper">b2 04</span>
+<span class="text-acid">Tag#8</span>  <span class="text-[#FF4F18]">Len=4</span>  <span class="text-acid">N=2</span>  <span class="text-paper/85">10  300</span></code></pre>
 
         <h3 id="sec-6-7">
           6.7 <code>WireSubMsgArr</code> (8)
         </h3>
         <p>
-          Encodes <code>repeated message</code> inside a single outer <code>ByteLen</code> container
-          followed by length-prefixed sub-message elements:
+          <code>WireSubMsgArr</code> encodes <code>repeated message</code> inside a single outer{' '}
+          <code>ByteLen</code> container followed by length-prefixed sub-message elements:
         </p>
         <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemLen_0][Elem_0] ... [ElemLen_N-1][Elem_N-1]</span>
 <span class="text-paper/75">                         |&lt;-------------- ByteLen bytes --------------&gt;|</span></code></pre>
@@ -1134,8 +1166,8 @@ const tocSections = [
           6.8 <code>WireMap</code> (9)
         </h3>
         <p>
-          Encodes <code>map&lt;K, V&gt;</code> directly inside one length-prefixed container without
-          synthetic <code>MapEntry</code> wrapper sub-messages:
+          <code>WireMap</code> encodes <code>map&lt;K, V&gt;</code> directly inside one
+          length-prefixed container without synthetic <code>MapEntry</code> wrapper sub-messages:
         </p>
         <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [MapType (1B)] [EntryCount] [Key_0][Val_0] ...</span>
 <span class="text-paper/75">                         |&lt;-------------- ByteLen bytes -------------&gt;|</span></code></pre>
@@ -1191,25 +1223,26 @@ const tocSections = [
           </li>
         </ul>
         <pre><code><span class="text-paper/75">// Example: Field #6 (cpu_load = 0.5 as float64)</span>
-<span class="text-acid font-bold">d7</span>   <span class="text-[#79C0FF] font-bold">00 00 00 00 00 00 e0 3f</span>
+<span class="text-acid font-bold">d7</span>   <span class="text-paper font-bold">00 00 00 00 00 00 e0 3f</span>
 <span class="text-acid">Tag</span>  <span class="text-paper/85">IEEE-754 0.5 (8 bytes little-endian)</span></code></pre>
 
         <h3 id="sec-6-10">
           6.10 <code>WireFixedArr</code> (14)
         </h3>
         <p>
-          Encodes a packed array of fixed-width 32-bit or 64-bit little-endian elements with an
-          outer <code>ByteLen</code> prefix and a 1-byte <code>ElemType</code> header:
+          <code>WireFixedArr</code> encodes a packed array of fixed-width 32-bit or 64-bit
+          little-endian elements with an outer <code>ByteLen</code> prefix and a 1-byte{' '}
+          <code>ElemType</code> header:
         </p>
         <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemType (1B: 10 or 11)] [Little-Endian Elements...]</span>
 <span class="text-paper/75">                         |&lt;------------------ ByteLen bytes -----------------&gt;|</span></code></pre>
         <ul>
           <li>
-            <code>ElemType = 10</code> (<code>WireFixed32</code>): Followed by{' '}
+            <code>ElemType = 10</code> (<code>WireFixed32</code>): The header is followed by{' '}
             <code>(ByteLen - 1) / 4</code> 4-byte elements.
           </li>
           <li>
-            <code>ElemType = 11</code> (<code>WireFixed64</code>): Followed by{' '}
+            <code>ElemType = 11</code> (<code>WireFixed64</code>): The header is followed by{' '}
             <code>(ByteLen - 1) / 8</code> 8-byte elements.
           </li>
         </ul>
@@ -1218,8 +1251,9 @@ const tocSections = [
           6.11 <code>WireExtended</code> (15)
         </h3>
         <p>
-          Reserves wire type 15 as a length-prefixed extension escape hatch capable of expressing up
-          to 256 extended wire types while remaining skippable in <code>O(1)</code> time:
+          <code>WireExtended</code> reserves wire type 15 as a length-prefixed extension escape
+          hatch capable of expressing up to 256 extended wire types while remaining skippable in{' '}
+          <code>O(1)</code> time:
         </p>
         <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ExtType (1B: 0..255)] [ExtPayload (ByteLen - 1 bytes)]</span>
 <span class="text-paper/75">                         |&lt;------------------- ByteLen bytes -----------------&gt;|</span></code></pre>
@@ -1241,7 +1275,19 @@ const tocSections = [
           and every container starts with <code>ByteLen</code>, so <code>LocateField</code> jumps
           across fields in <code>O(1)</code> time per field:
         </p>
-        <Code code={locateFieldGoCode} lang="go" theme="github-dark" />
+        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">O(1) Header-Hop Field Lookup</div>
+            <button
+              type="button"
+              data-copy={locateFieldGoCode}
+              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+            >
+              Copy
+            </button>
+          </div>
+          <Code code={locateFieldGoCode} lang="go" theme="github-dark" />
+        </div>
 
         <!-- SECTION 8 -->
         <h2 id="sec-8">
@@ -1271,7 +1317,19 @@ const tocSections = [
         <h3 id="sec-8-1">
           8.1 <code>omnibuf.v1.SchemaMeta</code> Definition (<code>meta.proto</code>)
         </h3>
-        <Code code={sec8MetaProtoCode} lang="protobuf" theme="github-dark" />
+        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">schemas/meta.proto</div>
+            <button
+              type="button"
+              data-copy={sec8MetaProtoCode}
+              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+            >
+              Copy
+            </button>
+          </div>
+          <Code code={sec8MetaProtoCode} lang="protobuf" theme="github-dark" />
+        </div>
         <ul>
           <li>
             <strong>
@@ -1492,7 +1550,19 @@ children[10] = &#123;
 
         <!-- SECTION 9 -->
         <h2 id="sec-9">9. Complete End-to-End Annotated Wire Example</h2>
-        <Code code={sec9ProtoCode} lang="protobuf" theme="github-dark" />
+        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">Example Schema</div>
+            <button
+              type="button"
+              data-copy={sec9ProtoCode}
+              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+            >
+              Copy
+            </button>
+          </div>
+          <Code code={sec9ProtoCode} lang="protobuf" theme="github-dark" />
+        </div>
 
         <div class="my-4 border-2 border-ink rounded-md bg-white overflow-hidden">
           <div class="bg-[#E5E0D5] border-b-2 border-ink px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 font-mono text-xs font-bold uppercase">
@@ -1707,7 +1777,7 @@ children[10] = &#123;
             </ul>
           </li>
         </ol>
-      </main>
+      </article>
     </div>
 
     <div class="mt-12 pt-10 border-t-2 border-ink flex flex-wrap items-center justify-between gap-4 no-print">
@@ -1715,6 +1785,12 @@ children[10] = &#123;
         See how the specification translates to real-world performance
       </div>
       <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
+        <a
+          href="#main-content"
+          class="os-btn px-4 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md"
+        >
+          Top &uarr;
+        </a>
         <a
           href="/how-it-works"
           class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md"
@@ -1726,7 +1802,8 @@ children[10] = &#123;
         </a>
       </div>
     </div>
-  </div>
+    <div id="spec-copy-live" class="sr-only" aria-live="polite"></div>
+  </main>
 
   <Footer />
 </Layout>
@@ -1735,25 +1812,32 @@ children[10] = &#123;
   const specLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[data-spec-link]'));
   const subTocContainers = Array.from(document.querySelectorAll<HTMLElement>('div[data-subtoc]'));
   const h3Links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[data-spec-h3]'));
+  const mobileSpecLinks = Array.from(
+    document.querySelectorAll<HTMLAnchorElement>('a[data-mobile-spec-link]'),
+  );
+  const mobileTocLabel = document.getElementById('mobile-spec-toc-label');
   const specIds = specLinks.map((l) => l.dataset.specLink || '');
 
   function updateSpecToc() {
-    const scrollPos = window.scrollY + 140;
     let currentH2 = specIds[0];
     for (const id of specIds) {
       const el = document.getElementById(id);
-      if (el && el.offsetTop <= scrollPos) {
+      if (el && el.getBoundingClientRect().top <= 160) {
         currentH2 = id;
       }
     }
 
     for (const link of specLinks) {
-      link.dataset.active = link.dataset.specLink === currentH2 ? 'true' : 'false';
+      const isActive = link.dataset.specLink === currentH2;
+      link.dataset.active = isActive ? 'true' : 'false';
+      if (isActive && mobileTocLabel) {
+        mobileTocLabel.textContent = `Section: ${link.textContent?.trim() || 'Jump to Spec Section'}`;
+      }
     }
 
-    // Expand only the active H2's H3 list
+    // Keep Section 6 (Wire Types 6.1-6.11) always expanded, plus expand the active H2's H3 list
     for (const sub of subTocContainers) {
-      if (sub.dataset.subtoc === currentH2) {
+      if (sub.dataset.subtoc === currentH2 || sub.dataset.subtoc === 'sec-6') {
         sub.classList.remove('hidden');
         sub.classList.add('block');
       } else {
@@ -1774,7 +1858,7 @@ children[10] = &#123;
       for (const l of activeH3Links) {
         const h3Id = l.dataset.specH3 || '';
         const h3El = document.getElementById(h3Id);
-        if (h3El && h3El.offsetTop <= scrollPos + 20) {
+        if (h3El && h3El.getBoundingClientRect().top <= 180) {
           currentH3 = h3Id;
         }
       }
@@ -1782,6 +1866,12 @@ children[10] = &#123;
 
     for (const l of h3Links) {
       l.dataset.active = l.dataset.specH3 === currentH3 && currentH3 !== '' ? 'true' : 'false';
+    }
+
+    for (const ml of mobileSpecLinks) {
+      const targetId = ml.dataset.mobileSpecLink || '';
+      ml.dataset.active =
+        targetId === currentH2 || (targetId === currentH3 && currentH3 !== '') ? 'true' : 'false';
     }
   }
 
@@ -1797,9 +1887,50 @@ children[10] = &#123;
         mobileTocDetails.open = false;
       });
     }
+    document.addEventListener('click', (e) => {
+      if (mobileTocDetails.open && !mobileTocDetails.contains(e.target as Node)) {
+        mobileTocDetails.open = false;
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mobileTocDetails.open) {
+        mobileTocDetails.open = false;
+      }
+    });
+  }
+
+  // Copy buttons for reference code blocks
+  const specLiveRegion = document.getElementById('spec-copy-live');
+  const copyBtns = document.querySelectorAll<HTMLButtonElement>('.copy-snippet-btn');
+  const copyTimers = new WeakMap<HTMLButtonElement, number>();
+  for (const btn of copyBtns) {
+    btn.addEventListener('click', () => {
+      const text = btn.getAttribute('data-copy') || '';
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        void navigator.clipboard.writeText(text);
+      }
+      if (!btn.dataset.origText) {
+        btn.dataset.origText = btn.textContent?.trim() || 'Copy';
+      }
+      const prevTimer = copyTimers.get(btn);
+      if (prevTimer !== undefined) {
+        window.clearTimeout(prevTimer);
+      }
+      btn.textContent = 'Copied!';
+      if (specLiveRegion) {
+        specLiveRegion.textContent = 'Copied code snippet to clipboard';
+      }
+      const timerId = window.setTimeout(() => {
+        btn.textContent = btn.dataset.origText || 'Copy';
+        copyTimers.delete(btn);
+      }, 1500);
+      copyTimers.set(btn, timerId);
+    });
   }
 
   // Add pilcrow (¶) copy-link anchors to every section heading in the specification
+  const anchorTimers = new WeakMap<HTMLAnchorElement, number>();
   const specHeadings = Array.from(
     document.querySelectorAll<HTMLElement>(
       '.spec-prose h2[id], .spec-prose h3[id], .spec-prose h4[id]',
@@ -1818,16 +1949,29 @@ children[10] = &#123;
       e.preventDefault();
       const url = `${window.location.origin}${window.location.pathname}#${id}`;
       history.replaceState(null, '', `#${id}`);
-      heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      heading.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'start',
+      });
       if (navigator.clipboard && navigator.clipboard.writeText) {
         void navigator.clipboard.writeText(url);
       }
+      const prevTimer = anchorTimers.get(anchor);
+      if (prevTimer !== undefined) {
+        window.clearTimeout(prevTimer);
+      }
       anchor.dataset.copied = 'true';
       anchor.textContent = 'Copied!';
-      window.setTimeout(() => {
+      if (specLiveRegion) {
+        specLiveRegion.textContent = `Copied link to section ${id}`;
+      }
+      const timerId = window.setTimeout(() => {
         anchor.dataset.copied = 'false';
         anchor.textContent = '¶';
+        anchorTimers.delete(anchor);
       }, 1400);
+      anchorTimers.set(anchor, timerId);
     });
     heading.appendChild(anchor);
   }

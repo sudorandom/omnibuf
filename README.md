@@ -19,7 +19,71 @@
 
 ## Go Library Usage
 
-OmniBuf works directly with your existing `protoc-gen-go` generated `.pb.go` structs (`proto.Message` / `protoreflect.Message`) without requiring a custom `protoc` plugin:
+OmniBuf works directly with plain Go structs using `omnibuf:"..."` struct tags as well as existing `protoc-gen-go` generated `.pb.go` structs (`proto.Message` / `protoreflect.Message`):
+
+### 1. Plain Go Structs (`omnibuf` Struct Tags)
+
+Tag exported struct fields with a field number (`1..65535`) and optional key-value settings (`name=<name>`, `wire=<type>`, `omitempty`, or `-` to ignore):
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/sudorandom/omnibuf"
+)
+
+type PeerEvent struct {
+	ASN       uint32            `omnibuf:"1,name=asn"`
+	RouterID  string            `omnibuf:"2,name=router_id"`
+	Active    bool              `omnibuf:"3,name=active"`
+	LatencyUS uint32            `omnibuf:"4,name=latency_us,wire=fixed32,omitempty"`
+	Tags      []string          `omnibuf:"5,name=tags,omitempty"`
+	Counters  map[string]uint64 `omnibuf:"6,name=counters,omitempty"`
+	Internal  string            `omnibuf:"-"`
+}
+
+func main() {
+	in := &PeerEvent{
+		ASN:       64512,
+		RouterID:  "edge-rtr-fra-01",
+		Active:    true,
+		LatencyUS: 850,
+		Tags:      []string{"tier1", "ebgp"},
+	}
+
+	// Marshal (or use MarshalOptions{SelfDescribing: true} to embed Field #0 names)
+	wire, err := omnibuf.MarshalOptions{SelfDescribing: true}.Marshal(in)
+	if err != nil {
+		panic(err)
+	}
+
+	var out PeerEvent
+	if err := omnibuf.Unmarshal(wire, &out); err != nil {
+		panic(err)
+	}
+
+	// Inspect without the Go struct definition (uses Field #0 names when present)
+	blind, err := omnibuf.DecodeBlind(wire)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(blind)
+}
+```
+
+#### Struct Tag Reference (`omnibuf:"..."`)
+
+| Tag Option | Example | Description |
+| :--- | :--- | :--- |
+| `<fieldNum>` | `omnibuf:"1"` | Field number (`1..65535`). Required for serialized fields. |
+| `name=<name>` | `omnibuf:"2,name=router_id"` | Custom field name emitted in `Field #0` (`SchemaMeta`) when `SelfDescribing: true` is enabled (defaults to the Go field name). |
+| `wire=<type>` | `omnibuf:"4,wire=fixed32"` | Overrides the inferred wire encoding (`uint`, `sint`, `fixed32`, `fixed64`, `string`, `bytes`). |
+| `omitempty` | `omnibuf:"5,omitempty"` | Skips encoding the field when it holds its Go zero value or an empty slice/map. |
+| `-` | `omnibuf:"-"` | Ignores the field during encoding and decoding (even if a `protobuf` tag is present). |
+
+### 2. Existing `.pb.go` Structs (`protoc-gen-go`)
 
 ```go
 package main

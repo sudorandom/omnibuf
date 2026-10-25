@@ -26,7 +26,7 @@ import Footer from '../components/Footer.astro';
       <div class="mt-8 max-w-3xl space-y-3">
         <!-- prettier-ignore -->
         <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
-          Head-to-head throughput, wire size, and field lookup measurements comparing OmniBuf against <a href="#compare-protobuf" class="doc-link">Protobuf</a>, <a href="#compare-flatbuffers" class="doc-link">FlatBuffers</a>, <a href="#compare-capnproto" class="doc-link">Cap'n Proto</a>, <a href="#compare-msgpack" class="doc-link">MessagePack</a>, and <a href="#compare-json" class="doc-link">JSON</a>.
+          Head-to-head throughput, wire size, and field lookup measurements comparing OmniBuf (<a href="/go" class="doc-link">Go reference implementation</a>) against <a href="#compare-protobuf" class="doc-link">Protobuf</a>, <a href="#compare-flatbuffers" class="doc-link">FlatBuffers</a>, <a href="#compare-capnproto" class="doc-link">Cap'n Proto</a>, <a href="#compare-msgpack" class="doc-link">MessagePack</a>, and <a href="#compare-json" class="doc-link">JSON</a>.
         </p>
       </div>
     </section>
@@ -37,109 +37,13 @@ import Footer from '../components/Footer.astro';
     <!-- Full 5-Format Radar Comparisons -->
     <Comparisons />
 
-    <!-- Section: No-Plugin vs protoc-gen-omnibuf Plugin vs Official Protobuf -->
-    <section
-      id="plugin-tiers"
-      class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
-    >
-      <div class="max-w-3xl mb-8">
-        <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
-          With vs. Without{' '}
-          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
-            the code generator.
-          </span>
-        </h2>
-        <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-          OmniBuf works directly on existing <code>protoc-gen-go</code> structs (
-          <code>*pb.PeerUpdate</code>) with no extra codegen, or via the optional{' '}
-          <code>protoc-gen-omnibuf</code> plugin for generated methods and in-place field updates.
-          (Unlike the cross-format charts above, which benchmark flat value structs across all six
-          formats, this table measures pointer-based <code>.pb.go</code> structs.)
-        </p>
-      </div>
-
-      <div class="os-window-lg overflow-hidden">
-        <div class="os-titlebar bg-[#E5E0D5]">
-          <span class="font-mono text-sm sm:text-base font-bold uppercase">
-            Protobuf vs. vtprotobuf vs. OmniBuf
-          </span>
-          <div class="os-stripes"></div>
-        </div>
-
-        <div class="overflow-x-auto bg-[#FAF8F2]">
-          <table class="w-full text-left border-collapse font-mono text-sm sm:text-base tabular-nums">
-            <thead>
-              <tr class="border-b-2 border-ink bg-white">
-                <th class="p-3.5 sm:p-4 font-bold uppercase">Operation</th>
-                <th class="p-3.5 sm:p-4 font-bold uppercase">Protobuf</th>
-                <th class="p-3.5 sm:p-4 font-bold uppercase">vtprotobuf</th>
-                <th class="p-3.5 sm:p-4 font-bold uppercase">OmniBuf (No Plugin)</th>
-                <th class="p-3.5 sm:p-4 font-bold uppercase bg-acid/30">OmniBuf (Plugin)</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-ink/15">
-              <tr class="bg-white">
-                <td class="p-3.5 sm:p-4 font-bold">Marshal</td>
-                <td class="p-3.5 sm:p-4">561.4 ns (0 allocs)</td>
-                <td class="p-3.5 sm:p-4">163.2 ns (0 allocs)</td>
-                <td class="p-3.5 sm:p-4">201.8 ns (0 allocs)</td>
-                <td class="p-3.5 sm:p-4 font-bold bg-acid/25">102.4 ns (0 allocs)</td>
-              </tr>
-              <tr class="bg-[#FAF8F2]">
-                <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Safe)</td>
-                <td class="p-3.5 sm:p-4">959.9 ns (25 allocs)</td>
-                <td class="p-3.5 sm:p-4">604.7 ns (24 allocs)</td>
-                <td class="p-3.5 sm:p-4">735.0 ns (19 allocs)</td>
-                <td class="p-3.5 sm:p-4 font-bold bg-acid/25">511.3 ns (17 allocs)</td>
-              </tr>
-              <tr class="bg-white">
-                <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Zero-Copy)</td>
-                <td class="p-3.5 sm:p-4">959.9 ns (25 allocs, N/A)</td>
-                <td class="p-3.5 sm:p-4">225.8 ns (0 allocs, Pool)</td>
-                <td class="p-3.5 sm:p-4">309.0 ns (0 allocs)</td>
-                <td class="p-3.5 sm:p-4 font-bold bg-acid/25">198.8 ns (0 allocs)</td>
-              </tr>
-              <tr class="bg-[#FAF8F2]">
-                <td class="p-3.5 sm:p-4 font-bold">Read 2 Nested Fields</td>
-                <td class="p-3.5 sm:p-4">992.0 ns (25 allocs)</td>
-                <td class="p-3.5 sm:p-4">219.5 ns (0 allocs, Pool)</td>
-                <td class="p-3.5 sm:p-4">309.0 ns (0 allocs)</td>
-                <td class="p-3.5 sm:p-4 font-bold bg-acid/25">125.5 ns (0 allocs, Opaque)</td>
-              </tr>
-              <tr class="bg-white">
-                <td class="p-3.5 sm:p-4 font-bold">Read-Modify-Write</td>
-                <td class="p-3.5 sm:p-4">1,612.0 ns (25 allocs)</td>
-                <td class="p-3.5 sm:p-4">359.7 ns (0 allocs, Pool)</td>
-                <td class="p-3.5 sm:p-4">510.8 ns (0 allocs)</td>
-                <td class="p-3.5 sm:p-4 font-bold bg-acid/25">143.5 ns (0 allocs, Splice)</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="p-4 sm:p-5 bg-white border-t-2 border-ink text-sm sm:text-base text-ink/85 leading-relaxed">
-          <strong>
-            Why OmniBuf beats <code>vtprotobuf</code> with simpler generated code:
-          </strong>{' '}
-          For <code>schemas/peer.proto</code>, <code>vtprotobuf</code> emits more than{' '}
-          <strong>2x as much generated code</strong> full of unrolled per-byte <code>LEB128</code>{' '}
-          loops, <code>SizeVT()</code> passes, and backwards buffer indexing. By contrast,{' '}
-          <code>protoc-gen-omnibuf</code> emits under half the code (including all three{' '}
-          <code>Opaque*</code> lazy readers with full scalar splice support) calling standard{' '}
-          <code>AppendVarint</code> / <code>DecodeVarint</code> helpers, yet runs{' '}
-          <strong>over 50% faster</strong> on Marshal and <strong>over 2x faster</strong> on
-          Read-Modify-Write because the wire format avoids 2-pass sizing and multi-branch varint
-          loops.
-        </div>
-      </div>
-    </section>
-
     <!-- Methodology & Test Environment at the End (Clean architectural ledger row) -->
     <section class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink">
       <div class="grid md:grid-cols-12 gap-6 lg:gap-8 items-start">
         <div class="md:col-span-4 space-y-2">
-          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+          <h2 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
             Benchmark Environment
-          </h3>
+          </h2>
           <div class="p-4 bg-ink text-paper rounded-md border-2 border-ink space-y-1.5 font-mono text-sm mt-3">
             <div class="text-acid font-bold uppercase">Hardware &amp; Runtime</div>
             <div>CPU: Apple M1 Pro (darwin/arm64)</div>
@@ -157,7 +61,7 @@ import Footer from '../components/Footer.astro';
           </p>
           <!-- prettier-ignore -->
           <p class="text-sm sm:text-base text-ink/85">
-            Source code for the harnesses and codec implementations is in <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs.go</a>. Previous benchmark output from <code>go test -bench=. -benchmem</code> is checked into <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
+            Source code for the harnesses and codec implementations is in <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/jsonv2_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">jsonv2_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs.go</a>. Previous benchmark output from <code>GOEXPERIMENT=jsonv2 go test -bench=. -benchmem</code> is checked into <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
           </p>
         </div>
       </div>
@@ -169,7 +73,10 @@ import Footer from '../components/Footer.astro';
           Read the complete wire specification or architectural breakdown
         </div>
         <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
-          <a href="/spec" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
+          <a href="/go" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
+            OmniBuf for Go &rarr;
+          </a>
+          <a href="/spec" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
             Wire Specification &rarr;
           </a>
           <a

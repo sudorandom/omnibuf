@@ -223,10 +223,10 @@
     font-size: 0.85em;
     font-weight: 700;
     line-height: 1.2;
-    color: rgba(17, 17, 17, 0.62);
+    color: rgba(17, 17, 17, 0.72);
     text-decoration: none;
     border-radius: 4px;
-    border: 1.5px solid rgba(17, 17, 17, 0.2);
+    border: 1.5px solid rgba(17, 17, 17, 0.28);
     vertical-align: middle;
     transition: all 0.12s ease;
     user-select: none;
@@ -375,10 +375,38 @@
   }
 }
 
-/* Shiki Code Block Comment Contrast Fix (Light & Dark Modes) */
+/* Shiki Code Block Workstation Palette Mapping & Comment Contrast Fix */
 pre.astro-code span[style*='#6A737D'],
 pre.astro-code span[style*='#6a737d'] {
-  color: #959da5 !important;
+  color: #a8a29e !important;
+}
+
+pre.astro-code span[style*='#F97583'],
+pre.astro-code span[style*='#f97583'],
+pre.astro-code span[style*='#FF7B72'],
+pre.astro-code span[style*='#ff7b72'] {
+  color: #ff4f18 !important;
+  font-weight: 700;
+}
+
+pre.astro-code span[style*='#9ECBFF'],
+pre.astro-code span[style*='#9ecbff'],
+pre.astro-code span[style*='#A5D6FF'],
+pre.astro-code span[style*='#a5d6ff'],
+pre.astro-code span[style*='#85E89D'],
+pre.astro-code span[style*='#85e89d'] {
+  color: #d4ff33 !important;
+}
+
+pre.astro-code span[style*='#B392F0'],
+pre.astro-code span[style*='#b392f0'],
+pre.astro-code span[style*='#D2A8FF'],
+pre.astro-code span[style*='#d2a8ff'],
+pre.astro-code span[style*='#79B8FF'],
+pre.astro-code span[style*='#79b8ff'],
+pre.astro-code span[style*='#79C0FF'],
+pre.astro-code span[style*='#79c0ff'] {
+  color: #faf8f2 !important;
 }
 
 /* Light Mode Signal Orange Contrast on Paper (>= 3.15:1 AA Large Text) */
@@ -485,6 +513,10 @@ html.dark .bg-ink {
   border-color: #454d5e;
 }
 
+html.dark .bg-acid\/15 {
+  background-color: rgba(212, 255, 51, 0.08) !important;
+}
+
 html.dark .bg-acid\/25,
 html.dark .bg-acid\/30 {
   background-color: rgba(212, 255, 51, 0.14) !important;
@@ -527,6 +559,10 @@ html.dark .text-ink\/60 {
   color: rgba(244, 240, 230, 0.64);
 }
 
+html.dark .text-ink\/55 {
+  color: rgba(244, 240, 230, 0.62);
+}
+
 html.dark .text-ink\/50 {
   color: rgba(244, 240, 230, 0.6);
 }
@@ -539,21 +575,30 @@ html.dark .text-\[\#C23000\] {
 html.dark .bg-acid,
 html.dark .bg-acid.text-ink,
 html.dark .bg-acid .text-ink,
-html.dark .bg-\[\#FFAB70\],
-html.dark .bg-\[\#FFAB70\].text-ink,
 html.dark .hover\:bg-acid:hover,
 html.dark .hover\:bg-acid:hover.hover\:text-ink,
 html.dark details[open] > summary.group-open\:bg-acid,
-html.dark a[data-spec-link][data-active='true'],
-html.dark a[data-spec-h3][data-active='true'] {
+html.dark a[data-spec-link][data-active='true'] {
   background-color: #d4ff33 !important;
   color: #111111 !important;
 }
 
-html.dark .bg-\[\#FFAB70\],
-html.dark .bg-\[\#FFAB70\].text-ink {
-  background-color: #ffab70 !important;
-  color: #111111 !important;
+html.dark a[data-spec-h3][data-active='true'],
+html.dark a[data-mobile-spec-link][data-active='true'] {
+  background-color: rgba(212, 255, 51, 0.2) !important;
+  color: #d4ff33 !important;
+}
+
+.bench-bar-omni {
+  background-color: #ff4f18;
+}
+
+.bench-bar-competitor {
+  background-color: #78716c;
+}
+
+html.dark .bench-bar-competitor {
+  background-color: #949da8;
 }
 
 /* Borders & Dividers in Dark Mode */
@@ -561,6 +606,20 @@ html.dark .border-ink {
   border-color: #454d5e !important;
 }
 
+html.dark .shadow-\[4px_4px_0px_\#111111\],
+html.dark .shadow-\[4px_4px_0px_\#111\] {
+  box-shadow: 4px 4px 0px #050608 !important;
+}
+
+html.dark .shadow-\[2px_2px_0px_\#111111\] {
+  box-shadow: 2px 2px 0px #050608 !important;
+}
+
+html.dark .hover\:shadow-\[3px_3px_0px_\#111111\]:hover {
+  box-shadow: 3px 3px 0px #050608 !important;
+}
+
+html.dark .border-ink\/60,
 html.dark .border-ink\/30,
 html.dark .border-ink\/25,
 html.dark .border-ink\/20,
@@ -631,8 +690,8 @@ html.dark .spec-prose li {
 }
 
 html.dark .spec-prose .spec-anchor {
-  color: rgba(244, 240, 230, 0.65);
-  border-color: rgba(244, 240, 230, 0.25);
+  color: rgba(244, 240, 230, 0.75);
+  border-color: rgba(244, 240, 230, 0.3);
 }
 
 html.dark .spec-prose h2:hover .spec-anchor,

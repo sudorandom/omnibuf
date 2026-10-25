@@ -26,37 +26,63 @@ import { benchmarkCategories } from '../data/benchmarks';
         </div>
 
         <div class="p-5 sm:p-7 bg-[#FAF8F2] space-y-3">
-          <p class="text-sm sm:text-base text-ink/85 leading-relaxed pb-2 max-w-[60ch]">
+          <p class="text-sm sm:text-base text-ink/85 leading-relaxed pb-2 max-w-[70ch]">
             {cat.methodology}
           </p>
-          {cat.rows.map((r) => {
-            const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
-            return (
-              <div
-                class:list={[
-                  'grid grid-cols-12 gap-3 items-center py-2 px-3 rounded min-w-0',
-                  r.highlight
-                    ? 'bg-acid/30 border-2 border-ink font-bold'
-                    : 'border border-ink/15 bg-white',
-                ]}
-              >
-                <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
-                  {r.name}
-                </div>
-                <div class="col-span-9 sm:col-span-6 flex items-center min-w-0">
-                  <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
-                    <div
-                      class="h-full border-r border-ink"
-                      style={`width: ${pct}%; background-color: ${r.color};`}
-                    />
+          {(() => {
+            const omniVal =
+              cat.rows.find((row) => row.baseline)?.val ??
+              cat.rows.find((row) => row.highlight)?.val ??
+              cat.rows[0].val;
+            return cat.rows.map((r) => {
+              const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
+              let ratioStr = cat.unit === 'B' ? 'Baseline (1x)' : '1.0x (base)';
+              if (r.val !== omniVal) {
+                if (cat.unit === 'B') {
+                  const pctDiff = Math.round((Math.abs(r.val - omniVal) / omniVal) * 100);
+                  ratioStr = r.val < omniVal ? `${pctDiff}% smaller` : `+${pctDiff}% larger`;
+                } else {
+                  ratioStr =
+                    r.val < omniVal
+                      ? `${(omniVal / r.val).toFixed(1)}x faster`
+                      : `${(r.val / omniVal).toFixed(1)}x slower`;
+                }
+              }
+              return (
+                <div
+                  class:list={[
+                    'grid grid-cols-12 gap-3 items-center px-3 rounded min-w-0',
+                    r.baseline
+                      ? 'py-2.5 bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
+                      : r.highlight
+                        ? 'py-2 bg-[#FAF8F2] border-2 border-dashed border-ink font-bold'
+                        : 'py-2 border border-ink/15 bg-white',
+                  ]}
+                >
+                  <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
+                    {r.name}
+                  </div>
+                  <div class="col-span-8 sm:col-span-6 flex items-center min-w-0">
+                    <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
+                      <div
+                        class:list={[
+                          'h-full border-r border-ink',
+                          r.highlight ? 'bench-bar-omni' : 'bench-bar-competitor',
+                        ]}
+                        style={`width: ${pct}%;`}
+                      />
+                    </div>
+                  </div>
+                  <div class="col-span-4 sm:col-span-2 text-right font-mono tabular-nums leading-tight">
+                    <span class="text-sm sm:text-base font-bold text-ink">{ratioStr}</span>
+                    <span class="block text-xs text-ink/75 font-normal">
+                      {r.val} {cat.unit}
+                    </span>
                   </div>
                 </div>
-                <div class="col-span-3 sm:col-span-2 text-right font-mono text-sm sm:text-base font-bold tabular-nums">
-                  {r.val} {cat.unit}
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
     ))}

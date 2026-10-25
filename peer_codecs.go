@@ -16,33 +16,33 @@ import (
 // Canonical benchmark schema types matching schemas/peer.{proto,fbs,capnp}.
 
 type Location struct {
-	Region     string  `protobuf:"bytes,1,opt,name=region,proto3" json:"region" msgpack:"region"`
-	Datacenter string  `protobuf:"bytes,2,opt,name=datacenter,proto3" json:"datacenter" msgpack:"datacenter"`
-	City       string  `protobuf:"bytes,3,opt,name=city,proto3" json:"city" msgpack:"city"`
-	Rack       uint32  `protobuf:"varint,4,opt,name=rack,proto3" json:"rack" msgpack:"rack"`
-	Latitude   float32 `protobuf:"fixed32,5,opt,name=latitude,proto3" json:"latitude" msgpack:"latitude"`
-	Longitude  float32 `protobuf:"fixed32,6,opt,name=longitude,proto3" json:"longitude" msgpack:"longitude"`
+	Region     string  `omnibuf:"1,name=region" protobuf:"bytes,1,opt,name=region,proto3" json:"region" msgpack:"region"`
+	Datacenter string  `omnibuf:"2,name=datacenter" protobuf:"bytes,2,opt,name=datacenter,proto3" json:"datacenter" msgpack:"datacenter"`
+	City       string  `omnibuf:"3,name=city" protobuf:"bytes,3,opt,name=city,proto3" json:"city" msgpack:"city"`
+	Rack       uint32  `omnibuf:"4,name=rack" protobuf:"varint,4,opt,name=rack,proto3" json:"rack" msgpack:"rack"`
+	Latitude   float32 `omnibuf:"5,name=latitude" protobuf:"fixed32,5,opt,name=latitude,proto3" json:"latitude" msgpack:"latitude"`
+	Longitude  float32 `omnibuf:"6,name=longitude" protobuf:"fixed32,6,opt,name=longitude,proto3" json:"longitude" msgpack:"longitude"`
 }
 
 type Neighbor struct {
-	PeerASN     uint32 `protobuf:"varint,1,opt,name=peer_asn,proto3" json:"peer_asn" msgpack:"peer_asn"`
-	Router      string `protobuf:"bytes,2,opt,name=router,proto3" json:"router" msgpack:"router"`
-	LatencyUS   uint32 `protobuf:"varint,3,opt,name=latency_us,proto3" json:"latency_us" msgpack:"latency_us"`
-	Established bool   `protobuf:"varint,4,opt,name=established,proto3" json:"established" msgpack:"established"`
+	PeerASN     uint32 `omnibuf:"1,name=peer_asn" protobuf:"varint,1,opt,name=peer_asn,proto3" json:"peer_asn" msgpack:"peer_asn"`
+	Router      string `omnibuf:"2,name=router" protobuf:"bytes,2,opt,name=router,proto3" json:"router" msgpack:"router"`
+	LatencyUS   uint32 `omnibuf:"3,name=latency_us" protobuf:"varint,3,opt,name=latency_us,proto3" json:"latency_us" msgpack:"latency_us"`
+	Established bool   `omnibuf:"4,name=established" protobuf:"varint,4,opt,name=established,proto3" json:"established" msgpack:"established"`
 }
 
 type PeerUpdate struct {
-	ASN       uint32     `protobuf:"varint,1,opt,name=asn,proto3" json:"asn" msgpack:"asn"`
-	RouterID  string     `protobuf:"bytes,2,opt,name=router_id,proto3" json:"router_id" msgpack:"router_id"`
-	Active    bool       `protobuf:"varint,3,opt,name=active,proto3" json:"active" msgpack:"active"`
-	UptimeSec uint64     `protobuf:"varint,4,opt,name=uptime_sec,proto3" json:"uptime_sec" msgpack:"uptime_sec"`
-	RssiDbm   int32      `protobuf:"zigzag32,5,opt,name=rssi_dbm,proto3" json:"rssi_dbm" msgpack:"rssi_dbm"`
-	CPULoad   float64    `protobuf:"fixed64,6,opt,name=cpu_load,proto3" json:"cpu_load" msgpack:"cpu_load"`
-	Tags      []string   `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags" msgpack:"tags"`
-	Prefixes  []uint32   `protobuf:"varint,8,rep,packed,name=prefixes,proto3" json:"prefixes" msgpack:"prefixes"`
-	Location  Location   `protobuf:"bytes,9,opt,name=location,proto3" json:"location" msgpack:"location"`
-	Neighbors []Neighbor `protobuf:"bytes,10,rep,name=neighbors,proto3" json:"neighbors" msgpack:"neighbors"`
-	Sequence  uint64     `protobuf:"varint,11,opt,name=sequence,proto3" json:"sequence" msgpack:"sequence"`
+	ASN       uint32     `omnibuf:"1,name=asn" protobuf:"varint,1,opt,name=asn,proto3" json:"asn" msgpack:"asn"`
+	RouterID  string     `omnibuf:"2,name=router_id" protobuf:"bytes,2,opt,name=router_id,proto3" json:"router_id" msgpack:"router_id"`
+	Active    bool       `omnibuf:"3,name=active" protobuf:"varint,3,opt,name=active,proto3" json:"active" msgpack:"active"`
+	UptimeSec uint64     `omnibuf:"4,name=uptime_sec" protobuf:"varint,4,opt,name=uptime_sec,proto3" json:"uptime_sec" msgpack:"uptime_sec"`
+	RssiDbm   int32      `omnibuf:"5,name=rssi_dbm" protobuf:"zigzag32,5,opt,name=rssi_dbm,proto3" json:"rssi_dbm" msgpack:"rssi_dbm"`
+	CPULoad   float64    `omnibuf:"6,name=cpu_load" protobuf:"fixed64,6,opt,name=cpu_load,proto3" json:"cpu_load" msgpack:"cpu_load"`
+	Tags      []string   `omnibuf:"7,name=tags" protobuf:"bytes,7,rep,name=tags,proto3" json:"tags" msgpack:"tags"`
+	Prefixes  []uint32   `omnibuf:"8,name=prefixes" protobuf:"varint,8,rep,packed,name=prefixes,proto3" json:"prefixes" msgpack:"prefixes"`
+	Location  Location   `omnibuf:"9,name=location" protobuf:"bytes,9,opt,name=location,proto3" json:"location" msgpack:"location"`
+	Neighbors []Neighbor `omnibuf:"10,name=neighbors" protobuf:"bytes,10,rep,name=neighbors,proto3" json:"neighbors" msgpack:"neighbors"`
+	Sequence  uint64     `omnibuf:"11,name=sequence" protobuf:"varint,11,opt,name=sequence,proto3" json:"sequence" msgpack:"sequence"`
 }
 
 // Field numbers in PeerUpdate, Location, and Neighbor.

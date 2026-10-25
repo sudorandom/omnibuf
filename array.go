@@ -35,8 +35,12 @@ func EncodeStringArr(dst []byte, items []string) []byte {
 	return BackpatchContainerLen(dst, lenPos)
 }
 
+type intOrUint interface {
+	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uint | ~int8 | ~int16 | ~int32 | ~int64 | ~int
+}
+
 // EncodeUintArr appends a WireUintArr container body ([ByteLen][Count][Varint]...) to dst.
-func EncodeUintArr[T ~uint32 | ~uint64](dst []byte, items []T) []byte {
+func EncodeUintArr[T intOrUint](dst []byte, items []T) []byte {
 	lenPos := len(dst)
 	dst = append(dst, 0, 0)
 	dst = AppendVarint(dst, uint64(len(items)))
@@ -47,7 +51,7 @@ func EncodeUintArr[T ~uint32 | ~uint64](dst []byte, items []T) []byte {
 }
 
 // EncodeSintArr appends a WireSintArr container body ([ByteLen][Count][ZigZag Varint]...) to dst.
-func EncodeSintArr[T ~int32 | ~int64](dst []byte, items []T) []byte {
+func EncodeSintArr[T intOrUint](dst []byte, items []T) []byte {
 	lenPos := len(dst)
 	dst = append(dst, 0, 0)
 	dst = AppendVarint(dst, uint64(len(items)))
@@ -55,6 +59,55 @@ func EncodeSintArr[T ~int32 | ~int64](dst []byte, items []T) []byte {
 		dst = AppendVarint(dst, EncodeZigZag(int64(items[i])))
 	}
 	return BackpatchContainerLen(dst, lenPos)
+}
+
+func encodeBoolArr(dst []byte, items []bool) []byte {
+	lenPos := len(dst)
+	dst = append(dst, 0, 0)
+	dst = AppendVarint(dst, uint64(len(items)))
+	for i := range items {
+		if items[i] {
+			dst = AppendVarint(dst, 1)
+		} else {
+			dst = AppendVarint(dst, 0)
+		}
+	}
+	return BackpatchContainerLen(dst, lenPos)
+}
+
+func encodeBytesArr(dst []byte, items [][]byte) []byte {
+	lenPos := len(dst)
+	dst = append(dst, 0, 0)
+	dst = AppendVarint(dst, uint64(len(items)))
+	for i := range items {
+		b := items[i]
+		dst = AppendVarint(dst, uint64(len(b)))
+		dst = append(dst, b...)
+	}
+	return BackpatchContainerLen(dst, lenPos)
+}
+
+func encodeFixed32CastArr[T intOrUint](dst []byte, items []T) []byte {
+	dst = AppendVarint(dst, uint64(1+len(items)*4))
+	dst = append(dst, WireFixed32)
+	for i := range items {
+		v := uint32(items[i])
+		dst = append(dst, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))
+	}
+	return dst
+}
+
+func encodeFixed64CastArr[T intOrUint](dst []byte, items []T) []byte {
+	dst = AppendVarint(dst, uint64(1+len(items)*8))
+	dst = append(dst, WireFixed64)
+	for i := range items {
+		v := uint64(items[i])
+		dst = append(dst,
+			byte(v), byte(v>>8), byte(v>>16), byte(v>>24),
+			byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56),
+		)
+	}
+	return dst
 }
 
 func encodeFixed32Arr(dst []byte, items []uint32) []byte {
@@ -133,7 +186,59 @@ func appendStringArrBody(dst []string, body []byte, zeroCopy bool) ([]string, bo
 	return dst, true
 }
 
-func appendUintArrBody[T ~uint32 | ~uint64](dst []T, body []byte) ([]T, bool) {
+func appendBytesArrBody(dst [][]byte, body []byte, zeroCopy bool) ([][]byte, bool) {
+	count, cn := DecodeVarint(body)
+	if cn == 0 || count > uint64(len(body)-cn) {
+		return nil, false
+	}
+	c := int(count)
+	dst, start := growSlice(dst, c)
+	p := cn
+	for i := range c {
+		sLen, sn := DecodeVarint(body[p:])
+		if sn == 0 || sLen > uint64(len(body)-(p+sn)) {
+			return nil, false
+		}
+		p += sn
+		b := body[p : p+int(sLen)]
+		if zeroCopy {
+			dst[start+i] = b
+		} else {
+			cp := make([]byte, len(b))
+			copy(cp, b)
+			dst[start+i] = cp
+		}
+		p += int(sLen)
+	}
+	if p != len(body) {
+		return nil, false
+	}
+	return dst, true
+}
+
+func appendBoolArrBody(dst []bool, body []byte) ([]bool, bool) {
+	count, cn := DecodeVarint(body)
+	if cn == 0 || count > uint64(len(body)-cn) {
+		return nil, false
+	}
+	c := int(count)
+	dst, start := growSlice(dst, c)
+	p := cn
+	for i := range c {
+		v, vn := DecodeVarint(body[p:])
+		if vn == 0 {
+			return nil, false
+		}
+		p += vn
+		dst[start+i] = v != 0
+	}
+	if p != len(body) {
+		return nil, false
+	}
+	return dst, true
+}
+
+func appendUintArrBody[T intOrUint](dst []T, body []byte) ([]T, bool) {
 	count, cn := DecodeVarint(body)
 	if cn == 0 || count > uint64(len(body)-cn) {
 		return nil, false
@@ -155,7 +260,7 @@ func appendUintArrBody[T ~uint32 | ~uint64](dst []T, body []byte) ([]T, bool) {
 	return dst, true
 }
 
-func appendSintArrBody[T ~int32 | ~int64](dst []T, body []byte) ([]T, bool) {
+func appendSintArrBody[T intOrUint](dst []T, body []byte) ([]T, bool) {
 	count, cn := DecodeVarint(body)
 	if cn == 0 || count > uint64(len(body)-cn) {
 		return nil, false
@@ -173,6 +278,42 @@ func appendSintArrBody[T ~int32 | ~int64](dst []T, body []byte) ([]T, bool) {
 	}
 	if p != len(body) {
 		return nil, false
+	}
+	return dst, true
+}
+
+func appendFixed32CastArrBody[T intOrUint](dst []T, body []byte) ([]T, bool) {
+	if len(body) < 1 || body[0] != WireFixed32 || (len(body)-1)%4 != 0 {
+		return nil, false
+	}
+	c := (len(body) - 1) / 4
+	dst, start := growSlice(dst, c)
+	for i := range c {
+		dst[start+i] = T(binary.LittleEndian.Uint32(body[1+i*4 : 1+(i+1)*4]))
+	}
+	return dst, true
+}
+
+func appendSfixed32CastArrBody[T intOrUint](dst []T, body []byte) ([]T, bool) {
+	if len(body) < 1 || body[0] != WireFixed32 || (len(body)-1)%4 != 0 {
+		return nil, false
+	}
+	c := (len(body) - 1) / 4
+	dst, start := growSlice(dst, c)
+	for i := range c {
+		dst[start+i] = T(int32(binary.LittleEndian.Uint32(body[1+i*4 : 1+(i+1)*4])))
+	}
+	return dst, true
+}
+
+func appendFixed64CastArrBody[T intOrUint](dst []T, body []byte) ([]T, bool) {
+	if len(body) < 1 || body[0] != WireFixed64 || (len(body)-1)%8 != 0 {
+		return nil, false
+	}
+	c := (len(body) - 1) / 8
+	dst, start := growSlice(dst, c)
+	for i := range c {
+		dst[start+i] = T(binary.LittleEndian.Uint64(body[1+i*8 : 1+(i+1)*8]))
 	}
 	return dst, true
 }

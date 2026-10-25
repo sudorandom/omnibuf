@@ -11,40 +11,95 @@
       <span class="font-serif italic font-normal normal-case text-[#FF4F18]">in Go.</span>
     </h2>
     <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-      Use OmniBuf directly on your existing <code>.pb.go</code> structs with zero codegen, or add{' '}
-      <code>protoc-gen-omnibuf</code> to your <code>buf.gen.yaml</code> for generated single-pass
-      methods and lazy <code>Opaque</code> wire splicing.
+      Choose the integration tier that fits your service: tag plain Go structs with{' '}
+      <code>omnibuf</code> struct tags, pass existing <code>.pb.go</code> structs directly to{' '}
+      <code>omnibuf.Marshal</code> with zero extra codegen, or add <code>protoc-gen-omnibuf</code>{' '}
+      to your <code>buf.gen.yaml</code> for generated single-pass methods and lazy{' '}
+      <code>Opaque</code> wire splicing.
     </p>
   </div>
 
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
-    <!-- Row 1: Drop-in Table Engine (No Codegen Required) -->
+    <!-- Row 1: Plain Go Structs with omnibuf Tags -->
+    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+      <div class="lg:col-span-5 space-y-3">
+        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+          Tag plain Go structs (No <code>.proto</code> required)
+        </h3>
+        <!-- prettier-ignore -->
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[60ch]">
+          Annotate exported struct fields with an <code>omnibuf</code> field number and pass a struct pointer directly to <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>. See the <a href="#struct-tags" class="doc-link">struct tag reference below</a> for custom field names, wire-type overrides, and <code>omitempty</code>.
+        </p>
+      </div>
+      <div class="lg:col-span-7 min-w-0">
+        <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">Option 1: Plain Go Structs</div>
+            <button
+              type="button"
+              data-copy={`type PeerEvent struct {\n  ASN       uint32   \`omnibuf:"1,name=asn"\`\n  RouterID  string   \`omnibuf:"2,name=router_id"\`\n  Active    bool     \`omnibuf:"3,name=active"\`\n  LatencyUS uint32   \`omnibuf:"4,name=latency_us,wire=fixed32,omitempty"\`\n  Tags      []string \`omnibuf:"5,name=tags,omitempty"\`\n}\n\npkt, err := omnibuf.Marshal(&PeerEvent{ASN: 64512, RouterID: "rtr-01", Active: true})\nvar out PeerEvent\nerr = omnibuf.Unmarshal(pkt, &out)`}
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+            >
+              Copy
+            </button>
+          </div>
+          <pre class="leading-relaxed"><span class="text-[#FF4F18] font-bold">type</span> PeerEvent <span class="text-[#FF4F18] font-bold">struct</span> &#123;
+  ASN       uint32   <span class="text-acid">`omnibuf:"1,name=asn"`</span>
+  RouterID  string   <span class="text-acid">`omnibuf:"2,name=router_id"`</span>
+  Active    bool     <span class="text-acid">`omnibuf:"3,name=active"`</span>
+  LatencyUS uint32   <span class="text-acid">`omnibuf:"4,name=latency_us,wire=fixed32,omitempty"`</span>
+  Tags      []string <span class="text-acid">`omnibuf:"5,name=tags,omitempty"`</span>
+&#125;
+
+pkt, err := <span class="text-acid font-bold">omnibuf.Marshal</span>(&amp;PeerEvent&#123;ASN: 64512, RouterID: "rtr-01", Active: true&#125;)
+<span class="text-[#FF4F18] font-bold">var</span> out PeerEvent
+err = <span class="text-acid font-bold">omnibuf.Unmarshal</span>(pkt, &amp;out)</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Drop-in Table Engine (No Codegen Required) -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-5 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Drop-in on existing <code>.pb.go</code> structs
         </h3>
+        <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[60ch]">
-          OmniBuf inspects your existing <code>.pb.go</code> structs once per type, caches an unsafe
-          pointer-offset table, and encodes or decodes packets without needing an extra code
-          generation step.
+          OmniBuf inspects your existing <code>.pb.go</code> structs once per type, caches an unsafe pointer-offset table, and encodes or decodes packets without needing an extra code generation step (<a href="#plugin-tiers" class="doc-link">compare plugin vs. no-plugin speed</a>).
         </p>
       </div>
-      <div class="lg:col-span-7 min-w-0">
+      <div class="lg:col-span-7 space-y-3.5 min-w-0">
         <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
-          <div class="flex items-center justify-between gap-2">
-            <div>
-              <span class="text-paper/75 select-none">$ </span>go get github.com/sudorandom/omnibuf
-            </div>
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">Option 2: Install Package</div>
             <button
               type="button"
               data-copy="go get github.com/sudorandom/omnibuf"
-              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
             >
               Copy
             </button>
           </div>
-          <div class="mt-3 text-paper/75">// Encode any existing *pb.MyMessage struct:</div>
+          <div>
+            <span class="text-paper/75 select-none">$ </span>go get github.com/sudorandom/omnibuf
+          </div>
+        </div>
+
+        <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">
+              Encode &amp; Decode Existing .pb.go Structs
+            </div>
+            <button
+              type="button"
+              data-copy={`pkt, err := omnibuf.Marshal(msg)\n\nvar out pb.MyMessage\nerr = omnibuf.Unmarshal(pkt, &out)`}
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+            >
+              Copy
+            </button>
+          </div>
+          <div class="text-paper/75">// Encode any existing *pb.MyMessage struct:</div>
           <div>
             pkt, err := <span class="text-acid font-bold">omnibuf.Marshal</span>(msg)
           </div>
@@ -59,7 +114,7 @@
       </div>
     </div>
 
-    <!-- Row 2: Buf Code Generation -->
+    <!-- Row 3: Buf Code Generation -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-5 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
@@ -72,13 +127,13 @@
         </p>
       </div>
       <div class="lg:col-span-7 space-y-3.5 min-w-0">
-        <div class="p-4 sm:p-5 bg-[#FAF8F2] text-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
-          <div class="flex items-center justify-between gap-2 mb-1.5">
-            <div class="text-xs font-bold uppercase text-ink/80">buf.gen.yaml</div>
+        <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">Option 3: buf.gen.yaml</div>
             <button
               type="button"
               data-copy={`version: v2\nplugins:\n  - local: protoc-gen-go\n    out: gen\n    opt: paths=source_relative\n  - local: protoc-gen-omnibuf\n    out: gen\n    opt: paths=source_relative`}
-              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-white hover:bg-acid focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink text-ink border border-ink rounded shrink-0 transition"
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
             >
               Copy
             </button>
@@ -88,30 +143,44 @@ plugins:
   - local: protoc-gen-go
     out: gen
     opt: paths=source_relative
-  - local: <span class="text-[#C23000] font-bold">protoc-gen-omnibuf</span>
+  - local: <span class="text-acid font-bold">protoc-gen-omnibuf</span>
     out: gen
     opt: paths=source_relative</pre>
         </div>
 
         <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
-          <div class="flex items-center justify-between gap-2">
-            <div>
-              <span class="text-paper/75 select-none">$ </span>go install
-              github.com/sudorandom/omnibuf/cmd/protoc-gen-omnibuf@latest
-            </div>
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">Install &amp; Generate</div>
             <button
               type="button"
               data-copy="go install github.com/sudorandom/omnibuf/cmd/protoc-gen-omnibuf@latest && buf generate"
-              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
             >
               Copy
             </button>
           </div>
           <div>
+            <span class="text-paper/75 select-none">$ </span>go install
+            github.com/sudorandom/omnibuf/cmd/protoc-gen-omnibuf@latest
+          </div>
+          <div>
             <span class="text-paper/75 select-none">$ </span>
             <span class="text-acid font-bold">buf generate</span>
           </div>
-          <div class="mt-3 text-paper/75">
+        </div>
+
+        <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
+          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+            <div class="text-xs font-bold uppercase text-acid">Generated Single-Pass Methods</div>
+            <button
+              type="button"
+              data-copy={`pkt := msg.MarshalOmniBufAppend(nil)\n\nvar out pb.MyMessage\nerr := out.UnmarshalOmniBuf(pkt, false)`}
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+            >
+              Copy
+            </button>
+          </div>
+          <div class="text-paper/75">
             // Encode *pb.MyMessage with generated single-pass method:
           </div>
           <div>
@@ -128,19 +197,29 @@ plugins:
       </div>
     </div>
   </div>
+  <div id="copy-live-region" class="sr-only" aria-live="polite"></div>
 </section>
 
 <script>
+  const liveRegion = document.getElementById('copy-live-region');
+  const timers = new WeakMap<HTMLButtonElement, number>();
   document.querySelectorAll<HTMLButtonElement>('.copy-snippet-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const text = btn.getAttribute('data-copy');
       if (!text) return;
-      await navigator.clipboard.writeText(text);
-      const orig = btn.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+      const orig =
+        btn.dataset.origText || (btn.dataset.origText = btn.textContent?.trim() || 'Copy');
+      const prevTimer = timers.get(btn);
+      if (prevTimer) window.clearTimeout(prevTimer);
       btn.textContent = 'Copied!';
-      setTimeout(() => {
+      if (liveRegion) liveRegion.textContent = 'Copied code snippet to clipboard.';
+      const timerId = window.setTimeout(() => {
         btn.textContent = orig;
       }, 1500);
+      timers.set(btn, timerId);
     });
   });
 </script>

@@ -1,6 +1,6 @@
 ---
 interface Props {
-  currentPage?: 'home' | 'how-it-works' | 'benchmarks' | 'spec' | 'none';
+  currentPage?: 'home' | 'how-it-works' | 'benchmarks' | 'spec' | 'go' | 'none';
 }
 
 const { currentPage = 'home' } = Astro.props;
@@ -12,7 +12,12 @@ const pages = [
   { href: '/spec', key: 'spec', label: 'Specification' },
 ] as const;
 
-const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu';
+const languages = [{ href: '/go', key: 'go', label: 'Go' }] as const;
+
+const activeLang = languages.find((l) => l.key === currentPage);
+const activePageLabel =
+  pages.find((p) => p.key === currentPage)?.label ??
+  (activeLang ? `Languages: ${activeLang.label}` : 'Menu');
 ---
 
 <header class="sticky top-0 z-50 bg-[#FAF8F2] border-b-2 border-ink no-print">
@@ -41,6 +46,37 @@ const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu
             {p.label}
           </a>
         ))}
+
+        <!-- Languages Dropdown -->
+        <details id="lang-nav-menu" class="relative group">
+          <summary
+            data-active={activeLang ? 'true' : 'false'}
+            class="nav-link list-none cursor-pointer flex items-center gap-1.5 select-none"
+          >
+            <span>{activeLang ? `Languages: ${activeLang.label}` : 'Languages'}</span>
+            <span class="text-[10px] transition-transform group-open:rotate-180" aria-hidden="true">
+              &#9662;
+            </span>
+          </summary>
+
+          <div class="absolute left-0 mt-2 w-44 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#111111] py-1.5 z-50 divide-y divide-ink/15">
+            {languages.map((lang) => {
+              const isActive = currentPage === lang.key;
+              return (
+                <a
+                  href={lang.href}
+                  aria-current={isActive ? 'page' : undefined}
+                  class={`flex items-center justify-between px-3.5 py-2 text-sm font-bold transition-colors ${
+                    isActive ? 'bg-acid text-ink' : 'text-ink hover:bg-[#E5E0D5]'
+                  }`}
+                >
+                  <span>{lang.label}</span>
+                  {isActive && <span class="text-xs">&bull;</span>}
+                </a>
+              );
+            })}
+          </div>
+        </details>
       </nav>
     </div>
 
@@ -49,7 +85,7 @@ const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu
       <details id="mobile-nav-menu" class="relative md:hidden group">
         <summary
           aria-label="Toggle navigation menu"
-          class="list-none cursor-pointer px-2.5 py-1.5 bg-[#E5E0D5] text-ink border-2 border-ink rounded font-bold flex items-center gap-2 select-none shadow-[2px_2px_0px_#121212] group-open:bg-acid group-open:translate-x-[1px] group-open:translate-y-[1px] group-open:shadow-none"
+          class="list-none cursor-pointer px-2.5 py-1.5 bg-[#E5E0D5] text-ink border-2 border-ink rounded font-bold flex items-center gap-2 select-none shadow-[2px_2px_0px_#111111] group-open:bg-acid group-open:translate-x-[1px] group-open:translate-y-[1px] group-open:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <svg
             class="w-4 h-4 stroke-current shrink-0"
@@ -69,7 +105,7 @@ const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu
 
         <nav
           aria-label="Mobile page navigation"
-          class="absolute right-0 mt-2 w-52 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#121212] py-1.5 z-50 divide-y divide-ink/15"
+          class="absolute right-0 mt-2 w-52 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#111111] py-1.5 z-50 divide-y divide-ink/15"
         >
           {pages.map((p) => {
             const isActive = currentPage === p.key;
@@ -82,6 +118,24 @@ const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu
                 }`}
               >
                 <span>{p.label}</span>
+                {isActive && <span class="text-xs">&bull;</span>}
+              </a>
+            );
+          })}
+          <div class="px-3.5 pt-2 pb-1 text-[11px] font-bold uppercase text-ink/70 bg-[#E5E0D5]/50">
+            Languages
+          </div>
+          {languages.map((lang) => {
+            const isActive = currentPage === lang.key;
+            return (
+              <a
+                href={lang.href}
+                aria-current={isActive ? 'page' : undefined}
+                class={`flex items-center justify-between px-3.5 py-2.5 text-sm font-bold transition-colors ${
+                  isActive ? 'bg-acid text-ink' : 'text-ink hover:bg-[#E5E0D5]'
+                }`}
+              >
+                <span>{lang.label}</span>
                 {isActive && <span class="text-xs">&bull;</span>}
               </a>
             );
@@ -107,7 +161,7 @@ const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu
         id="theme-toggle"
         aria-label="Toggle dark mode"
         title="Toggle dark mode"
-        class="p-1.5 sm:px-2.5 sm:py-1.5 bg-[#E5E0D5] text-ink border-2 border-ink font-bold shadow-[2px_2px_0px_#121212] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#121212] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink transition rounded flex items-center justify-center cursor-pointer"
+        class="p-1.5 sm:px-2.5 sm:py-1.5 bg-[#E5E0D5] text-ink border-2 border-ink font-bold shadow-[2px_2px_0px_#111111] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#111111] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink transition rounded flex items-center justify-center cursor-pointer"
       >
         <!-- Sun icon (shown in dark mode) -->
         <svg
@@ -149,18 +203,36 @@ const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu
 </header>
 
 <script>
-  const mobileNav = document.getElementById('mobile-nav-menu') as HTMLDetailsElement | null;
-  if (mobileNav) {
+  const navMenus = [
+    document.getElementById('mobile-nav-menu') as HTMLDetailsElement | null,
+    document.getElementById('lang-nav-menu') as HTMLDetailsElement | null,
+  ].filter((el): el is HTMLDetailsElement => el !== null);
+
+  if (navMenus.length > 0) {
     document.addEventListener('click', (e) => {
-      if (mobileNav.open && !mobileNav.contains(e.target as Node)) {
-        mobileNav.open = false;
+      for (const menu of navMenus) {
+        if (menu.open && !menu.contains(e.target as Node)) {
+          menu.open = false;
+        }
       }
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && mobileNav.open) {
-        mobileNav.open = false;
+      if (e.key === 'Escape') {
+        for (const menu of navMenus) {
+          if (menu.open) {
+            menu.open = false;
+          }
+        }
       }
     });
+    for (const menu of navMenus) {
+      menu.addEventListener('focusout', (e) => {
+        const next = e.relatedTarget as Node | null;
+        if (menu.open && next && !menu.contains(next)) {
+          menu.open = false;
+        }
+      });
+    }
   }
 
   const themeToggle = document.getElementById('theme-toggle');

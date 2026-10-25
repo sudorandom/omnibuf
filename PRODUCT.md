@@ -21,16 +21,16 @@ Success on the web surface means an engineer can immediately understand how the 
 Unlike FlatBuffers or Cap'n Proto (which require custom IDLs, arena builders, and larger pointer/vtable overhead) and unlike MessagePack or JSON (which repeat string keys or lack `.proto` schema evolution), OmniBuf compiles standard `.proto` files into a self-describing binary wire format that encodes and decodes 6x to 8x faster than standard Go Protobuf (`google.golang.org/protobuf`) and ~45% faster than `vtprotobuf` while generating roughly half the code.
 
 Its core wire-format mechanisms are:
-- **2-bit length-header varints (Prefix-Varints):** The first byte reveals the exact byte width (`1`, `2`, `4`, or `8` bytes), enabling single-instruction little-endian loads and stores instead of byte-by-byte continuation-bit loops.
-- **16 self-describing wire types (4-bit nibble):** Every tag encodes the exact data type (`BOOL_TRUE`, `BOOL_FALSE`, `UINT`, `SINT`, `FLOAT32`, `FLOAT64`, `BYTES`, `STRING`, `MESSAGE`, `ARRAY_PRIM`, `ARRAY_NESTED`, `ARRAY_ARRAY`, `MAP`), allowing any payload to be inspected or converted to JSON without the `.proto` file.
-- **Contiguous primitive arrays (`ARRAY_PRIM`) and hoisted nested struct headers (`ARRAY_NESTED`):** Eliminates repeated per-element tags and varint loops on slices, cutting array payload sizes by up to 40%.
-- **Single-pass forward encoding:** Fixed-size length patch slots avoid Protobuf's two-pass `Size()` calculation.
+- **trailing-zero Prefix-Varints (`TZCNT`):** The first byte reveals the exact byte width (`1`, `2`, `4`, or `9` bytes), enabling single-instruction little-endian loads and stores instead of byte-by-byte continuation-bit loops.
+- **16 self-describing wire types (4-bit nibble):** Every tag encodes the exact data type (`WireUint`, `WireTrue`, `WireFalse`, `WireString`, `WireBytes`, `WireSubMsg`, `WireStringArr`, `WireUintArr`, `WireSubMsgArr`, `WireMap`, `WireSint`, `WireSintArr`, `WireFixed32`, `WireFixed64`, `WireFixed32Arr`, `WireFixed64Arr`), allowing any payload to be inspected or converted to JSON without the `.proto` file.
+- **Contiguous primitive arrays and length-prefixed containers:** Eliminates repeated per-element tags and varint loops on slices, allowing any container to be skipped in one jump (`pos += byteLen`).
+- **Single-pass forward encoding:** Fixed 2-byte length patch slots avoid Protobuf's two-pass `Size()` calculation.
 - **Opaque field lookup and splicing (`LocateField`, `SpliceFields`):** Jump over unrelated fields in `O(1)` per field using self-describing byte lengths to read, drop, or replace individual fields without decoding the message.
 
 ## Operating Context
 
 - Evaluated alongside standard `.proto` toolchains (`protoc`, `buf`), Go benchmarks (`go test -bench`), and existing wire formats (`google.golang.org/protobuf`, `vtprotobuf`, FlatBuffers, Cap'n Proto, MessagePack, and `encoding/json/v2`).
-- The web site (`web/`) is an Astro + Tailwind CSS static site deployed to Cloudflare Pages with four primary surfaces: Overview (`/`), How It Works (`/how-it-works`), Benchmarks (`/benchmarks`), and Wire Specification (`/spec`).
+- The web site (`web/`) is an Astro + Tailwind CSS static site deployed to Cloudflare Pages with five primary surfaces: Overview (`/`), How It Works (`/how-it-works`), Benchmarks (`/benchmarks`), Wire Specification (`/spec`), and Go Language Guide (`/go`).
 
 ## Capabilities and Constraints
 

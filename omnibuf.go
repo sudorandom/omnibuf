@@ -267,7 +267,7 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 			pos += 2
 		} else {
 			tag, tn := decodeVarintMulti(packet[pos:])
-			if tn == 0 {
+			if tn == 0 || tag>>4 > math.MaxUint16 {
 				return nil, 0, false
 			}
 			fnum = uint16(tag >> 4)

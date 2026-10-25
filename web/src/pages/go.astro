@@ -1,0 +1,312 @@
+---
+import { Code } from 'astro:components';
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Quickstart from '../components/Quickstart.astro';
+import Footer from '../components/Footer.astro';
+
+const structTagSchemaCode = `type Peer struct {
+	ID       uint64            \`omnibuf:"1,name=peer_id"\`
+	Router   string            \`omnibuf:"2,name=router,omitempty"\`
+	Latency  int64             \`omnibuf:"3,wire=sint"\`
+	Load     float32           \`omnibuf:"4,wire=fixed32"\`
+	Prefixes []uint32          \`omnibuf:"5"\`
+	Labels   map[string]string \`omnibuf:"6,omitempty"\`
+	Internal string            \`omnibuf:"-"\`
+}
+
+wire, err := omnibuf.Marshal(&peer)
+err = omnibuf.Unmarshal(wire, &decoded)`;
+
+const opaqueSpliceCode = `view := pb.PeerOpaque(pkt)
+router, ok := view.Router() // Zero-alloc header hop
+
+// Update field #3 in-place or splice new value without full decode:
+updated := view.SetActive(false)`;
+
+const field0BlindCode = `// Embed Field #0 (SchemaMeta) inline with the packet:
+pkt, err := (omnibuf.MarshalOptions{SelfDescribing: true}).Marshal(&peer)
+
+// Decode any OmniBuf packet without a schema (uses Field #0 names if present):
+fields, err := omnibuf.DecodeBlind(pkt)`;
+
+const goFaqItems = [
+  {
+    question: 'When should I use Opaque lazy views and SpliceFields instead of Unmarshal?',
+    questionHtml:
+      'When should I use <code>Opaque</code> lazy views and <code>SpliceFields</code> instead of <code>Unmarshal</code>?',
+    paragraphs: [
+      'Use <code>Unmarshal</code> when your handler consumes most fields of a message. Use generated <code>Opaque</code> wrappers and <code>omnibuf.SpliceFields</code> in routers, proxies, and ingestion pipelines that only inspect a header field or update a single counter before forwarding the packet.',
+      'Because every OmniBuf field is self-describing and length-bounded, <code>Opaque</code> getters hop directly to the target field with zero heap allocations, and <code>Set*</code> / <code>SpliceFields</code> overwrite or replace individual fields on the raw byte slice without decoding the rest of the message.',
+    ],
+    codeBlock: opaqueSpliceCode,
+    codeLabel: 'Lazy Read & In-Place Update',
+  },
+  {
+    question: 'How do I enable Field #0 inline field names or decode packets without a schema?',
+    questionHtml:
+      'How do I enable <code>Field #0</code> inline field names or decode packets without a schema?',
+    paragraphs: [
+      'Pass <code>omnibuf.MarshalOptions{SelfDescribing: true}</code> when marshaling any tagged Go struct or <code>.pb.go</code> message to prepend <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>) with the root and nested field-name tables.',
+      'To inspect an arbitrary packet without a target struct or <code>.proto</code> file, call <code>omnibuf.DecodeBlind(pkt)</code>. It returns a <code>map[string]any</code> keyed by field numbers (or by field names automatically when <code>Field #0</code> is present).',
+    ],
+    codeBlock: field0BlindCode,
+    codeLabel: 'Field #0 & Schema-Less Decode',
+  },
+  {
+    question: 'Do I have to rewrite my .proto files or .pb.go structs?',
+    questionHtml:
+      'Do I have to rewrite my <code>.proto</code> files or <code>.pb.go</code> structs?',
+    paragraphs: [
+      'No. You can pass existing <code>protoc-gen-go</code> (<code>.pb.go</code>) structs directly to <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> with zero extra codegen, or run <code>protoc-gen-omnibuf</code> on standard <code>proto3</code> and Editions (<code>2023</code>, <code>2024</code>) schemas. By default, the plugin attaches fast encode and decode methods directly onto your existing <code>.pb.go</code> structs.',
+    ],
+  },
+  {
+    question: 'How does protoc-gen-omnibuf compare to vtprotobuf?',
+    questionHtml: 'How does <code>protoc-gen-omnibuf</code> compare to <code>vtprotobuf</code>?',
+    paragraphs: [
+      '<code>vtprotobuf</code> speeds up Go Protobuf by generating unrolled varint loops and a separate size-calculation pass before writing backwards into the buffer, because the 2001 Protobuf wire format requires knowing every sub-message length up front.',
+      'OmniBuf does not need a separate sizing pass (it reserves a 2-byte length slot and fills it in after writing) and reads integers in one step instead of a byte-by-byte loop. As a result, <code>protoc-gen-omnibuf</code> runs over 50% faster on Marshal and over 2x faster on Read-Modify-Write while generating less than half the code.',
+    ],
+  },
+];
+---
+
+<Layout
+  title="OmniBuf for Go | Struct Tags, .pb.go & protoc-gen-omnibuf"
+  description="Use OmniBuf in Go: serialize plain Go structs with omnibuf struct tags, drop-in on existing .pb.go structs, or generate single-pass codecs and lazy Opaque readers with protoc-gen-omnibuf."
+>
+  <Navbar currentPage="go" />
+
+  <main id="main-content">
+    <!-- Page Header -->
+    <section class="relative pt-10 pb-8 sm:pt-16 sm:pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <h1 class="text-[2.6rem] sm:text-7xl lg:text-[5.5rem] font-bold tracking-tight leading-[0.94] text-ink uppercase">
+        OmniBuf
+        <br />
+        <span class="font-serif italic font-normal normal-case text-[#FF4F18] text-[3.1rem] sm:text-8xl lg:text-[6.2rem]">
+          for Go.
+        </span>
+      </h1>
+
+      <div class="mt-6 max-w-3xl space-y-4">
+        <p class="text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
+          Use <code>github.com/sudorandom/omnibuf</code> directly on plain Go structs with{' '}
+          <a href="#struct-tags" class="doc-link">
+            <code>omnibuf</code> struct tags
+          </a>
+          , drop it onto existing <code>.pb.go</code> structs with zero extra codegen, or generate
+          single-pass methods and lazy <code>Opaque</code> views with{' '}
+          <a href="#plugin-tiers" class="doc-link">
+            <code>protoc-gen-omnibuf</code>
+          </a>
+          .
+        </p>
+      </div>
+    </section>
+
+    <!-- 3-Tier Go Quickstart -->
+    <Quickstart />
+
+    <!-- Go Struct Tags & Offset Caching -->
+    <section
+      id="struct-tags"
+      class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+    >
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+          Go struct tags{' '}
+          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
+            without .proto files.
+          </span>
+        </h2>
+      </div>
+
+      <div class="border-t-2 border-ink pt-8 sm:pt-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+        <div class="lg:col-span-5 space-y-3 min-w-0">
+          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+            Direct struct encoding via <code>omnibuf:"..."</code>
+          </h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Tag exported fields with <code>omnibuf:"..."</code> and pass a struct pointer directly
+            to <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>. On first use,
+            OmniBuf caches each field's byte offset and wire type so subsequent calls read and write
+            struct memory directly without per-call reflection:
+          </p>
+          <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
+            <li>
+              <code>1..65535</code> sets the wire field number (or <code>-</code> to ignore a
+              field).
+            </li>
+            <li>
+              <code>name=...</code> sets the field name written to <code>Field #0</code> (defaults
+              to the Go field name).
+            </li>
+            <li>
+              <code>wire=...</code> overrides the inferred wire type (<code>uint</code>,{' '}
+              <code>sint</code>, <code>fixed32</code>, <code>fixed64</code>, <code>string</code>,{' '}
+              <code>bytes</code>).
+            </li>
+            <li>
+              <code>omitempty</code> skips encoding when the field holds its zero value.
+            </li>
+          </ul>
+        </div>
+
+        <div class="lg:col-span-7 min-w-0">
+          <div class="p-4 sm:p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+            <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+              <div class="text-xs font-bold uppercase text-acid">Struct Tag Example</div>
+              <button
+                type="button"
+                data-copy={structTagSchemaCode}
+                class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              >
+                Copy
+              </button>
+            </div>
+            <Code code={structTagSchemaCode} lang="go" theme="github-dark" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- With vs. Without the Code Generator -->
+    <section
+      id="plugin-tiers"
+      class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+    >
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+          With vs. Without{' '}
+          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
+            the code generator.
+          </span>
+        </h2>
+        <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
+          OmniBuf works directly on plain Go structs and existing <code>protoc-gen-go</code> structs
+          with no extra codegen, or via the optional <code>protoc-gen-omnibuf</code> plugin for
+          generated methods and in-place field updates.
+        </p>
+      </div>
+
+      <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
+        <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          <div class="lg:col-span-8 space-y-3">
+            <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight text-ink leading-snug">
+              No Plugin (<code>omnibuf.Marshal</code>)
+            </h3>
+            <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[65ch]">
+              Using cached struct field offsets on plain Go structs (<code>omnibuf:"..."</code>) or
+              existing <code>.pb.go</code> structs, OmniBuf encodes{' '}
+              <strong>~2.5x to 3x faster</strong> and decodes <strong>~3x faster</strong> than
+              official Go Protobuf with zero heap allocations on reused structs, while outperforming{' '}
+              <code>encoding/json</code>, <code>encoding/json/v2</code>, and <code>msgpack</code> by{' '}
+              <strong>4x to 11x</strong>.
+            </p>
+          </div>
+          <div class="lg:col-span-4">
+            <div class="p-5 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
+              <div class="font-bold text-ink">~2.5x to 3x vs. Protobuf</div>
+              <div class="font-bold text-[#C23000]">4x to 11x vs. JSON &amp; MsgPack</div>
+              <div class="text-ink/80 text-sm">0 allocs on reused structs</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          <div class="lg:col-span-8 space-y-3">
+            <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight text-ink leading-snug">
+              With Plugin (<code>protoc-gen-omnibuf</code>)
+            </h3>
+            <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[65ch]">
+              Adding <code>protoc-gen-omnibuf</code> removes table dispatch and enables generated{' '}
+              <code>Opaque*</code> lazy readers and in-place scalar splicing: encoding runs{' '}
+              <strong>~6x faster</strong> than official Go Protobuf (and{' '}
+              <strong>over 50% faster</strong> than <code>vtprotobuf</code>), while
+              Read-Modify-Write runs <strong>over 11x faster</strong> than Protobuf and{' '}
+              <strong>over 2x faster</strong> than <code>vtprotobuf</code> with under half the
+              generated code.
+            </p>
+          </div>
+          <div class="lg:col-span-4">
+            <div class="p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
+              <div class="text-acid font-bold">&gt;50% faster than vtprotobuf</div>
+              <div class="text-white font-bold">&gt;2x faster Read-Modify-Write</div>
+              <div class="text-paper/75 text-sm">Under half the generated code</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Go FAQ -->
+    <section
+      id="go-faq"
+      class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+    >
+      <div class="max-w-3xl mb-10">
+        <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+          Go{' '}
+          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">questions.</span>
+        </h2>
+      </div>
+
+      <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
+        {goFaqItems.map((item) => (
+          <div class="py-7 sm:py-9 grid lg:grid-cols-12 gap-4 lg:gap-8 items-start">
+            <h3
+              class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug"
+              set:html={item.questionHtml ?? item.question}
+            />
+            <div class="lg:col-span-7 space-y-3.5 text-base sm:text-lg text-ink/90 leading-relaxed max-w-[65ch] min-w-0">
+              {item.paragraphs.map((paragraph, idx) => (
+                <>
+                  <p set:html={paragraph} />
+                  {idx === 0 && item.codeBlock && (
+                    <div class="bg-ink text-paper p-4 rounded-md border-2 border-ink font-mono text-xs sm:text-sm leading-relaxed overflow-x-auto [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+                      <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                        <div class="text-xs font-bold uppercase text-acid">
+                          {item.codeLabel ?? 'Example'}
+                        </div>
+                        <button
+                          type="button"
+                          data-copy={item.codeBlock}
+                          class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <Code code={item.codeBlock} lang="go" theme="github-dark" />
+                    </div>
+                  )}
+                </>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink no-print">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
+          Explore the wire layout &amp; full benchmarks
+        </div>
+        <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
+          <a href="/how-it-works" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
+            How It Works &rarr;
+          </a>
+          <a
+            href="/benchmarks"
+            class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md"
+          >
+            Benchmarks &amp; Comparisons &rarr;
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</Layout>

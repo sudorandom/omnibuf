@@ -303,6 +303,19 @@ func BenchmarkUnmarshal_Msgpack(b *testing.B) {
 	}
 }
 
+func BenchmarkUnmarshal_Msgpack_Reuse(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalMsgpack(&orig)
+	out := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := UnmarshalMsgpack(pkt, &out); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkUnmarshal_JSON(b *testing.B) {
 	orig := SamplePeerUpdate()
 	pkt, _ := MarshalJSON(&orig)
@@ -310,6 +323,19 @@ func BenchmarkUnmarshal_JSON(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var out PeerUpdate
+		if err := UnmarshalJSON(pkt, &out); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUnmarshal_JSON_Reuse(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalJSON(&orig)
+	out := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
 		if err := UnmarshalJSON(pkt, &out); err != nil {
 			b.Fatal(err)
 		}
