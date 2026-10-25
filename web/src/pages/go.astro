@@ -25,44 +25,37 @@ err := out.UnmarshalOmniBuf(buf, true)`;
 
 const goFaqItems = [
   {
-    question: 'When should I use Opaque lazy views and SpliceFields instead of Unmarshal?',
-    questionHtml:
-      'When should I use <code>Opaque</code> lazy views and <code>SpliceFields</code> instead of <code>Unmarshal</code>?',
+    question: 'When should I use Opaque lazy views instead of Unmarshal?',
     paragraphs: [
-      'Use <code>Unmarshal</code> when your handler consumes most fields of a message. Use generated <code>Opaque</code> wrappers and <code>omnibuf.SpliceFields</code> in routers, proxies, and ingestion pipelines that only inspect a header field or update a single counter before forwarding the packet.',
-      'Because every OmniBuf field is self-describing and length-bounded, <code>Opaque</code> getters hop directly to the target field with zero heap allocations, and <code>Set*</code> / <code>SpliceFields</code> overwrite or replace individual fields on the raw byte slice without decoding the rest of the message.',
+      'Use <code>Unmarshal</code> when your handler reads most fields of a message. Use generated <code>Opaque</code> views in routers, proxies, and ingestion pipelines that only inspect a header field or update a single value before forwarding the packet.',
+      'Getters hop directly to the target field with zero heap allocations, and setters splice updated fields onto the raw byte slice without decoding the rest of the message.',
     ],
     codeBlock: opaqueSpliceCode,
     codeLabel: 'Lazy Read & In-Place Update',
   },
   {
-    question: 'How do I enable Field #0 inline field names or decode packets without a schema?',
-    questionHtml:
-      'How do I enable <code>Field #0</code> inline field names or decode packets without a schema?',
+    question: 'How do I enable Field #0 inline field names or decode without a schema?',
     paragraphs: [
-      'Pass <code>omnibuf.MarshalOptions{SelfDescribing: true}</code> when marshaling any tagged Go struct or <code>.pb.go</code> message to prepend <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>) with the root and nested field-name tables.',
-      'To inspect an arbitrary packet without a target struct or <code>.proto</code> file, call <code>omnibuf.DecodeBlind(pkt)</code>. It returns a <code>map[string]any</code> keyed by field numbers (or by field names automatically when <code>Field #0</code> is present).',
+      'Pass <code>omnibuf.MarshalOptions{SelfDescribing: true}</code> when marshaling any struct or <code>.pb.go</code> message to prepend Field #0 with the root and nested field-name tables.',
+      'To inspect a packet without a target struct or schema file, call <code>omnibuf.DecodeBlind(pkt)</code>. It returns a map keyed by field numbers, or by field names automatically when Field #0 is present.',
     ],
     codeBlock: field0BlindCode,
     codeLabel: 'Field #0 & Schema-Less Decode',
   },
   {
-    question: 'What does the zeroCopy flag on UnmarshalOmniBuf do, and how do I pool buffers?',
-    questionHtml:
-      'What does the <code>zeroCopy</code> flag on <code>UnmarshalOmniBuf</code> do, and how do I pool buffers?',
+    question: 'What does the zeroCopy flag do, and how do I pool buffers?',
     paragraphs: [
-      'The second argument to <code>out.UnmarshalOmniBuf(pkt, zeroCopy)</code> controls string allocation. Passing <code>false</code> copies decoded strings onto the heap so <code>pkt</code> can be reused immediately; passing <code>true</code> points decoded <code>string</code> headers directly into <code>pkt</code> for zero-allocation string reads when the packet buffer outlives the request.',
-      'On the encode path, call <code>msg.MarshalOmniBufAppend(buf[:0])</code> with a pooled or reused byte slice to serialize messages without allocating a new buffer on every RPC.',
+      'The second argument to <code>UnmarshalOmniBuf(pkt, zeroCopy)</code> controls string allocation. Passing <code>false</code> copies strings onto the heap so the packet buffer can be reused right away; passing <code>true</code> points string headers directly into the packet buffer for zero-allocation reads.',
+      'On the encode path, pass a pooled slice via <code>MarshalOmniBufAppend(buf[:0])</code> to serialize messages without allocating a new buffer.',
     ],
     codeBlock: zeroCopyBufferCode,
     codeLabel: 'Buffer Reuse & Zero-Copy Strings',
   },
   {
     question: 'How does protoc-gen-omnibuf compare to vtprotobuf?',
-    questionHtml: 'How does <code>protoc-gen-omnibuf</code> compare to <code>vtprotobuf</code>?',
     paragraphs: [
-      '<code>vtprotobuf</code> speeds up Go Protobuf by generating unrolled varint loops and a separate size-calculation pass before writing backwards into the buffer, because the 2001 Protobuf wire format requires knowing every sub-message length up front.',
-      'OmniBuf does not need a separate sizing pass (it reserves a 2-byte length slot and fills it in after writing) and reads integers in one step instead of a byte-by-byte loop. As a result, <code>protoc-gen-omnibuf</code> runs over 50% faster on Marshal and over 2x faster on Read-Modify-Write while generating less than half the code.',
+      '<code>vtprotobuf</code> speeds up Go Protobuf by generating unrolled varint loops and a separate size-calculation pass before writing backwards into the buffer, because Protobuf requires knowing every sub-message length up front.',
+      'OmniBuf reserves a 2-byte length slot and fills it in after writing, and reads integers in one step instead of a byte-by-byte loop. As a result, <code>protoc-gen-omnibuf</code> runs over 50% faster on Marshal and over 2x faster on Read-Modify-Write while generating less than half the code.',
     ],
   },
 ];
@@ -94,11 +87,11 @@ const goFaqItems = [
             </a>
             , drop in on{' '}
             <a href="#pb-go-structs" class="doc-link">
-              existing <code>.pb.go</code> types
+              existing .pb.go types
             </a>
             , or generate single-pass codecs and lazy{' '}
             <a href="#plugin-tiers" class="doc-link">
-              <code>Opaque</code> views
+              Opaque views
             </a>
             .
           </p>
@@ -140,7 +133,7 @@ const goFaqItems = [
       </div>
     </section>
 
-    <!-- Unified 3-Tier Go Integration Guide -->
+    <!-- Three Ways to Use OmniBuf in Go -->
     <Quickstart />
 
     <!-- Go FAQ -->
@@ -157,34 +150,46 @@ const goFaqItems = [
 
       <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
         {goFaqItems.map((item) => (
-          <div class="py-7 sm:py-9 grid lg:grid-cols-12 gap-4 lg:gap-8 items-start">
-            <h3
-              class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug"
-              set:html={item.questionHtml ?? item.question}
-            />
-            <div class="lg:col-span-7 space-y-3.5 text-base sm:text-lg text-ink/90 leading-relaxed max-w-[65ch] min-w-0">
-              {item.paragraphs.map((paragraph, idx) => (
-                <>
-                  <p set:html={paragraph} />
-                  {idx === 0 && item.codeBlock && (
-                    <div class="bg-ink text-paper p-4 rounded-md border-2 border-ink font-mono text-xs sm:text-sm leading-relaxed overflow-x-auto [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
-                      <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-                        <div class="text-xs font-bold uppercase text-acid">
-                          {item.codeLabel ?? 'Example'}
-                        </div>
-                        <button
-                          type="button"
-                          data-copy={item.codeBlock}
-                          class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <Code code={item.codeBlock} lang="go" theme="github-dark" />
+          <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            <div
+              class={item.codeBlock ? 'lg:col-span-5 space-y-3 min-w-0' : 'lg:col-span-5 min-w-0'}
+            >
+              <h3 class="text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug">
+                {item.question}
+              </h3>
+              {item.codeBlock && (
+                <div class="space-y-3 text-base sm:text-lg text-ink/85 leading-relaxed">
+                  {item.paragraphs.map((paragraph) => (
+                    <p set:html={paragraph} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div class="lg:col-span-7 min-w-0">
+              {item.codeBlock ? (
+                <div class="bg-ink text-paper p-4 sm:p-5 rounded-md border-2 border-ink font-mono text-xs sm:text-sm leading-relaxed overflow-x-auto [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+                  <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                    <div class="text-xs font-bold uppercase text-acid">
+                      {item.codeLabel ?? 'Example'}
                     </div>
-                  )}
-                </>
-              ))}
+                    <button
+                      type="button"
+                      data-copy={item.codeBlock}
+                      class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <Code code={item.codeBlock} lang="go" theme="github-dark" />
+                </div>
+              ) : (
+                <div class="space-y-3 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+                  {item.paragraphs.map((paragraph) => (
+                    <p set:html={paragraph} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}

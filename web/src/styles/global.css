@@ -34,24 +34,32 @@
   :not(pre) > code {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.875em;
-    font-weight: 600;
-    background-color: #e5e0d5;
+    font-weight: 500;
+    background-color: rgba(17, 17, 17, 0.065);
     color: #111111;
-    border: 1px solid rgba(17, 17, 17, 0.35);
-    padding: 0.1rem 0.38rem;
+    padding: 0.08rem 0.28rem;
     border-radius: 3px;
   }
 
+  h1 :not(pre) > code,
+  h2 :not(pre) > code,
+  h3 :not(pre) > code,
+  h4 :not(pre) > code {
+    background-color: transparent;
+    padding: 0;
+    font-size: 0.92em;
+    font-weight: inherit;
+    color: inherit;
+  }
+
   .bg-ink :not(pre) > code {
-    background-color: rgba(250, 248, 242, 0.14);
-    color: #d4ff33;
-    border-color: rgba(250, 248, 242, 0.35);
+    background-color: rgba(250, 248, 242, 0.12);
+    color: #f4f0e6;
   }
 
   .text-ink :not(pre) > code {
-    background-color: rgba(17, 17, 17, 0.08);
+    background-color: rgba(17, 17, 17, 0.065);
     color: #111111;
-    border-color: rgba(17, 17, 17, 0.35);
   }
 }
 
@@ -291,19 +299,17 @@
   .spec-prose code {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.875em;
-    background-color: #e5e0d5;
+    background-color: rgba(17, 17, 17, 0.065);
     color: #111111;
-    border: 1px solid rgba(17, 17, 17, 0.35);
-    padding: 0.1rem 0.38rem;
+    padding: 0.08rem 0.28rem;
     border-radius: 3px;
-    font-weight: 600;
+    font-weight: 500;
     overflow-wrap: break-word;
   }
 
   .spec-prose .bg-ink code {
-    background-color: rgba(250, 248, 242, 0.14);
-    color: #d4ff33;
-    border-color: rgba(250, 248, 242, 0.35);
+    background-color: rgba(250, 248, 242, 0.12);
+    color: #f4f0e6;
   }
 
   .spec-prose pre {
@@ -663,15 +669,21 @@ html.dark .nav-link[data-active='true'] {
 html.dark :not(pre) > code,
 html.dark .text-ink :not(pre) > code,
 html.dark .spec-prose code {
-  background-color: #262b36;
-  color: #d4ff33;
-  border-color: rgba(244, 240, 230, 0.25);
+  background-color: rgba(244, 240, 230, 0.09);
+  color: #f4f0e6;
+}
+
+html.dark h1 :not(pre) > code,
+html.dark h2 :not(pre) > code,
+html.dark h3 :not(pre) > code,
+html.dark h4 :not(pre) > code {
+  background-color: transparent;
+  color: inherit;
 }
 
 html.dark .bg-acid :not(pre) > code {
-  background-color: rgba(17, 17, 17, 0.12);
+  background-color: rgba(17, 17, 17, 0.1);
   color: #111111;
-  border-color: rgba(17, 17, 17, 0.35);
 }
 
 html.dark .spec-prose {

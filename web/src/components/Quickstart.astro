@@ -49,38 +49,35 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
       <span class="font-serif italic font-normal normal-case text-[#FF4F18]">OmniBuf in Go.</span>
     </h2>
     <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-      Start with plain Go structs or existing <code>.pb.go</code> types with zero build changes, or
-      add <code>protoc-gen-omnibuf</code> for generated single-pass methods and lazy{' '}
-      <code>Opaque</code> readers.
+      Use plain Go structs with struct tags, pass existing <code>.pb.go</code> types with no build
+      changes, or generate single-pass methods and lazy <code>Opaque</code> views with the compiler
+      plugin.
     </p>
   </div>
 
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
-    <!-- Tier 1: Plain Go Structs with omnibuf Tags -->
+    <!-- 1. Plain Go Structs with omnibuf Tags -->
     <div
       id="struct-tags"
       class="scroll-mt-16 py-8 sm:py-12 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
     >
       <div class="lg:col-span-5 space-y-3.5 min-w-0">
-        <div class="font-mono text-xs font-bold uppercase tracking-wider text-[#C23000]">
-          Tier 1 &middot; No .proto Required
-        </div>
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Tag plain Go structs with <code>omnibuf:"..."</code>
+          Plain Go structs
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          Tag exported fields with <code>omnibuf:"..."</code> and pass a struct pointer directly to{' '}
+          Add <code>omnibuf:"..."</code> struct tags to exported fields and pass a struct pointer to{' '}
           <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>. On first use, OmniBuf
-          caches each field's byte offset and wire type so subsequent calls read and write struct
-          memory directly without per-call reflection:
+          caches each field's memory offset and wire type so subsequent calls read and write fields
+          directly without per-call reflection:
         </p>
         <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
           <li>
-            <code>1..65535</code> sets the wire field number (or <code>-</code> to ignore a field).
+            <code>1..65535</code> sets the wire field number (or <code>-</code> to skip a field).
           </li>
           <li>
-            <code>name=...</code> sets the field name written to <code>Field #0</code> (defaults to
-            the Go field name).
+            <code>name=...</code> sets the field name written to Field #0 (defaults to the Go field
+            name).
           </li>
           <li>
             <code>wire=...</code> overrides the inferred wire type (<code>uint</code>,{' '}
@@ -96,7 +93,7 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
       <div class="lg:col-span-7 min-w-0">
         <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
           <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">Tier 1: Plain Go Structs</div>
+            <div class="text-xs font-bold uppercase text-acid">Plain Go Structs</div>
             <button
               type="button"
               data-copy={structTagSnippet}
@@ -110,38 +107,32 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
       </div>
     </div>
 
-    <!-- Tier 2: Drop-in Table Engine on Existing .pb.go Structs -->
+    <!-- 2. Existing .pb.go Structs -->
     <div
       id="pb-go-structs"
       class="scroll-mt-16 py-8 sm:py-12 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
     >
-      <div class="lg:col-span-5 space-y-4 min-w-0">
-        <div class="font-mono text-xs font-bold uppercase tracking-wider text-[#C23000]">
-          Tier 2 &middot; Zero Extra Codegen
-        </div>
+      <div class="lg:col-span-5 space-y-3.5 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Drop-in on existing <code>.pb.go</code> structs
+          Existing .pb.go structs
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          Already generating <code>.pb.go</code> files with <code>protoc-gen-go</code>? Pass your
-          existing structs directly to <code>omnibuf.Marshal</code> and{' '}
-          <code>omnibuf.Unmarshal</code> with no extra plugin step. OmniBuf inspects the struct tags
-          once per type, caches an unsafe pointer-offset table, and runs with zero heap allocations
-          on reused structs.
+          Already generating Go code with <code>protoc-gen-go</code>? Pass your existing{' '}
+          <code>.pb.go</code> structs directly to <code>omnibuf.Marshal</code> and{' '}
+          <code>omnibuf.Unmarshal</code> with no extra plugin step.
         </p>
-        <div class="p-4 sm:p-5 bg-[#FAF8F2] border-2 border-ink shadow-[4px_4px_0px_#111111] rounded-md font-mono text-sm sm:text-base space-y-1.5">
-          <div class="font-bold text-ink">~2.5x to 3x faster than Go Protobuf</div>
-          <div class="font-bold text-[#C23000]">4x to 11x faster than JSON &amp; MsgPack</div>
-          <div class="text-ink/80 text-xs sm:text-sm">
-            0 allocs on reused structs &middot; No build changes
-          </div>
-        </div>
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+          OmniBuf reads the existing <code>protobuf:"..."</code> struct tags once per type, builds a
+          cached pointer-offset table, and runs <strong>~2.5x to 3x faster</strong> than standard Go
+          Protobuf (and <strong>4x to 11x faster</strong> than JSON and MessagePack) with zero heap
+          allocations on reused structs.
+        </p>
       </div>
 
       <div class="lg:col-span-7 min-w-0">
         <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
           <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">Tier 2: Existing .pb.go Structs</div>
+            <div class="text-xs font-bold uppercase text-acid">Existing .pb.go Structs</div>
             <button
               type="button"
               data-copy={pbGoSnippet}
@@ -155,40 +146,32 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
       </div>
     </div>
 
-    <!-- Tier 3: Buf / protoc Code Generation -->
+    <!-- 3. Buf / protoc Code Generation -->
     <div
       id="plugin-tiers"
       class="scroll-mt-16 py-8 sm:py-12 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
     >
-      <div class="lg:col-span-5 space-y-4 min-w-0">
-        <div class="font-mono text-xs font-bold uppercase tracking-wider text-[#C23000]">
-          Tier 3 &middot; Maximum Performance
-        </div>
+      <div class="lg:col-span-5 space-y-3.5 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Generate methods with <code>protoc-gen-omnibuf</code>
+          Generated code with protoc-gen-omnibuf
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          Add <code>protoc-gen-omnibuf</code> to your <code>buf.gen.yaml</code> (supports standard{' '}
-          <code>proto3</code> and Editions <code>2023</code>/<code>2024</code> schemas). By default,
-          the plugin attaches single-pass <code>MarshalOmniBuf</code>,{' '}
-          <code>MarshalOmniBufAppend</code>, <code>UnmarshalOmniBuf</code>, and lazy{' '}
-          <code>Opaque*</code> views directly onto your existing <code>.pb.go</code> structs.
+          Add <code>protoc-gen-omnibuf</code> to your <code>buf.gen.yaml</code> (supports both
+          proto3 and Editions 2023/2024 schemas). The plugin attaches single-pass{' '}
+          <code>MarshalOmniBufAppend</code> and <code>UnmarshalOmniBuf</code> methods plus lazy{' '}
+          <code>Opaque</code> views directly onto your <code>.pb.go</code> structs.
         </p>
-        <div class="p-4 sm:p-5 bg-ink text-paper border-2 border-ink shadow-[4px_4px_0px_#111111] rounded-md font-mono text-sm sm:text-base space-y-1.5">
-          <div class="text-acid font-bold">~6x faster encode &amp; 8x faster decode</div>
-          <div class="text-white font-bold">
-            &gt;50% faster than vtprotobuf (&gt;2x on Read-Modify-Write)
-          </div>
-          <div class="text-paper/75 text-xs sm:text-sm">
-            Under half the generated code &middot; Zero-alloc Opaque views
-          </div>
-        </div>
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+          Generated codecs run <strong>~6x faster on encode</strong> and{' '}
+          <strong>~8x faster on decode</strong> than standard Go Protobuf, and beat{' '}
+          <code>vtprotobuf</code> by over 50% while generating less than half the code.
+        </p>
       </div>
 
       <div class="lg:col-span-7 space-y-3.5 min-w-0">
         <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
           <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">Tier 3: buf.gen.yaml</div>
+            <div class="text-xs font-bold uppercase text-acid">buf.gen.yaml</div>
             <button
               type="button"
               data-copy={bufGenYamlSnippet}

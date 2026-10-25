@@ -2,7 +2,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from 'tailwindcss';
+import tailwindConfig from './tailwind.config.mjs';
 
 function checkInternalLinksAndAnchors() {
   return {
@@ -109,10 +110,12 @@ function checkInternalLinksAndAnchors() {
 
 export default defineConfig({
   site: 'https://omnibuf.dev',
-  integrations: [
-    tailwind({
-      applyBaseStyles: false,
-    }),
-    checkInternalLinksAndAnchors(),
-  ],
+  integrations: [checkInternalLinksAndAnchors()],
+  vite: {
+    css: {
+      postcss: {
+        plugins: [tailwindcss(tailwindConfig)],
+      },
+    },
+  },
 });

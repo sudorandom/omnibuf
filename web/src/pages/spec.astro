@@ -109,7 +109,7 @@ const tocSections = [
     id: 'sec-11',
     label: '11. Language Implementations & Conformance',
     children: [
-      { id: 'sec-11-1', label: '11.1 Required Integration Tiers' },
+      { id: 'sec-11-1', label: '11.1 Required Usage Modes' },
       { id: 'sec-11-2', label: '11.2 Conformance Test Suite' },
     ],
   },
@@ -1793,14 +1793,14 @@ children[10] = &#123;
           practices for their target ecosystem (such as zero-copy slice or span views where memory
           safety permits, buffer-append encoding APIs to support pooling, and standard language
           error handling). To provide a consistent developer experience across ecosystems, every
-          complete OmniBuf implementation MUST support three integration tiers and pass the full
-          conformance test suite.
+          complete OmniBuf implementation MUST support three ways to work with types and pass the
+          full conformance test suite.
         </p>
 
-        <h3 id="sec-11-1">11.1 Required Integration Tiers</h3>
+        <h3 id="sec-11-1">11.1 Required Usage Modes</h3>
         <p>
-          Every complete OmniBuf language implementation MUST support encoding and decoding across
-          three progressive adoption tiers:
+          Every complete OmniBuf language implementation MUST support encoding and decoding in three
+          ways:
         </p>
         <ol>
           <li>
@@ -1842,10 +1842,10 @@ children[10] = &#123;
 
         <h3 id="sec-11-2">11.2 Conformance Test Suite</h3>
         <p>
-          All implementations MUST pass the official OmniBuf Conformance Test Suite across every
-          supported integration tier. Modeled after Protocol Buffers' conformance harness, a
-          dedicated conformance test runner binary executes a small adapter binary provided by each
-          language implementation, feeding test requests and verifying responses to ensure:
+          All implementations MUST pass the official OmniBuf Conformance Test Suite across all
+          supported usage modes. Modeled after Protocol Buffers' conformance harness, a dedicated
+          conformance test runner binary executes a small adapter binary provided by each language
+          implementation, feeding test requests and verifying responses to ensure:
         </p>
         <ul>
           <li>
@@ -1855,7 +1855,7 @@ children[10] = &#123;
             self-describing headers, raw concatenation merges, and schema-less inspection.
           </li>
           <li>
-            <strong>Tier Equivalence:</strong> Identical wire semantics whether a message is
+            <strong>Cross-Mode Equivalence:</strong> Identical wire semantics whether a message is
             processed via generated plugin code, standard Protobuf types without the plugin, or
             annotated/mapped native classes and structs.
           </li>
