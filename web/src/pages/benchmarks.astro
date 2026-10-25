@@ -24,49 +24,9 @@ import Footer from '../components/Footer.astro';
       </h1>
 
       <div class="mt-8 max-w-3xl space-y-3">
+        <!-- prettier-ignore -->
         <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
-          Head-to-head throughput, wire size, and field lookup measurements comparing OmniBuf
-          against{' '}
-          <a
-            href="https://protobuf.dev/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="doc-link"
-          >
-            Protobuf
-          </a>
-          ,{' '}
-          <a
-            href="https://flatbuffers.dev/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="doc-link"
-          >
-            FlatBuffers
-          </a>
-          ,{' '}
-          <a
-            href="https://capnproto.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="doc-link"
-          >
-            Cap'n Proto
-          </a>
-          ,{' '}
-          <a href="https://msgpack.org/" target="_blank" rel="noopener noreferrer" class="doc-link">
-            MessagePack
-          </a>
-          , and{' '}
-          <a
-            href="https://www.json.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="doc-link"
-          >
-            JSON
-          </a>
-          .
+          Head-to-head throughput, wire size, and field lookup measurements comparing OmniBuf against <a href="#compare-protobuf" class="doc-link">Protobuf</a>, <a href="#compare-flatbuffers" class="doc-link">FlatBuffers</a>, <a href="#compare-capnproto" class="doc-link">Cap'n Proto</a>, <a href="#compare-msgpack" class="doc-link">MessagePack</a>, and <a href="#compare-json" class="doc-link">JSON</a>.
         </p>
       </div>
     </section>
@@ -74,22 +34,27 @@ import Footer from '../components/Footer.astro';
     <!-- Full Benchmark Bar Charts -->
     <Benchmarks />
 
-    <!-- Section: No-Plugin Table Engine vs protoc-gen-omnibuf Plugin vs Official Protobuf -->
+    <!-- Full 5-Format Radar Comparisons -->
+    <Comparisons />
+
+    <!-- Section: No-Plugin vs protoc-gen-omnibuf Plugin vs Official Protobuf -->
     <section
       id="plugin-tiers"
       class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
     >
       <div class="max-w-3xl mb-8">
         <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
-          Integration Tiers &amp;{' '}
+          With vs. Without{' '}
           <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
-            Opaque Splicing.
+            the code generator.
           </span>
         </h2>
         <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-          OmniBuf works directly on existing generated Go structs with zero codegen, or via the{' '}
-          <code>protoc-gen-omnibuf</code> plugin for generated single-pass methods and lazy Opaque
-          API wire splicing.
+          OmniBuf works directly on existing <code>protoc-gen-go</code> structs (
+          <code>*pb.PeerUpdate</code>) with no extra codegen, or via the optional{' '}
+          <code>protoc-gen-omnibuf</code> plugin for generated methods and in-place field updates.
+          (Unlike the cross-format charts above, which benchmark flat value structs across all six
+          formats, this table measures pointer-based <code>.pb.go</code> structs.)
         </p>
       </div>
 
@@ -129,7 +94,7 @@ import Footer from '../components/Footer.astro';
               </tr>
               <tr class="bg-white">
                 <td class="p-3.5 sm:p-4 font-bold">Unmarshal (Zero-Copy)</td>
-                <td class="p-3.5 sm:p-4">959.9 ns (25 allocs)</td>
+                <td class="p-3.5 sm:p-4">959.9 ns (25 allocs, N/A)</td>
                 <td class="p-3.5 sm:p-4">225.8 ns (0 allocs, Pool)</td>
                 <td class="p-3.5 sm:p-4">309.0 ns (0 allocs)</td>
                 <td class="p-3.5 sm:p-4 font-bold bg-acid/25">198.8 ns (0 allocs)</td>
@@ -168,9 +133,6 @@ import Footer from '../components/Footer.astro';
       </div>
     </section>
 
-    <!-- Full 5-Format Radar Comparisons -->
-    <Comparisons />
-
     <!-- Methodology & Test Environment at the End (Clean architectural ledger row) -->
     <section class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink">
       <div class="grid md:grid-cols-12 gap-6 lg:gap-8 items-start">
@@ -193,44 +155,9 @@ import Footer from '../components/Footer.astro';
             unsigned and ZigZag-signed integers, booleans, IEEE-754 floats, string lists, packed
             integer arrays, a 6-field nested sub-message, and a 4-element repeated sub-message list.
           </p>
+          <!-- prettier-ignore -->
           <p class="text-sm sm:text-base text-ink/85">
-            Source code for the harnesses and codec implementations is in{' '}
-            <a
-              href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="doc-link font-mono"
-            >
-              omnibuf_bench_test.go
-            </a>
-            ,{' '}
-            <a
-              href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="doc-link font-mono"
-            >
-              opaque_table_bench_test.go
-            </a>
-            , and{' '}
-            <a
-              href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs.go"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="doc-link font-mono"
-            >
-              peer_codecs.go
-            </a>
-            . Previous benchmark output from <code>go test -bench=. -benchmem</code> is checked into{' '}
-            <a
-              href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="doc-link font-mono"
-            >
-              testdata/benchmarks.txt
-            </a>
-            .
+            Source code for the harnesses and codec implementations is in <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs.go</a>. Previous benchmark output from <code>go test -bench=. -benchmem</code> is checked into <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
           </p>
         </div>
       </div>
@@ -242,7 +169,7 @@ import Footer from '../components/Footer.astro';
           Read the complete wire specification or architectural breakdown
         </div>
         <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
-          <a href="/spec" class="os-btn px-5 py-2.5 bg-[#FF4F18] text-ink font-bold rounded-md">
+          <a href="/spec" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
             Wire Specification &rarr;
           </a>
           <a

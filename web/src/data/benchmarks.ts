@@ -6,6 +6,7 @@ export interface FormatStat {
 export interface FormatProfile {
   key: string;
   name: string;
+  url?: string;
   verdict?: string;
   omniWinsList?: string[];
   oppWinsList?: string[];
@@ -32,16 +33,17 @@ export const formatProfiles: Record<string, FormatProfile> = {
     key: 'omnibuf',
     name: 'OmniBuf',
     stats: [
-      { label: 'Wire Size', score: 96 },
-      { label: 'Encode Speed', score: 99 },
-      { label: 'Decode Speed', score: 94 },
-      { label: 'Memory Efficiency', score: 99 },
-      { label: 'Simplicity', score: 97 },
+      { label: 'Wire Size', score: 94 },
+      { label: 'Encode Speed', score: 100 },
+      { label: 'Decode Speed', score: 100 },
+      { label: 'Field Lookup', score: 78 },
+      { label: 'Memory Efficiency', score: 98 },
     ],
   },
   protobuf: {
     key: 'protobuf',
     name: 'Protobuf',
+    url: 'https://protobuf.dev/',
     verdict:
       'OmniBuf stays within ~6% of Protobuf wire size while encoding up to 6x faster, decoding up to 8x faster, and making every wire type inspectable without a schema.',
     omniWinsList: [
@@ -56,15 +58,16 @@ export const formatProfiles: Record<string, FormatProfile> = {
     ],
     stats: [
       { label: 'Wire Size', score: 100 },
-      { label: 'Encode Speed', score: 48 },
-      { label: 'Decode Speed', score: 38 },
-      { label: 'Memory Efficiency', score: 62 },
-      { label: 'Simplicity', score: 88 },
+      { label: 'Encode Speed', score: 46 },
+      { label: 'Decode Speed', score: 40 },
+      { label: 'Field Lookup', score: 32 },
+      { label: 'Memory Efficiency', score: 64 },
     ],
   },
   flatbuffers: {
     key: 'flatbuffers',
     name: 'FlatBuffers',
+    url: 'https://flatbuffers.dev/',
     verdict:
       'OmniBuf is 40% smaller on the wire, 6x faster to encode, and faster on full message decodes while using standard .proto schemas instead of bottom-up builders.',
     omniWinsList: [
@@ -77,16 +80,17 @@ export const formatProfiles: Record<string, FormatProfile> = {
       'Faster single-field random access when reading one field out of a large message via VTable offsets.',
     ],
     stats: [
-      { label: 'Wire Size', score: 56 },
-      { label: 'Encode Speed', score: 35 },
-      { label: 'Decode Speed', score: 96 },
-      { label: 'Memory Efficiency', score: 92 },
-      { label: 'Simplicity', score: 42 },
+      { label: 'Wire Size', score: 57 },
+      { label: 'Encode Speed', score: 46 },
+      { label: 'Decode Speed', score: 90 },
+      { label: 'Field Lookup', score: 98 },
+      { label: 'Memory Efficiency', score: 98 },
     ],
   },
   capnproto: {
     key: 'capnproto',
     name: "Cap'n Proto",
+    url: 'https://capnproto.org/',
     verdict:
       'On framed network packets, OmniBuf is 36% smaller, 10x faster to encode, and over 6x faster to decode without segment pointer bounds checking.',
     omniWinsList: [
@@ -100,16 +104,17 @@ export const formatProfiles: Record<string, FormatProfile> = {
       'Fixed-offset struct layout jumps directly to fields in shared memory without scanning preceding field headers.',
     ],
     stats: [
-      { label: 'Wire Size', score: 60 },
-      { label: 'Encode Speed', score: 25 },
-      { label: 'Decode Speed', score: 82 },
-      { label: 'Memory Efficiency', score: 65 },
-      { label: 'Simplicity', score: 45 },
+      { label: 'Wire Size', score: 61 },
+      { label: 'Encode Speed', score: 28 },
+      { label: 'Decode Speed', score: 46 },
+      { label: 'Field Lookup', score: 85 },
+      { label: 'Memory Efficiency', score: 58 },
     ],
   },
   msgpack: {
     key: 'msgpack',
     name: 'MessagePack',
+    url: 'https://msgpack.org/',
     verdict:
       'OmniBuf is 45% smaller than MessagePack in standard mode, and still smaller even with Field #0 inline field names enabled while encoding over 6x faster.',
     omniWinsList: [
@@ -123,15 +128,16 @@ export const formatProfiles: Record<string, FormatProfile> = {
     ],
     stats: [
       { label: 'Wire Size', score: 52 },
-      { label: 'Encode Speed', score: 20 },
-      { label: 'Decode Speed', score: 22 },
+      { label: 'Encode Speed', score: 15 },
+      { label: 'Decode Speed', score: 18 },
+      { label: 'Field Lookup', score: 42 },
       { label: 'Memory Efficiency', score: 25 },
-      { label: 'Simplicity', score: 90 },
     ],
   },
   json: {
     key: 'json',
     name: 'JSON',
+    url: 'https://www.json.org/',
     verdict:
       'OmniBuf is less than half the size of JSON and 18x to 32x faster, while still letting you use standard ProtoJSON for plain-text debugging from the same .proto file.',
     omniWinsList: [
@@ -145,10 +151,10 @@ export const formatProfiles: Record<string, FormatProfile> = {
     ],
     stats: [
       { label: 'Wire Size', score: 42 },
-      { label: 'Encode Speed', score: 15 },
+      { label: 'Encode Speed', score: 12 },
       { label: 'Decode Speed', score: 10 },
-      { label: 'Memory Efficiency', score: 30 },
-      { label: 'Simplicity', score: 98 },
+      { label: 'Field Lookup', score: 10 },
+      { label: 'Memory Efficiency', score: 38 },
     ],
   },
 };
@@ -164,8 +170,8 @@ export const benchmarkCategories: BenchmarkCategory[] = [
       'Serializes a populated 11-field message (scalars, strings, packed int arrays, a 6-field nested sub-message, and 4 repeated sub-messages) into a reused byte buffer or FlatBuffers builder.',
     rows: [
       { name: 'OmniBuf', val: 94, highlight: true, color: '#FF4F18' },
-      { name: 'Protobuf', val: 561, color: '#57534E' },
-      { name: 'FlatBuffers', val: 562, color: '#57534E' },
+      { name: 'Protobuf', val: 561, color: '#78716C' },
+      { name: 'FlatBuffers', val: 562, color: '#78716C' },
       { name: "Cap'n Proto", val: 1016, color: '#A8A29E' },
       { name: 'MessagePack', val: 1552, color: '#A8A29E' },
       { name: 'JSON', val: 1720, color: '#A8A29E' },
@@ -179,9 +185,9 @@ export const benchmarkCategories: BenchmarkCategory[] = [
       "Deserializes the encoded packet back into a reusable Go struct with zero-copy string slices. For FlatBuffers and Cap'n Proto, all 11 fields and nested structures are read out of the root table into the target struct so every format performs equivalent work.",
     rows: [
       { name: 'OmniBuf', val: 120, highlight: true, color: '#FF4F18' },
-      { name: 'FlatBuffers', val: 170, color: '#57534E' },
+      { name: 'FlatBuffers', val: 170, color: '#78716C' },
       { name: "Cap'n Proto", val: 772, color: '#A8A29E' },
-      { name: 'Protobuf', val: 960, color: '#57534E' },
+      { name: 'Protobuf', val: 960, color: '#78716C' },
       { name: 'MessagePack', val: 2496, color: '#A8A29E' },
       { name: 'JSON', val: 3850, color: '#A8A29E' },
     ],
@@ -193,12 +199,12 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     methodology:
       "Extracts a single string inside a nested sub-message from a raw packet without decoding the rest of the message. OmniBuf skips preceding fields via header hopping, FlatBuffers and unframed Cap'n Proto follow offset pointers directly, framed Cap'n Proto parses the segment frame header first, and Protobuf unmarshals the message.",
     rows: [
-      { name: "Cap'n Proto (Unframed Shared Memory)", val: 5, color: '#57534E' },
-      { name: 'FlatBuffers', val: 13, color: '#57534E' },
+      { name: "Cap'n Proto (Unframed Shared Memory)", val: 5, color: '#78716C' },
+      { name: 'FlatBuffers', val: 13, color: '#78716C' },
       { name: 'OmniBuf', val: 76, highlight: true, color: '#FF4F18' },
       { name: "Cap'n Proto (Framed Packet)", val: 221, color: '#A8A29E' },
       { name: 'MessagePack', val: 590, color: '#A8A29E' },
-      { name: 'Protobuf', val: 983, color: '#57534E' },
+      { name: 'Protobuf', val: 983, color: '#78716C' },
     ],
   },
   {
@@ -208,7 +214,7 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     methodology:
       'Measures the exact serialized byte length of the identical 11-field payload across all formats, including OmniBuf both in standard .proto mode and with Field #0 inline field names enabled.',
     rows: [
-      { name: 'Protobuf', val: 341, color: '#57534E' },
+      { name: 'Protobuf', val: 341, color: '#78716C' },
       { name: 'OmniBuf', val: 362, highlight: true, color: '#FF4F18' },
       { name: "Cap'n Proto", val: 560, color: '#A8A29E' },
       { name: 'FlatBuffers', val: 600, color: '#A8A29E' },

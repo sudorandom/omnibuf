@@ -178,7 +178,7 @@
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #111111;
-    scroll-margin-top: 4.5rem;
+    scroll-margin-top: 7.25rem;
     overflow-wrap: anywhere;
   }
 
@@ -192,7 +192,7 @@
     line-height: 1.35;
     margin-top: 2rem;
     margin-bottom: 0.75rem;
-    scroll-margin-top: 4.5rem;
+    scroll-margin-top: 7.25rem;
     overflow-wrap: anywhere;
   }
 
@@ -203,7 +203,15 @@
     margin-top: 1.5rem;
     margin-bottom: 0.5rem;
     color: #111111;
-    scroll-margin-top: 4.5rem;
+    scroll-margin-top: 7.25rem;
+  }
+
+  @media (min-width: 1024px) {
+    .spec-prose h2,
+    .spec-prose h3,
+    .spec-prose h4 {
+      scroll-margin-top: 4.5rem;
+    }
   }
 
   .spec-prose .spec-anchor {
@@ -250,6 +258,10 @@
     max-width: 65ch;
   }
 
+  .spec-prose .bg-ink p {
+    color: rgba(244, 240, 230, 0.92);
+  }
+
   .spec-prose ul,
   .spec-prose ol {
     margin-bottom: 1.25rem;
@@ -285,15 +297,22 @@
     padding: 0.1rem 0.38rem;
     border-radius: 3px;
     font-weight: 600;
+    overflow-wrap: break-word;
+  }
+
+  .spec-prose .bg-ink code {
+    background-color: rgba(250, 248, 242, 0.14);
+    color: #d4ff33;
+    border-color: rgba(250, 248, 242, 0.35);
   }
 
   .spec-prose pre {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     line-height: 1.6;
     background-color: #111111;
     color: #faf8f2;
-    padding: 1.1rem 1.35rem;
+    padding: 1rem 1.25rem;
     border-radius: 6px;
     border: 2px solid #111111;
     overflow-x: auto;
@@ -301,17 +320,20 @@
     margin-bottom: 1.5rem;
   }
 
-  .spec-prose pre code {
+  .spec-prose pre code,
+  .spec-prose table code {
     background: transparent;
     border: none;
     padding: 0;
     color: inherit;
     font-size: inherit;
-    font-weight: 400;
+    font-weight: inherit;
+    white-space: inherit;
   }
 
   .spec-prose .table-wrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     margin-top: 1rem;
     margin-bottom: 1.5rem;
     border: 2px solid #111111;
@@ -323,20 +345,27 @@
     width: 100%;
     border-collapse: collapse;
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     text-align: left;
     font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 640px) {
+    .spec-prose table {
+      font-size: 0.875rem;
+    }
   }
 
   .spec-prose th {
     background-color: #e5e0d5;
     border-bottom: 2px solid #111111;
-    padding: 0.55rem 0.65rem;
+    padding: 0.6rem 0.8rem;
     font-weight: 700;
+    white-space: nowrap;
   }
 
   .spec-prose td {
-    padding: 0.5rem 0.65rem;
+    padding: 0.55rem 0.8rem;
     border-bottom: 1px solid rgba(17, 17, 17, 0.15);
     vertical-align: top;
   }
@@ -344,6 +373,361 @@
   .spec-prose tr:last-child td {
     border-bottom: none;
   }
+}
+
+/* Shiki Code Block Comment Contrast Fix (Light & Dark Modes) */
+pre.astro-code span[style*='#6A737D'],
+pre.astro-code span[style*='#6a737d'] {
+  color: #959da5 !important;
+}
+
+/* Light Mode Signal Orange Contrast on Paper (>= 3.15:1 AA Large Text) */
+html:not(.dark) .text-\[\#FF4F18\] {
+  color: #e03e0b;
+}
+
+html:not(.dark) .bg-ink .text-\[\#FF4F18\] {
+  color: #ff4f18;
+}
+
+/* Dark Mode ("Night Workstation Manual") */
+html.dark {
+  --bg-paper: #0e1014;
+  --ink: #f4f0e6;
+  scrollbar-color: #d4ff33 #1c2029;
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: var(--bg-paper);
+  color: var(--ink);
+  background-image:
+    linear-gradient(to right, rgba(244, 240, 230, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 240, 230, 0.045) 1px, transparent 1px);
+}
+
+/* Surfaces in Dark Mode */
+html.dark .os-window {
+  background-color: #161920;
+  border-color: #454d5e;
+  box-shadow: 6px 6px 0px #050608;
+}
+
+html.dark .os-window-lg {
+  background-color: #161920;
+  border-color: #454d5e;
+  box-shadow: 10px 10px 0px #050608;
+}
+
+html.dark .os-titlebar {
+  border-bottom-color: #454d5e;
+}
+
+html.dark .os-stripes {
+  background: repeating-linear-gradient(
+    to bottom,
+    #f4f0e6,
+    #f4f0e6 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.2;
+}
+
+html.dark .os-btn {
+  border-color: #454d5e;
+  box-shadow: 4px 4px 0px #050608;
+}
+
+html.dark .os-btn:hover,
+html.dark .os-btn:focus-visible {
+  box-shadow: 6px 6px 0px #050608;
+  outline-color: #d4ff33;
+}
+
+html.dark .os-btn:active {
+  box-shadow: 1px 1px 0px #050608;
+}
+
+html.dark .bg-\[\#FAF8F2\],
+html.dark .bg-\[\#FAF8F2\]\/60,
+html.dark .bg-\[\#FAF8F2\]\/80,
+html.dark .bg-\[\#F3EFE6\],
+html.dark .bg-cream,
+html.dark .bg-paper {
+  background-color: #161920 !important;
+}
+
+html.dark .bg-white,
+html.dark .bg-white\/60 {
+  background-color: #1c2029 !important;
+}
+
+html.dark .bg-\[\#E5E0D5\],
+html.dark .bg-\[\#E5E0D5\]\/50,
+html.dark .bg-\[\#E5E0D5\]\/70 {
+  background-color: #262b36 !important;
+  color: #f4f0e6;
+}
+
+html.dark .hover\:bg-\[\#E5E0D5\]:hover,
+html.dark .hover\:bg-\[\#FAF8F2\]:hover {
+  background-color: #262b36 !important;
+  color: #f4f0e6 !important;
+}
+
+html.dark .hover\:bg-ink\/5:hover {
+  background-color: rgba(244, 240, 230, 0.1) !important;
+}
+
+html.dark .bg-ink {
+  background-color: #090b0e !important;
+  border-color: #454d5e;
+}
+
+html.dark .bg-acid\/25,
+html.dark .bg-acid\/30 {
+  background-color: rgba(212, 255, 51, 0.14) !important;
+}
+
+html.dark .bg-acid\/45 {
+  background-color: rgba(212, 255, 51, 0.24) !important;
+}
+
+/* Text Colors in Dark Mode */
+html.dark .text-ink {
+  color: #f4f0e6;
+}
+
+html.dark .text-ink\/90 {
+  color: rgba(244, 240, 230, 0.92);
+}
+
+html.dark .text-ink\/85 {
+  color: rgba(244, 240, 230, 0.87);
+}
+
+html.dark .text-ink\/80 {
+  color: rgba(244, 240, 230, 0.82);
+}
+
+html.dark .text-ink\/75 {
+  color: rgba(244, 240, 230, 0.76);
+}
+
+html.dark .text-ink\/70 {
+  color: rgba(244, 240, 230, 0.72);
+}
+
+html.dark .text-ink\/65 {
+  color: rgba(244, 240, 230, 0.68);
+}
+
+html.dark .text-ink\/60 {
+  color: rgba(244, 240, 230, 0.64);
+}
+
+html.dark .text-ink\/50 {
+  color: rgba(244, 240, 230, 0.6);
+}
+
+html.dark .text-\[\#C23000\] {
+  color: #ff7a4d !important;
+}
+
+/* Preserve Dark Ink Text on Bright Signal Surfaces & Active/Hover States */
+html.dark .bg-acid,
+html.dark .bg-acid.text-ink,
+html.dark .bg-acid .text-ink,
+html.dark .bg-\[\#FFAB70\],
+html.dark .bg-\[\#FFAB70\].text-ink,
+html.dark .hover\:bg-acid:hover,
+html.dark .hover\:bg-acid:hover.hover\:text-ink,
+html.dark details[open] > summary.group-open\:bg-acid,
+html.dark a[data-spec-link][data-active='true'],
+html.dark a[data-spec-h3][data-active='true'] {
+  background-color: #d4ff33 !important;
+  color: #111111 !important;
+}
+
+html.dark .bg-\[\#FFAB70\],
+html.dark .bg-\[\#FFAB70\].text-ink {
+  background-color: #ffab70 !important;
+  color: #111111 !important;
+}
+
+/* Borders & Dividers in Dark Mode */
+html.dark .border-ink {
+  border-color: #454d5e !important;
+}
+
+html.dark .border-ink\/30,
+html.dark .border-ink\/25,
+html.dark .border-ink\/20,
+html.dark .border-ink\/15 {
+  border-color: rgba(244, 240, 230, 0.16) !important;
+}
+
+html.dark .divide-ink > :not([hidden]) ~ :not([hidden]) {
+  border-color: #454d5e !important;
+}
+
+html.dark .divide-ink\/20 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-ink\/15 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(244, 240, 230, 0.16) !important;
+}
+
+/* Navigation & Links in Dark Mode */
+html.dark .nav-link:hover {
+  background-color: rgba(244, 240, 230, 0.08);
+}
+
+html.dark .nav-link:focus-visible,
+html.dark .focus-visible\:outline-ink:focus-visible {
+  outline-color: #d4ff33 !important;
+}
+
+html.dark .group:hover .group-hover\:text-ink {
+  color: #f4f0e6 !important;
+}
+
+html.dark .nav-link[data-active='true'] {
+  background-color: #d4ff33;
+  color: #111111;
+  border-color: #454d5e;
+  box-shadow: 2px 2px 0px #050608;
+}
+
+/* Inline Code & Specification Prose in Dark Mode */
+html.dark :not(pre) > code,
+html.dark .text-ink :not(pre) > code,
+html.dark .spec-prose code {
+  background-color: #262b36;
+  color: #d4ff33;
+  border-color: rgba(244, 240, 230, 0.25);
+}
+
+html.dark .bg-acid :not(pre) > code {
+  background-color: rgba(17, 17, 17, 0.12);
+  color: #111111;
+  border-color: rgba(17, 17, 17, 0.35);
+}
+
+html.dark .spec-prose {
+  color: #f4f0e6;
+}
+
+html.dark .spec-prose h2 {
+  border-bottom-color: #454d5e;
+}
+
+html.dark .spec-prose h4 {
+  color: #f4f0e6;
+}
+
+html.dark .spec-prose p,
+html.dark .spec-prose li {
+  color: rgba(244, 240, 230, 0.9);
+}
+
+html.dark .spec-prose .spec-anchor {
+  color: rgba(244, 240, 230, 0.65);
+  border-color: rgba(244, 240, 230, 0.25);
+}
+
+html.dark .spec-prose h2:hover .spec-anchor,
+html.dark .spec-prose h3:hover .spec-anchor,
+html.dark .spec-prose h4:hover .spec-anchor,
+html.dark .spec-prose .spec-anchor:hover,
+html.dark .spec-prose .spec-anchor:focus-visible,
+html.dark .spec-prose .spec-anchor[data-copied='true'] {
+  color: #111111;
+  background-color: #d4ff33;
+  border-color: #454d5e;
+  box-shadow: 2px 2px 0px #050608;
+}
+
+html.dark .spec-prose pre {
+  background-color: #090b0e;
+  border-color: #454d5e;
+}
+
+html.dark .spec-prose pre code,
+html.dark .spec-prose table code {
+  background: transparent;
+  border: none;
+  color: inherit;
+}
+
+html.dark .spec-prose .table-wrap {
+  background-color: #161920;
+  border-color: #454d5e;
+}
+
+html.dark .spec-prose th {
+  background-color: #262b36;
+  border-bottom-color: #454d5e;
+  color: #f4f0e6;
+}
+
+html.dark .spec-prose td {
+  border-bottom-color: rgba(244, 240, 230, 0.14);
+  color: #f4f0e6;
+}
+
+/* Blueprint SVGs in Dark Mode */
+html.dark svg rect[fill='#FAF8F2'] {
+  fill: #161920;
+}
+
+html.dark svg rect[fill='#FFFFFF'] {
+  fill: #1c2029;
+}
+
+html.dark svg rect[fill='#E5E0D5'] {
+  fill: #262b36;
+}
+
+html.dark svg rect[stroke='#111111'],
+html.dark svg circle[stroke='#111111'] {
+  stroke: #636e82;
+}
+
+html.dark svg line[stroke='#111111'],
+html.dark svg path[stroke='#111111'] {
+  stroke: #c8d0e0;
+}
+
+html.dark svg polygon[fill='#111111'],
+html.dark svg circle[fill='#111111'] {
+  fill: #c8d0e0;
+}
+
+html.dark svg path[marker-end^='url(#hop-omni'] {
+  stroke: #d4ff33;
+}
+
+html.dark svg marker#hop-omni path,
+html.dark svg marker#hop-omni-m path {
+  fill: #d4ff33;
+}
+
+html.dark svg tspan[fill='#00805A'] {
+  fill: #10b981;
+}
+
+html.dark svg text[fill='#111111'] {
+  fill: #f4f0e6;
+}
+
+html.dark svg text[fill='#555'],
+html.dark svg text[fill='#666'] {
+  fill: rgba(244, 240, 230, 0.75);
+}
+
+html.dark svg rect[fill='#D4FF33'] + text[fill='#111111'],
+html.dark svg rect[fill='#D4FF33'] + text[fill='#111111'] + text[fill='#111111'] {
+  fill: #111111;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -15,26 +15,9 @@
   </h1>
 
   <div class="mt-8 max-w-4xl space-y-5">
+    <!-- prettier-ignore -->
     <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
-      <a
-        href="https://protobuf.dev/programming-guides/encoding/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="doc-link"
-      >
-        Protobuf
-      </a>{' '}
-      got schemas right, mostly, but the wire format from 2001 made two costly mistakes:{' '}
-      <strong>it requires the schema just to decode values</strong>, and its byte-by-byte{' '}
-      <a
-        href="https://en.wikipedia.org/wiki/LEB128"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="doc-link"
-      >
-        LEB128 varints
-      </a>{' '}
-      are slow as hell.
+      <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> got schemas right, mostly, but the wire format from 2001 made two costly mistakes: <strong>it requires the schema just to decode values</strong>, and its byte-by-byte <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a> are slow as hell.
     </p>
     <p class="text-base sm:text-xl font-mono text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md">
       <strong>OmniBuf</strong> gives you <strong>all the benefits of Protobuf</strong> (your
@@ -46,7 +29,7 @@
     <div class="flex flex-wrap gap-3.5 pt-2 no-print">
       <a
         href="/how-it-works"
-        class="os-btn px-5 py-3 bg-[#FF4F18] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
+        class="os-btn px-5 py-3 bg-acid text-ink font-mono font-bold text-sm sm:text-base rounded-md"
       >
         How It Works &rarr;
       </a>
@@ -67,7 +50,7 @@
       </span>
       <div class="os-stripes"></div>
     </div>
-    <div class="p-4 sm:p-6 bg-[#F3EFE6]">
+    <div class="p-4 sm:p-6 bg-[#FAF8F2]">
       <!-- DESKTOP SVG (Horizontal Tree) -->
       <svg
         viewBox="0 0 840 420"

@@ -11,22 +11,25 @@ const pages = [
   { href: '/benchmarks', key: 'benchmarks', label: 'Benchmarks' },
   { href: '/spec', key: 'spec', label: 'Specification' },
 ] as const;
+
+const activePageLabel = pages.find((p) => p.key === currentPage)?.label ?? 'Menu';
 ---
 
 <header class="sticky top-0 z-50 bg-[#FAF8F2] border-b-2 border-ink no-print">
   <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2 text-xs sm:text-base font-mono">
-    <div class="flex items-center gap-1.5 sm:gap-5 min-w-0">
+    <div class="flex items-center gap-2 sm:gap-5 min-w-0">
       <a
         href="/"
-        class="font-bold bg-ink text-paper px-2.5 sm:px-3 py-1 rounded flex items-center gap-1.5 sm:gap-2 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        class="font-bold bg-ink text-paper border-2 border-ink px-2.5 sm:px-3 py-1 rounded flex items-center gap-1.5 sm:gap-2 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <span class="w-2.5 h-2.5 bg-acid inline-block shrink-0"></span>
         <span>OmniBuf</span>
       </a>
 
+      <!-- Desktop Navigation -->
       <nav
         aria-label="Page navigation"
-        class="flex items-center gap-1 sm:gap-2 font-medium overflow-x-auto min-w-0 py-1.5 px-0.5"
+        class="hidden md:flex items-center gap-2 font-medium min-w-0 py-1.5 px-0.5"
       >
         {pages.map((p) => (
           <a
@@ -42,6 +45,50 @@ const pages = [
     </div>
 
     <div class="flex items-center gap-2 shrink-0">
+      <!-- Mobile Hamburger / Dropdown Selector -->
+      <details id="mobile-nav-menu" class="relative md:hidden group">
+        <summary
+          aria-label="Toggle navigation menu"
+          class="list-none cursor-pointer px-2.5 py-1.5 bg-[#E5E0D5] text-ink border-2 border-ink rounded font-bold flex items-center gap-2 select-none shadow-[2px_2px_0px_#121212] group-open:bg-acid group-open:translate-x-[1px] group-open:translate-y-[1px] group-open:shadow-none"
+        >
+          <svg
+            class="w-4 h-4 stroke-current shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke-width="2.5"
+            stroke-linecap="square"
+            aria-hidden="true"
+          >
+            <path d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+          <span>{activePageLabel}</span>
+          <span class="text-[10px] transition-transform group-open:rotate-180" aria-hidden="true">
+            &#9662;
+          </span>
+        </summary>
+
+        <nav
+          aria-label="Mobile page navigation"
+          class="absolute right-0 mt-2 w-52 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#121212] py-1.5 z-50 divide-y divide-ink/15"
+        >
+          {pages.map((p) => {
+            const isActive = currentPage === p.key;
+            return (
+              <a
+                href={p.href}
+                aria-current={isActive ? 'page' : undefined}
+                class={`flex items-center justify-between px-3.5 py-2.5 text-sm font-bold transition-colors ${
+                  isActive ? 'bg-acid text-ink' : 'text-ink hover:bg-[#E5E0D5]'
+                }`}
+              >
+                <span>{p.label}</span>
+                {isActive && <span class="text-xs">&bull;</span>}
+              </a>
+            );
+          })}
+        </nav>
+      </details>
+
       <a
         href="https://github.com/sudorandom/omnibuf"
         target="_blank"
@@ -54,6 +101,94 @@ const pages = [
         </svg>
         <span class="hidden sm:inline">GitHub</span>
       </a>
+
+      <button
+        type="button"
+        id="theme-toggle"
+        aria-label="Toggle dark mode"
+        title="Toggle dark mode"
+        class="p-1.5 sm:px-2.5 sm:py-1.5 bg-[#E5E0D5] text-ink border-2 border-ink font-bold shadow-[2px_2px_0px_#121212] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#121212] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink transition rounded flex items-center justify-center cursor-pointer"
+      >
+        <!-- Sun icon (shown in dark mode) -->
+        <svg
+          data-theme-icon="sun"
+          class="hidden w-4 h-4 stroke-current"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <!-- Moon icon (shown in light mode) -->
+        <svg
+          data-theme-icon="moon"
+          class="w-4 h-4 stroke-current"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
     </div>
   </div>
 </header>
+
+<script>
+  const mobileNav = document.getElementById('mobile-nav-menu') as HTMLDetailsElement | null;
+  if (mobileNav) {
+    document.addEventListener('click', (e) => {
+      if (mobileNav.open && !mobileNav.contains(e.target as Node)) {
+        mobileNav.open = false;
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mobileNav.open) {
+        mobileNav.open = false;
+      }
+    });
+  }
+
+  const themeToggle = document.getElementById('theme-toggle');
+  const sunIcon = document.querySelector<SVGElement>('[data-theme-icon="sun"]');
+  const moonIcon = document.querySelector<SVGElement>('[data-theme-icon="moon"]');
+
+  function syncThemeIcons() {
+    const isDark = document.documentElement.classList.contains('dark');
+    if (sunIcon && moonIcon) {
+      sunIcon.classList.toggle('hidden', !isDark);
+      moonIcon.classList.toggle('hidden', isDark);
+    }
+    if (themeToggle) {
+      themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    }
+  }
+
+  syncThemeIcons();
+
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try {
+        localStorage.setItem('omnibuf-theme', isDark ? 'dark' : 'light');
+      } catch {
+        // Ignore storage errors
+      }
+      syncThemeIcons();
+    });
+  }
+</script>

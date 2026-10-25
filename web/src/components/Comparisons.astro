@@ -18,10 +18,11 @@ import RadarChart from './RadarChart.astro';
     {opponentKeys.map((oppKey) => {
       const opp = formatProfiles[oppKey];
       return (
-        <div class="os-window-lg overflow-hidden">
+        <div id={`compare-${oppKey}`} class="os-window-lg overflow-hidden scroll-mt-20">
           <div class="os-titlebar bg-[#E5E0D5]">
+            <!-- prettier-ignore -->
             <span class="font-mono text-sm sm:text-base font-bold uppercase">
-              OmniBuf vs. {opp.name}
+              OmniBuf vs. {opp.url ? <a href={opp.url} target="_blank" rel="noopener noreferrer" class="doc-link">{opp.name}</a> : opp.name}
             </span>
             <div class="os-stripes" />
           </div>

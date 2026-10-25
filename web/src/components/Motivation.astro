@@ -23,36 +23,16 @@
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           No byte-by-byte varint loops. No two-pass encoding.
         </h3>
+        <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Protobuf's{' '}
-          <a
-            href="https://en.wikipedia.org/wiki/LEB128"
-            target="_blank"
-            rel="noopener"
-            class="doc-link"
-          >
-            LEB128
-          </a>{' '}
-          varints check a continuation bit on every byte, and its length-prefixed sub-messages force
-          encoders to walk the struct tree twice (once to compute sizes, once to write bytes).
-          OmniBuf puts the integer byte width in the first byte (
-          <a
-            href="https://en.wikipedia.org/wiki/Find_first_set"
-            target="_blank"
-            rel="noopener"
-            class="doc-link"
-          >
-            <code>TZCNT</code>
-          </a>
-          ) so integers decode in a single load, and reserves 2-byte length slots so messages encode
-          in a single forward pass.
+          Protobuf's <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener" class="doc-link">LEB128</a> varints check a continuation bit on every byte, and its length-prefixed sub-messages force encoders to walk the struct tree twice (once to compute sizes, once to write bytes). OmniBuf puts the integer byte width in the first byte (<a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener" class="doc-link"><code>TZCNT</code></a>) so the CPU reads the whole integer at once without looping over each byte, and reserves 2-byte length slots so messages encode in a single pass.
         </p>
       </div>
       <div class="lg:col-span-4">
         <div class="p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
           <div class="text-acid font-bold">6x faster encode</div>
           <div class="text-white font-bold">8x faster decode</div>
-          <div class="text-paper/75 text-sm">1-pass write &bull; 1-load varints</div>
+          <div class="text-paper/75 text-sm">Zero heap allocations on encode</div>
         </div>
       </div>
     </div>
@@ -63,16 +43,9 @@
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Inspect packets without a schema &amp; use normal structs.
         </h3>
+        <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Protobuf lumps strings, byte slices, sub-messages, maps, and packed arrays into a single
-          wire type (<code>Wire Type 2</code>). Without the <code>.proto</code> file, a decoder can
-          only guess what a payload contains. OmniBuf uses a 4-bit wire type (~6% larger on the
-          wire) so every type is explicit. Any CLI or log viewer can decode packets without a
-          schema, and you still work with normal Go structs instead of{' '}
-          <a href="https://flatbuffers.dev/" target="_blank" rel="noopener" class="doc-link">
-            FlatBuffers
-          </a>{' '}
-          builders.
+          Protobuf lumps strings, byte slices, sub-messages, maps, and packed arrays into a single wire type (<code>Wire Type 2</code>). Without the <code>.proto</code> file, a decoder can only guess what a payload contains. OmniBuf uses a 4-bit wire type (~6% larger on the wire) so every type is explicit. Any CLI or log viewer can decode packets without a schema, and you still work with normal Go structs instead of <a href="https://flatbuffers.dev/" target="_blank" rel="noopener" class="doc-link">FlatBuffers</a> builders.
         </p>
       </div>
       <div class="lg:col-span-4">

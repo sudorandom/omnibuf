@@ -1,39 +1,6 @@
 ---
 import { Code } from 'astro:components';
 
-const protoConsumeVarintCode = `func ConsumeVarint(b []byte) (v uint64, n int) {
-    var y uint64
-    if len(b) <= 0 { return 0, errCodeTruncated }
-    v = uint64(b[0])
-    if v < 0x80 { return v, 1 }
-    v -= 0x80
-
-    if len(b) <= 1 { return 0, errCodeTruncated }
-    y = uint64(b[1]); v += y << 7
-    if y < 0x80 { return v, 2 }
-    v -= 0x80 << 7
-
-    if len(b) <= 2 { return 0, errCodeTruncated }
-    y = uint64(b[2]); v += y << 14
-    if y < 0x80 { return v, 3 }
-    v -= 0x80 << 14
-    // ... repeats 7 more times up to b[9] ...
-}`;
-
-const omniReadVarintCode = `func ReadVarintAt(b []byte, pos int) (uint64, int) {
-    b0 := b[pos]
-    if (b0 & 1) != 0 {
-        return uint64(b0 >> 1), pos + 1
-    }
-    if (b0 & 2) != 0 {
-        return uint64(binary.LittleEndian.Uint16(b[pos:]) >> 2), pos + 2
-    }
-    if (b0 & 4) != 0 {
-        return uint64(binary.LittleEndian.Uint32(b[pos:]) >> 3), pos + 4
-    }
-    return binary.LittleEndian.Uint64(b[pos+1:]), pos + 9
-}`;
-
 const nodeSchemaCode = `message Node {
   uint32 id = 16;  // 5,000,000 (4B int)
   bool active = 3; // true
@@ -41,45 +8,28 @@ const nodeSchemaCode = `message Node {
 }`;
 ---
 
-<section id="how-it-works" class="pt-0 pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-  <div class="border-t-2 border-ink/20 divide-y-2 divide-ink/20">
-    <!-- Row 1: Decode ints in a single load (Merged with Varint Code & Microbenchmarks) -->
+<section
+  id="how-it-works"
+  class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+>
+  <div class="max-w-3xl mb-8">
+    <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+      Under the hood of{' '}
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">the encoding.</span>
+    </h2>
+  </div>
+
+  <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
+    <!-- Row 1: Read integers without byte-by-byte loops -->
     <div class="py-8 sm:py-10 space-y-6">
       <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         <div class="lg:col-span-6 space-y-3 min-w-0">
-          <h2 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-            Decode ints in a single load
-          </h2>
+          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+            Read integers without byte-by-byte loops
+          </h3>
+          <!-- prettier-ignore -->
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-            Instead of checking continuation bits on every byte in a loop, the trailing zeros in
-            Byte 0 tell the CPU the exact byte width (<code>1</code>, <code>2</code>, <code>4</code>
-            , or <code>9</code> bytes) right away via{' '}
-            <a
-              href="https://en.wikipedia.org/wiki/Find_first_set"
-              target="_blank"
-              rel="noopener"
-              class="doc-link"
-            >
-              <code>TZCNT</code>
-            </a>
-            . Signed integers use{' '}
-            <a
-              href="https://protobuf.dev/programming-guides/encoding/#signed-ints"
-              target="_blank"
-              rel="noopener"
-              class="doc-link"
-            >
-              ZigZag encoding
-            </a>
-            .
-          </p>
-          <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-            In Go's official Protobuf library (<code>protowire.ConsumeVarint</code>), decoding a
-            single integer takes a 100-line unrolled function with 10 bounds checks and 10
-            continuation-bit branches that the Go compiler cannot inline. OmniBuf's{' '}
-            <code>ReadVarintAt</code> is 12 lines, inlines everywhere, and loads <code>1</code>,{' '}
-            <code>2</code>, <code>4</code>, or <code>8</code> bytes in one unaligned hardware
-            instruction.
+            Instead of checking continuation bits on every byte in a loop, the trailing zeros in Byte 0 tell the CPU the exact byte width (1, 2, 4, or 9 bytes) right away via <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener" class="doc-link"><code>TZCNT</code></a>, reading the whole integer at once. Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener" class="doc-link">ZigZag encoding</a>.
           </p>
         </div>
         <div class="lg:col-span-6">
@@ -119,37 +69,6 @@ const nodeSchemaCode = `message Node {
                 9B (64b)
               </span>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Side-by-Side Code Comparison -->
-      <div class="grid lg:grid-cols-2 gap-6 font-mono text-xs sm:text-sm">
-        <div class="bg-ink border-2 border-ink rounded-md overflow-hidden flex flex-col">
-          <div class="bg-[#E5E0D5] text-ink px-4 py-2.5 border-b-2 border-ink font-bold flex items-center justify-between">
-            <span>
-              Protobuf: <code>protowire.ConsumeVarint</code>
-            </span>
-            <span class="text-[#C23000] text-xs uppercase font-bold">
-              100 Lines &bull; Cannot Inline
-            </span>
-          </div>
-          <div class="p-4 overflow-x-auto leading-relaxed flex-1 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
-            <Code code={protoConsumeVarintCode} lang="go" theme="github-dark" />
-          </div>
-        </div>
-
-        <div class="bg-ink border-2 border-ink rounded-md overflow-hidden flex flex-col">
-          <div class="bg-acid text-ink px-4 py-2.5 border-b-2 border-ink font-bold flex items-center justify-between">
-            <span>
-              OmniBuf: <code>ReadVarintAt</code>
-            </span>
-            <span class="text-ink text-xs uppercase font-bold">
-              12 Lines &bull; Inlines Everywhere
-            </span>
-          </div>
-          <div class="p-4 overflow-x-auto leading-relaxed flex-1 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
-            <Code code={omniReadVarintCode} lang="go" theme="github-dark" />
           </div>
         </div>
       </div>
@@ -230,9 +149,9 @@ const nodeSchemaCode = `message Node {
     <!-- Row 2: Single-Pass Encoding -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-6 space-y-2.5 min-w-0">
-        <h2 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Reserve 2 bytes &amp; patch after
-        </h2>
+        </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
           Protobuf requires shortest-length varints, so encoders must measure every child object
           before writing. In OmniBuf, a 2-byte Prefix-Varint (<code>TZCNT=1</code>) is valid for any
@@ -258,7 +177,7 @@ const nodeSchemaCode = `message Node {
             <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
               <span class="px-2 py-0.5 bg-paper/20 rounded">Tag #9</span>
               <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded">Len=7B</span>
-              <span class="px-2 py-0.5 bg-[#FF4F18] text-ink font-bold rounded">[7B]</span>
+              <span class="px-2 py-0.5 bg-[#FFAB70] text-ink font-bold rounded">[7B]</span>
             </div>
           </div>
         </div>
@@ -269,9 +188,9 @@ const nodeSchemaCode = `message Node {
     <div class="py-8 sm:py-10 space-y-6">
       <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         <div class="lg:col-span-6 space-y-2.5 min-w-0">
-          <h2 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
             0-byte bools, explicit types &amp; 1-step skipping
-          </h2>
+          </h3>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
             Widening wire types from 3 bits to 4 bits (<code>0..15</code>) puts booleans directly
             inside the tag byte (<strong>0 value bytes</strong>), distinguishes unsigned (
@@ -288,7 +207,7 @@ const nodeSchemaCode = `message Node {
                 Field #
               </div>
               <div class="col-span-5 bg-acid text-ink py-2 border-r border-ink">4-Bit Type</div>
-              <div class="col-span-2 bg-[#FF4F18] text-ink font-bold py-2">TZ</div>
+              <div class="col-span-2 bg-[#FFAB70] text-ink font-bold py-2">TZ</div>
             </div>
             <div class="flex flex-wrap justify-between gap-2 text-xs sm:text-sm text-paper/90">
               <span>

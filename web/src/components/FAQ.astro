@@ -15,8 +15,8 @@ const faqItems: FAQItem[] = [
   {
     question: 'Why a new format?',
     paragraphs: [
-      "Protobuf is generally fine, and JSON is generally fine, but both have rough edges. Protobuf's 2001 wire format is slow to decode and opaque in logs; JSON is bulky and breaks on 64-bit integers and binary data.",
-      "At the same time, Protobuf's IDL methodology is genuinely great. Schema-first development with explicit field numbers lets systems adapt and evolve at a much faster pace. OmniBuf keeps the .proto schema workflow and replaces only the wire encoding.",
+      'The main goal is simple: we want a better Protobuf, and showing a concrete re-imagining of the wire format can help push the ecosystem further.',
+      "Protobuf is generally fine, and JSON is generally fine, but both have rough edges. Protobuf's 2001 wire format is slow to decode and opaque in logs; JSON is bulky and breaks on 64-bit integers and binary data. At the same time, Protobuf's IDL methodology is genuinely great: schema-first development with explicit field numbers lets systems adapt and evolve at a much faster pace. OmniBuf keeps the .proto schema workflow intact and shows what becomes possible when you modernize the wire encoding underneath it.",
     ],
   },
   {
