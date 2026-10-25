@@ -210,10 +210,10 @@ const nodeSchemaCode = `message Node {
                 <marker
                   id="hop-proto"
                   viewBox="0 0 10 10"
-                  refX="7"
+                  refX="9"
                   refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
+                  markerWidth="5.5"
+                  markerHeight="5.5"
                   orient="auto"
                 >
                   <path d="M 0 1 L 10 5 L 0 9 z" fill="#FF4F18" />
@@ -221,10 +221,10 @@ const nodeSchemaCode = `message Node {
                 <marker
                   id="hop-omni"
                   viewBox="0 0 10 10"
-                  refX="7"
+                  refX="9"
                   refY="5"
-                  markerWidth="6.5"
-                  markerHeight="6.5"
+                  markerWidth="6"
+                  markerHeight="6"
                   orient="auto"
                 >
                   <path d="M 0 1 L 10 5 L 0 9 z" fill="#111111" />
@@ -245,10 +245,10 @@ const nodeSchemaCode = `message Node {
                 PROTOBUF: Bounces on every varint byte to check continuation bits (8 stops)
               </text>
 
-              <!-- 8 Bouncing Arcs (Center of each byte to the next) -->
+              <!-- 8 Bouncing Arcs (Separated from start/end stop dots) -->
               <!-- Bounce 1: Tag B1 (55) -> Tag B2 (141) -->
               <path
-                d="M 55 96 Q 98 52 137 94"
+                d="M 62 91 Q 98 52 131 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
@@ -256,7 +256,7 @@ const nodeSchemaCode = `message Node {
               />
               <!-- Bounce 2: Tag B2 (141) -> Int B1 (227) -->
               <path
-                d="M 141 96 Q 184 52 223 94"
+                d="M 148 91 Q 184 52 217 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
@@ -264,7 +264,7 @@ const nodeSchemaCode = `message Node {
               />
               <!-- Bounce 3: Int B1 (227) -> Int B2 (313) -->
               <path
-                d="M 227 96 Q 270 52 309 94"
+                d="M 234 91 Q 270 52 303 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
@@ -272,7 +272,7 @@ const nodeSchemaCode = `message Node {
               />
               <!-- Bounce 4: Int B2 (313) -> Int B3 (399) -->
               <path
-                d="M 313 96 Q 356 52 395 94"
+                d="M 320 91 Q 356 52 389 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
@@ -280,7 +280,7 @@ const nodeSchemaCode = `message Node {
               />
               <!-- Bounce 5: Int B3 (399) -> Int B4 (485) -->
               <path
-                d="M 399 96 Q 442 52 481 94"
+                d="M 406 91 Q 442 52 475 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
@@ -288,7 +288,7 @@ const nodeSchemaCode = `message Node {
               />
               <!-- Bounce 6: Int B4 (485) -> Bool Tag (571) -->
               <path
-                d="M 485 96 Q 528 52 567 94"
+                d="M 492 91 Q 528 52 561 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
@@ -296,7 +296,7 @@ const nodeSchemaCode = `message Node {
               />
               <!-- Bounce 7: Bool Tag (571) -> Bool Val (657) -->
               <path
-                d="M 571 96 Q 614 52 653 94"
+                d="M 578 91 Q 614 52 647 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
@@ -304,22 +304,23 @@ const nodeSchemaCode = `message Node {
               />
               <!-- Bounce 8: Bool Val (657) -> Target (743) -->
               <path
-                d="M 657 96 Q 700 52 739 94"
+                d="M 664 91 Q 700 52 733 89"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.5"
                 marker-end="url(#hop-proto)"
               />
 
-              <!-- Bounce Stop Dots -->
-              <circle cx="55" cy="96" r="4" fill="#FF4F18" />
-              <circle cx="141" cy="96" r="4" fill="#FF4F18" />
-              <circle cx="227" cy="96" r="4" fill="#FF4F18" />
-              <circle cx="313" cy="96" r="4" fill="#FF4F18" />
-              <circle cx="399" cy="96" r="4" fill="#FF4F18" />
-              <circle cx="485" cy="96" r="4" fill="#FF4F18" />
-              <circle cx="571" cy="96" r="4" fill="#FF4F18" />
-              <circle cx="657" cy="96" r="4" fill="#FF4F18" />
+              <!-- Bounce Stop Dots (Distinct cream/ink fill so orange arrows never blend in) -->
+              <circle cx="55" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="141" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="227" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="313" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="399" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="485" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="571" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="657" cy="95" r="4" fill="#FAF8F2" stroke="#111111" stroke-width="2" />
+              <circle cx="743" cy="95" r="4" fill="#D4FF33" stroke="#111111" stroke-width="2" />
 
               <!-- Protobuf Byte Cells (y=102, h=52, w=78, gap=8) -->
               <!-- Cell 0: Tag B1 -->
@@ -689,7 +690,7 @@ const nodeSchemaCode = `message Node {
 
               <!-- Jump 1: Tag B1 (55) -> Int B1 (227) (Leaps over Tag B2) -->
               <path
-                d="M 55 304 Q 141 245 222 301"
+                d="M 63 298 Q 141 245 216 296"
                 fill="none"
                 stroke="#111111"
                 stroke-width="3"
@@ -719,7 +720,7 @@ const nodeSchemaCode = `message Node {
 
               <!-- Jump 2: Int B1 (227) -> Bool Tag (571) (Leaps over Int B2, B3, B4) -->
               <path
-                d="M 227 304 Q 399 235 566 301"
+                d="M 236 298 Q 399 235 559 296"
                 fill="none"
                 stroke="#111111"
                 stroke-width="3"
@@ -749,7 +750,7 @@ const nodeSchemaCode = `message Node {
 
               <!-- Jump 3: Bool Tag (571) -> Target (657) -->
               <path
-                d="M 571 304 Q 614 256 652 301"
+                d="M 579 298 Q 614 256 646 296"
                 fill="none"
                 stroke="#111111"
                 stroke-width="3"
@@ -777,10 +778,11 @@ const nodeSchemaCode = `message Node {
                 Jump +1B
               </text>
 
-              <!-- Start Dots (Only 3 touches!) -->
-              <circle cx="55" cy="304" r="5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
-              <circle cx="227" cy="304" r="5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
-              <circle cx="571" cy="304" r="5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <!-- Start & Target Dots (Only 3 jumps!) -->
+              <circle cx="55" cy="303" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <circle cx="227" cy="303" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <circle cx="571" cy="303" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <circle cx="657" cy="303" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
 
               <!-- OmniBuf Byte Cells (y=310, h=52) -->
               <!-- Cell 0..1: 2B Tag consumed in one go -->
@@ -1070,10 +1072,10 @@ const nodeSchemaCode = `message Node {
                 <marker
                   id="hop-proto-m"
                   viewBox="0 0 10 10"
-                  refX="7"
+                  refX="9"
                   refY="5"
-                  markerWidth="5.5"
-                  markerHeight="5.5"
+                  markerWidth="5"
+                  markerHeight="5"
                   orient="auto"
                 >
                   <path d="M 0 1 L 10 5 L 0 9 z" fill="#FF4F18" />
@@ -1081,10 +1083,10 @@ const nodeSchemaCode = `message Node {
                 <marker
                   id="hop-omni-m"
                   viewBox="0 0 10 10"
-                  refX="7"
+                  refX="9"
                   refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
+                  markerWidth="5.5"
+                  markerHeight="5.5"
                   orient="auto"
                 >
                   <path d="M 0 1 L 10 5 L 0 9 z" fill="#111111" />
@@ -1453,73 +1455,130 @@ const nodeSchemaCode = `message Node {
                 8 stops
               </text>
 
-              <!-- 8 Bouncing Red Arcs on Protobuf Column -->
+              <!-- 8 Bouncing Orange Arcs on Protobuf Column (Separated from dots) -->
               <path
-                d="M 120 79 Q 158 109 123 136"
+                d="M 127 84 Q 158 109 128 130"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
               <path
-                d="M 120 139 Q 158 169 123 196"
+                d="M 127 144 Q 158 169 128 190"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
               <path
-                d="M 120 199 Q 158 229 123 256"
+                d="M 127 204 Q 158 229 128 250"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
               <path
-                d="M 120 259 Q 158 289 123 316"
+                d="M 127 264 Q 158 289 128 310"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
               <path
-                d="M 120 319 Q 158 349 123 376"
+                d="M 127 324 Q 158 349 128 370"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
               <path
-                d="M 120 379 Q 158 409 123 436"
+                d="M 127 384 Q 158 409 128 430"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
               <path
-                d="M 120 439 Q 158 469 123 496"
+                d="M 127 444 Q 158 469 128 490"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
               <path
-                d="M 120 499 Q 158 529 123 556"
+                d="M 127 504 Q 158 529 128 551"
                 fill="none"
                 stroke="#FF4F18"
                 stroke-width="2.2"
                 marker-end="url(#hop-proto-m)"
               />
 
-              <!-- Protobuf Bounce Dots -->
-              <circle cx="120" cy="79" r="3.5" fill="#FF4F18" />
-              <circle cx="120" cy="139" r="3.5" fill="#FF4F18" />
-              <circle cx="120" cy="199" r="3.5" fill="#FF4F18" />
-              <circle cx="120" cy="259" r="3.5" fill="#FF4F18" />
-              <circle cx="120" cy="319" r="3.5" fill="#FF4F18" />
-              <circle cx="120" cy="379" r="3.5" fill="#FF4F18" />
-              <circle cx="120" cy="439" r="3.5" fill="#FF4F18" />
-              <circle cx="120" cy="499" r="3.5" fill="#FF4F18" />
+              <!-- Protobuf Bounce Dots (Distinct fill + border) -->
+              <circle cx="122" cy="79" r="3.5" fill="#FAF8F2" stroke="#111111" stroke-width="1.8" />
+              <circle
+                cx="122"
+                cy="139"
+                r="3.5"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="122"
+                cy="199"
+                r="3.5"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="122"
+                cy="259"
+                r="3.5"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="122"
+                cy="319"
+                r="3.5"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="122"
+                cy="379"
+                r="3.5"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="122"
+                cy="439"
+                r="3.5"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="122"
+                cy="499"
+                r="3.5"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="122"
+                cy="560"
+                r="3.5"
+                fill="#D4FF33"
+                stroke="#111111"
+                stroke-width="1.8"
+              />
 
               <!-- ============================================================ -->
               <!-- RIGHT COLUMN: OMNIBUF (3 Direct Vertical Jumps)              -->
@@ -1801,7 +1860,7 @@ const nodeSchemaCode = `message Node {
               <!-- 3 Long Leaping Arcs on OmniBuf Column -->
               <!-- Jump 1: Row 0 (79) -> Row 2 (199) -->
               <path
-                d="M 310 79 Q 368 139 313 196"
+                d="M 318 85 Q 368 139 320 190"
                 fill="none"
                 stroke="#111111"
                 stroke-width="2.6"
@@ -1831,7 +1890,7 @@ const nodeSchemaCode = `message Node {
 
               <!-- Jump 2: Row 2 (199) -> Row 6 (439) -->
               <path
-                d="M 310 199 Q 382 319 313 436"
+                d="M 318 205 Q 382 319 320 430"
                 fill="none"
                 stroke="#111111"
                 stroke-width="2.6"
@@ -1861,17 +1920,18 @@ const nodeSchemaCode = `message Node {
 
               <!-- Jump 3: Row 6 (439) -> Row 7 (499) -->
               <path
-                d="M 310 439 Q 348 469 313 496"
+                d="M 318 445 Q 350 469 320 490"
                 fill="none"
                 stroke="#111111"
                 stroke-width="2.6"
                 marker-end="url(#hop-omni-m)"
               />
 
-              <!-- OmniBuf Jump Start Dots -->
-              <circle cx="310" cy="79" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
-              <circle cx="310" cy="199" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
-              <circle cx="310" cy="439" r="4.5" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <!-- OmniBuf Jump Start & Target Dots -->
+              <circle cx="312" cy="79" r="4" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <circle cx="312" cy="199" r="4" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <circle cx="312" cy="439" r="4" fill="#D4FF33" stroke="#111111" stroke-width="2" />
+              <circle cx="312" cy="499" r="4" fill="#D4FF33" stroke="#111111" stroke-width="2" />
             </svg>
           </div>
         </div>
