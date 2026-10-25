@@ -3,12 +3,13 @@ import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Capabilities from '../components/Capabilities.astro';
 import HowItWorks from '../components/HowItWorks.astro';
+import Comparisons from '../components/Comparisons.astro';
 import Footer from '../components/Footer.astro';
 ---
 
 <Layout
   title="How It Works | OmniBuf"
-  description="How OmniBuf achieves single-pass forward encoding, branchless Prefix-Varint decoding, raw message concatenation, and schema-less inspection."
+  description="How OmniBuf achieves single-pass forward encoding, branchless Prefix-Varint decoding, raw message concatenation, schema-less inspection, and how it compares to other formats."
 >
   <Navbar currentPage="how-it-works" />
 
@@ -23,28 +24,29 @@ import Footer from '../components/Footer.astro';
         </span>
       </h1>
       <p class="mt-6 max-w-3xl text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
-        New wire behaviors, schema-less inspection capabilities, and the encoding changes that make
-        them possible.
+        New wire behaviors, schema-less inspection capabilities, the encoding changes that make them
+        possible, and how OmniBuf compares to other formats.
       </p>
     </section>
 
     <Capabilities />
     <HowItWorks />
+    <Comparisons />
 
     <section class="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink no-print">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
-          Next: See how OmniBuf performs on the wire
+          Next: Read the wire specification or try a language runtime
         </div>
         <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
-          <a href="/benchmarks" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
-            Benchmarks &amp; Comparisons &rarr;
-          </a>
-          <a href="/spec" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
+          <a href="/spec" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
             Wire Specification &rarr;
           </a>
           <a href="/go" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
             OmniBuf for Go &rarr;
+          </a>
+          <a href="/es" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
+            TypeScript / JS &rarr;
           </a>
         </div>
       </div>

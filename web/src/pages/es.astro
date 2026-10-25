@@ -1,0 +1,841 @@
+---
+import { Code } from 'astro:components';
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+const defineMessageSnippet = `import {
+  defineMessage,
+  create,
+  toBinary,
+  fromBinary,
+  type Message,
+} from '@omnibuf/core';
+
+interface Peer extends Message<'app.Peer'> {
+  peerId: number;
+  router: string;
+  active: boolean;
+  prefixes: number[];
+}
+
+const PeerSchema = defineMessage<Peer, 'app.Peer'>('app.Peer', {
+  peerId: { fieldNum: 1, name: 'peer_id', type: 'uint32' },
+  router: { fieldNum: 2, type: 'string', omitEmpty: true },
+  active: { fieldNum: 3, type: 'bool' },
+  prefixes: { fieldNum: 4, type: 'uint32', repeated: true },
+});
+
+const peer = create(PeerSchema, {
+  peerId: 64512,
+  router: 'rtr-01',
+  active: true,
+});
+const pkt = toBinary(PeerSchema, peer);
+const out = fromBinary(PeerSchema, pkt);`;
+
+const protobufEsSnippet = `import {
+  create,
+  toBinary,
+  fromBinary,
+} from '@omnibuf/core';
+// Standard protoc-gen-es descriptor:
+import { PeerUpdateSchema } from './gen/peer_pb.js';
+
+const msg = create(PeerUpdateSchema, {
+  asn: 64512,
+  routerId: 'edge-rtr-fra01',
+  active: true,
+});
+const pkt = toBinary(PeerUpdateSchema, msg);
+const out = fromBinary(PeerUpdateSchema, pkt);`;
+
+const bufGenEsSnippet = `version: v2
+plugins:
+  - local: protoc-gen-omnibuf-es
+    out: src/gen
+    opt: target=ts`;
+
+const generatedEsSnippet = `import {
+  create,
+  toBinary,
+  fromBinary,
+} from '@omnibuf/core';
+import {
+  PeerUpdateSchema,
+  OpaquePeerUpdate,
+} from './gen/peer_omnibuf.pb.js';
+
+const msg = create(PeerUpdateSchema, {
+  asn: 64512,
+  routerId: 'rtr-01',
+  active: true,
+});
+const pkt = toBinary(PeerUpdateSchema, msg);
+
+// Lazy Opaque view: O(1) hop + zero-decode splice
+const view = new OpaquePeerUpdate(pkt);
+if (view.getActive() && view.getAsn() === 64512) {
+  view.setSequence(99n);
+  const forwarded = view.marshal();
+}`;
+
+const opaqueSpliceEsCode = `const view = new OpaquePeerUpdate(pkt);
+const router = view.getRouterId(); // O(1) header hop
+
+// Update field #3 (active) and field #11 (sequence) in place:
+view.setActive(false);
+view.setSequence(42n);
+const updated = view.marshal();`;
+
+const field0BlindEsCode = `import { toBinary, decodeBlind } from '@omnibuf/core';
+
+// Prepend Field #0 (SchemaMeta) inline with the packet:
+const pkt = toBinary(PeerSchema, peer, {
+  selfDescribing: true,
+});
+
+// Decode any OmniBuf packet without a schema:
+const fields = decodeBlind(pkt);`;
+
+const runtimeAdaptersCode = `// Browser / Edge: TextEncoder.encodeInto + Web Streams
+import {
+  createOmniBufDecodeStream,
+  inspectPacket,
+} from '@omnibuf/web';
+
+// Node.js: Buffer UTF-8 codec + stream framing
+import { writeFrame, readFrames } from '@omnibuf/node';`;
+
+interface EsBenchmarkRow {
+  name: string;
+  val: number;
+  ops: string;
+  sizeBytes?: number;
+  highlight?: boolean;
+  baseline?: boolean;
+}
+
+interface EsBenchmarkCategory {
+  title: string;
+  unit: string;
+  maxVal: number;
+  methodology: string;
+  rows: EsBenchmarkRow[];
+}
+
+const esBenchmarkCategories: EsBenchmarkCategory[] = [
+  {
+    title: 'Full Message Encode Speed',
+    unit: 'ns',
+    maxVal: 5000,
+    methodology:
+      'Measures serializing the canonical 11-field PeerUpdate message (nested Location submessage, 4 Neighbor submessages, packed uint32 prefixes, string tags, and 64-bit counters) into a Uint8Array. OmniBuf writes in a single forward pass with 2-byte length backpatching and an inline UTF-8 fast path.',
+    rows: [
+      {
+        name: 'OmniBuf',
+        val: 734,
+        ops: '1,362,684 ops/s',
+        sizeBytes: 362,
+        highlight: true,
+        baseline: true,
+      },
+      {
+        name: 'protobufjs',
+        val: 1283,
+        ops: '779,696 ops/s',
+        sizeBytes: 350,
+      },
+      {
+        name: 'JSON',
+        val: 1798,
+        ops: '556,170 ops/s',
+        sizeBytes: 791,
+      },
+      {
+        name: '@bufbuild/protobuf (protobuf-es)',
+        val: 2116,
+        ops: '472,495 ops/s',
+        sizeBytes: 350,
+      },
+      {
+        name: '@msgpack/msgpack',
+        val: 3108,
+        ops: '321,709 ops/s',
+        sizeBytes: 622,
+      },
+      {
+        name: 'google-protobuf',
+        val: 4551,
+        ops: '219,719 ops/s',
+        sizeBytes: 350,
+      },
+    ],
+  },
+  {
+    title: 'Full Message Decode Speed',
+    unit: 'ns',
+    maxVal: 3000,
+    methodology:
+      'Measures decoding the full 11-field PeerUpdate packet back into a typed JavaScript message object. Generated OmniBuf schemas dispatch on Prefix-Varint tags in a single switch loop without reflection, reading strings and submessages in place without intermediate subarray slices.',
+    rows: [
+      {
+        name: 'OmniBuf',
+        val: 826,
+        ops: '1,210,766 ops/s',
+        highlight: true,
+        baseline: true,
+      },
+      {
+        name: 'protobufjs',
+        val: 1195,
+        ops: '836,811 ops/s',
+      },
+      {
+        name: 'JSON',
+        val: 1989,
+        ops: '502,791 ops/s',
+      },
+      {
+        name: 'google-protobuf',
+        val: 2665,
+        ops: '375,248 ops/s',
+      },
+      {
+        name: '@msgpack/msgpack',
+        val: 2824,
+        ops: '354,064 ops/s',
+      },
+      {
+        name: '@bufbuild/protobuf (protobuf-es)',
+        val: 2996,
+        ops: '333,786 ops/s',
+      },
+    ],
+  },
+  {
+    title: 'Read a Single Nested Field (peer.location.city)',
+    unit: 'ns',
+    maxVal: 3000,
+    methodology:
+      'Measures extracting a nested string field (peer.location.city) from a serialized packet. OmniBuf hops across preceding field headers in O(1) time per field using TZCNT length prefixes without decoding untouched strings, arrays, or submessages.',
+    rows: [
+      {
+        name: 'OmniBuf',
+        val: 363,
+        ops: '2,751,375 ops/s',
+        highlight: true,
+        baseline: true,
+      },
+      {
+        name: 'protobufjs',
+        val: 1190,
+        ops: '839,984 ops/s',
+      },
+      {
+        name: 'JSON',
+        val: 2031,
+        ops: '492,286 ops/s',
+      },
+      {
+        name: 'google-protobuf',
+        val: 2656,
+        ops: '376,477 ops/s',
+      },
+      {
+        name: '@msgpack/msgpack',
+        val: 2797,
+        ops: '357,494 ops/s',
+      },
+      {
+        name: '@bufbuild/protobuf (protobuf-es)',
+        val: 3052,
+        ops: '327,632 ops/s',
+      },
+    ],
+  },
+  {
+    title: 'Selective Single-Field Mutation (Update peer.sequence & Re-Serialize)',
+    unit: 'ns',
+    maxVal: 7500,
+    methodology:
+      'Measures updating a 64-bit sequence counter on an in-flight packet and producing the updated wire bytes. OmniBuf splices the modified field directly onto the raw Uint8Array packet without decoding or re-encoding untouched fields.',
+    rows: [
+      {
+        name: 'OmniBuf',
+        val: 254,
+        ops: '3,929,775 ops/s',
+        highlight: true,
+        baseline: true,
+      },
+      {
+        name: 'protobufjs',
+        val: 2818,
+        ops: '354,818 ops/s',
+      },
+      {
+        name: 'JSON',
+        val: 3616,
+        ops: '276,567 ops/s',
+      },
+      {
+        name: '@bufbuild/protobuf (protobuf-es)',
+        val: 5185,
+        ops: '192,877 ops/s',
+      },
+      {
+        name: '@msgpack/msgpack',
+        val: 5894,
+        ops: '169,651 ops/s',
+      },
+      {
+        name: 'google-protobuf',
+        val: 7175,
+        ops: '139,378 ops/s',
+      },
+    ],
+  },
+];
+
+const esFaqItems = [
+  {
+    question: 'How does omnibuf-es fit into a protobuf-es (@bufbuild/protobuf) codebase?',
+    paragraphs: [
+      'Messages in <code>@omnibuf/core</code> follow the <code>@bufbuild/protobuf</code> v2 plain-object design: every message has a <code>$typeName</code> property, optional <code>$unknown</code> field storage, and <code>camelCase</code> field properties that map to <code>snake_case</code> names in Field #0.',
+      'The standard lifecycle functions (<code>create</code>, <code>toBinary</code>, <code>fromBinary</code>, <code>mergeFromBinary</code>, <code>clone</code>, <code>equals</code>, and <code>isMessage</code>) accept existing <code>protoc-gen-es</code> descriptors, generated <code>protoc-gen-omnibuf-es</code> schemas, and declarative <code>defineMessage</code> schemas interchangeably.',
+    ],
+  },
+  {
+    question: 'When should I use Opaque views instead of fromBinary?',
+    paragraphs: [
+      'Use <code>fromBinary</code> when your code reads most fields of a message. Use generated <code>Opaque</code> views in edge workers, WebSocket gateways, and telemetry pipelines that only inspect a routing field or update a counter before forwarding the packet.',
+      'Getters hop across field headers in one step without decoding untouched strings or sub-messages, and <code>view.marshal()</code> splices modified fields directly onto the underlying <code>Uint8Array</code>.',
+    ],
+    codeBlock: opaqueSpliceEsCode,
+    codeLabel: 'Lazy Read & Zero-Decode Splice',
+  },
+  {
+    question: 'How do I enable Field #0 inline field names or decode without a schema?',
+    paragraphs: [
+      'Pass <code>{ selfDescribing: true }</code> to <code>toBinary(schema, msg, options)</code> on any schema to emit Field #0 (<code>omnibuf.v1.SchemaMeta</code>) at byte 0 with the root and nested field-name tables.',
+      'To inspect a packet without a schema or generated code, call <code>decodeBlind(pkt)</code>. It returns a plain object keyed by field numbers, or by field names automatically when Field #0 is present.',
+    ],
+    codeBlock: field0BlindEsCode,
+    codeLabel: 'Field #0 & Schema-Less Decode',
+  },
+  {
+    question: 'What is the difference between @omnibuf/core, @omnibuf/web, and @omnibuf/node?',
+    paragraphs: [
+      '<code>@omnibuf/core</code> is a zero-dependency, environment-agnostic runtime that works in browsers, Node.js, Deno, Bun, and Cloudflare Workers.',
+      'Importing <code>@omnibuf/web</code> registers a browser codec backed by <code>TextEncoder.encodeInto</code> and adds Web Streams (<code>TransformStream</code>) and DevTools packet inspection helpers. Importing <code>@omnibuf/node</code> registers a <code>Buffer</code>-backed UTF-8 codec, Node stream framing (<code>writeFrame</code>, <code>readFrames</code>), and <code>.fds.json</code> / <code>.fds.pb.gz</code> descriptor loaders.',
+    ],
+    codeBlock: runtimeAdaptersCode,
+    codeLabel: 'Browser & Node.js Adapters',
+  },
+];
+
+const stripHtml = (s: string) => s.replace(/<[^>]+>/g, '');
+
+const esFaqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: esFaqItems.map((item) => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.paragraphs.map(stripHtml).join('\n\n'),
+    },
+  })),
+};
+---
+
+<Layout
+  title="OmniBuf for TypeScript & JS | protobuf-es, defineMessage & protoc-gen-omnibuf-es"
+  description="Use OmniBuf in TypeScript and JavaScript: define schemas in TypeScript, drop in on existing @bufbuild/protobuf descriptors, or generate single-pass codecs and Opaque views."
+>
+  <Navbar currentPage="es" />
+
+  <main id="main-content">
+    <!-- Page Header + Up-Front Install Bar -->
+    <section class="relative pt-10 pb-8 sm:pt-16 sm:pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <h1 class="text-[2.6rem] sm:text-7xl lg:text-[5.5rem] font-bold tracking-tight leading-[0.94] text-ink uppercase">
+        OmniBuf
+        <br />
+        <span class="font-serif italic font-normal normal-case text-[#FF4F18] text-[3.1rem] sm:text-8xl lg:text-[6.2rem]">
+          for TypeScript &amp; JS.
+        </span>
+      </h1>
+
+      <div class="mt-6 grid lg:grid-cols-12 gap-6 lg:gap-8 items-end">
+        <div class="lg:col-span-7 space-y-4">
+          <p class="text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
+            Runtime and code generator for Node.js, browsers, and edge workers: serialize{' '}
+            <a href="#define-message" class="doc-link">
+              declarative TypeScript schemas
+            </a>
+            , drop in on{' '}
+            <a href="#protobuf-es" class="doc-link">
+              @bufbuild/protobuf descriptors
+            </a>
+            , or generate single-pass codecs and lazy{' '}
+            <a href="#plugin-codegen" class="doc-link">
+              Opaque views
+            </a>{' '}
+            (see the{' '}
+            <a href="#benchmarks" class="doc-link">
+              TypeScript &amp; JS benchmarks
+            </a>{' '}
+            below).
+          </p>
+          <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base pt-1 no-print">
+            <a
+              href="https://github.com/sudorandom/omnibuf-es"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="os-btn px-4 py-2.5 bg-acid text-ink font-bold rounded-md"
+            >
+              GitHub Repository (omnibuf-es) &rarr;
+            </a>
+            <a href="/spec" class="os-btn px-4 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
+              Wire Specification &rarr;
+            </a>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5 space-y-3 min-w-0">
+          <div class="p-4 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink shadow-[4px_4px_0px_#111111]">
+            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-paper/15">
+              <div class="text-xs font-bold uppercase text-acid">Core Runtime (Universal)</div>
+              <button
+                type="button"
+                data-copy="pnpm add @omnibuf/core"
+                class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              >
+                Copy
+              </button>
+            </div>
+            <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add @omnibuf/core</code></pre>
+          </div>
+
+          <div class="p-4 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink shadow-[4px_4px_0px_#111111]">
+            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-paper/15">
+              <div class="text-xs font-bold uppercase text-acid">
+                Browser &amp; Edge (@omnibuf/web)
+              </div>
+              <button
+                type="button"
+                data-copy="pnpm add @omnibuf/web"
+                class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              >
+                Copy
+              </button>
+            </div>
+            <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add @omnibuf/web</code></pre>
+          </div>
+
+          <div class="p-4 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink shadow-[4px_4px_0px_#111111]">
+            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-paper/15">
+              <div class="text-xs font-bold uppercase text-acid">Node.js (@omnibuf/node)</div>
+              <button
+                type="button"
+                data-copy="pnpm add @omnibuf/node"
+                class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              >
+                Copy
+              </button>
+            </div>
+            <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add @omnibuf/node</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Three Ways to Use OmniBuf in TypeScript & JS -->
+    <section
+      id="quickstart"
+      class="scroll-mt-16 py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+    >
+      <div class="max-w-3xl mb-8">
+        <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+          Three ways to use{' '}
+          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
+            OmniBuf in TypeScript.
+          </span>
+        </h2>
+        <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
+          Define schemas directly in TypeScript, pass existing <code>@bufbuild/protobuf</code>{' '}
+          descriptors with no build changes, or generate single-pass codecs and lazy{' '}
+          <code>Opaque</code> views with the compiler plugin.
+        </p>
+      </div>
+
+      <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
+        <!-- 1. Declarative TypeScript Schemas -->
+        <div
+          id="define-message"
+          class="scroll-mt-16 py-8 sm:py-12 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
+        >
+          <div class="lg:col-span-5 space-y-3.5 min-w-0">
+            <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+              Declarative TypeScript schemas
+            </h3>
+            <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+              Define a schema in TypeScript with <code>defineMessage</code> (or decorate a class
+              with <code>@omnibufMessage</code> and <code>@omnibufField</code>) and pass it to{' '}
+              <code>create</code>, <code>toBinary</code>, and <code>fromBinary</code>:
+            </p>
+            <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
+              <li>
+                <code>fieldNum</code> sets the wire field number (<code>1..65535</code>).
+              </li>
+              <li>
+                <code>name</code> sets the wire field name written to Field #0 (defaults to{' '}
+                <code>snake_case</code> of the TypeScript property name).
+              </li>
+              <li>
+                <code>type</code> selects the wire encoding (<code>uint32</code>,{' '}
+                <code>uint64</code>, <code>sint32</code>, <code>sint64</code>, <code>fixed32</code>,{' '}
+                <code>fixed64</code>, <code>float</code>, <code>double</code>, <code>bool</code>,{' '}
+                <code>string</code>, <code>bytes</code>, <code>message</code>, or <code>map</code>).
+              </li>
+              <li>
+                <code>omitEmpty</code> skips encoding when the field holds its default value.
+              </li>
+            </ul>
+          </div>
+
+          <div class="lg:col-span-7 min-w-0">
+            <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+              <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                <div class="text-xs font-bold uppercase text-acid">defineMessage Schema</div>
+                <button
+                  type="button"
+                  data-copy={defineMessageSnippet}
+                  class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
+              </div>
+              <Code code={defineMessageSnippet} lang="ts" theme="github-dark" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Existing @bufbuild/protobuf Descriptors -->
+        <div
+          id="protobuf-es"
+          class="scroll-mt-16 py-8 sm:py-12 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
+        >
+          <div class="lg:col-span-5 space-y-3.5 min-w-0">
+            <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+              Existing @bufbuild/protobuf schemas
+            </h3>
+            <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+              Already generating TypeScript descriptors with <code>protoc-gen-es</code>? Pass your
+              existing <code>DescMessage</code> schemas directly to <code>create</code>,{' '}
+              <code>toBinary</code>, <code>fromBinary</code>, and <code>mergeFromBinary</code> with
+              no extra plugin step.
+            </p>
+            <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+              OmniBuf compiles each <code>DescMessage</code> into a cached field-dispatch table on
+              first use, preserving unknown fields in <code>$unknown</code> and supporting both{' '}
+              <code>proto3</code> and Editions 2023/2024 descriptors.
+            </p>
+          </div>
+
+          <div class="lg:col-span-7 min-w-0">
+            <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+              <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                <div class="text-xs font-bold uppercase text-acid">
+                  Existing @bufbuild/protobuf Descriptors
+                </div>
+                <button
+                  type="button"
+                  data-copy={protobufEsSnippet}
+                  class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
+              </div>
+              <Code code={protobufEsSnippet} lang="ts" theme="github-dark" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Generated Code with protoc-gen-omnibuf-es -->
+        <div
+          id="plugin-codegen"
+          class="scroll-mt-16 py-8 sm:py-12 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
+        >
+          <div class="lg:col-span-5 space-y-3.5 min-w-0">
+            <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+              Generated code with protoc-gen-omnibuf-es
+            </h3>
+            <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+              Add <code>protoc-gen-omnibuf-es</code> to your <code>buf.gen.yaml</code>. The plugin
+              generates typed <code>Message</code> interfaces, single-pass encoders and switch-based
+              decoders, and lazy <code>Opaque</code> wrapper classes.
+            </p>
+            <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+              <code>Opaque</code> views read individual fields directly from the{' '}
+              <code>Uint8Array</code> packet via <code>locateField</code> and re-serialize modified
+              packets using <code>spliceFields</code> without decoding untouched fields.
+            </p>
+          </div>
+
+          <div class="lg:col-span-7 space-y-3.5 min-w-0">
+            <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+              <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                <div class="text-xs font-bold uppercase text-acid">buf.gen.yaml</div>
+                <button
+                  type="button"
+                  data-copy={bufGenEsSnippet}
+                  class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
+              </div>
+              <Code code={bufGenEsSnippet} lang="yaml" theme="github-dark" />
+            </div>
+
+            <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+              <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                <div class="text-xs font-bold uppercase text-acid">
+                  Generated Schema &amp; Lazy Opaque View
+                </div>
+                <button
+                  type="button"
+                  data-copy={generatedEsSnippet}
+                  class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
+              </div>
+              <Code code={generatedEsSnippet} lang="ts" theme="github-dark" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="copy-live-region" class="sr-only" aria-live="polite"></div>
+    </section>
+
+    <!-- TypeScript & JS Benchmarks -->
+    <section
+      id="benchmarks"
+      class="scroll-mt-16 py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+    >
+      <div class="max-w-3xl mb-10">
+        <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+          TypeScript &amp; JS{' '}
+          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">benchmarks.</span>
+        </h2>
+        <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
+          Measured against <code>protobufjs</code>, <code>@bufbuild/protobuf</code> v2 (
+          <code>protobuf-es</code>), <code>google-protobuf</code>, <code>@msgpack/msgpack</code>,
+          and native <code>JSON</code> on the canonical 11-field <code>PeerUpdate</code> workload.{' '}
+          <strong>Shorter bars = Faster.</strong>
+        </p>
+      </div>
+
+      <div class="space-y-8">
+        {esBenchmarkCategories.map((cat) => (
+          <div class="os-window overflow-hidden">
+            <div class="os-titlebar bg-[#E5E0D5]">
+              <span class="font-mono text-sm sm:text-base font-bold uppercase">{cat.title}</span>
+              <div class="os-stripes" />
+            </div>
+
+            <div class="p-5 sm:p-7 bg-[#FAF8F2] space-y-3">
+              <p class="text-sm sm:text-base text-ink/85 leading-relaxed pb-2 max-w-[70ch]">
+                {cat.methodology}
+              </p>
+              {(() => {
+                const omniVal =
+                  cat.rows.find((row) => row.baseline)?.val ??
+                  cat.rows.find((row) => row.highlight)?.val ??
+                  cat.rows[0].val;
+                return cat.rows.map((r) => {
+                  const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
+                  let ratioStr = '1.00x (base)';
+                  if (r.val !== omniVal) {
+                    ratioStr =
+                      r.val < omniVal
+                        ? `${(omniVal / r.val).toFixed(2)}x faster`
+                        : `${(r.val / omniVal).toFixed(2)}x slower`;
+                  }
+                  return (
+                    <div
+                      class:list={[
+                        'grid grid-cols-12 gap-3 items-center px-3 rounded min-w-0',
+                        r.baseline
+                          ? 'py-2.5 bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
+                          : r.highlight
+                            ? 'py-2 bg-acid/25 border-2 border-dashed border-ink font-bold'
+                            : 'py-2 border border-ink/15 bg-white',
+                      ]}
+                    >
+                      <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
+                        {r.name}
+                      </div>
+                      <div class="col-span-7 sm:col-span-5 flex items-center min-w-0">
+                        <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
+                          <div
+                            class:list={[
+                              'h-full border-r border-ink',
+                              r.highlight ? 'bench-bar-omni' : 'bench-bar-competitor',
+                            ]}
+                            style={`width: ${pct}%;`}
+                          />
+                        </div>
+                      </div>
+                      <div class="col-span-5 sm:col-span-3 text-right font-mono tabular-nums leading-tight">
+                        <span class="text-sm sm:text-base font-bold text-ink">{ratioStr}</span>
+                        <span class="block text-xs text-ink/75 font-normal">
+                          {r.val.toLocaleString('en-US')} {cat.unit} &middot; {r.ops}
+                          {r.sizeBytes !== undefined ? ` (${r.sizeBytes} B)` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- Benchmark Environment & Reproducibility -->
+      <div class="mt-10 pt-10 border-t-2 border-ink/15 grid md:grid-cols-12 gap-6 lg:gap-8 items-start">
+        <div class="md:col-span-4 space-y-2">
+          <h3 class="text-xl sm:text-2xl font-bold uppercase tracking-tight leading-snug">
+            Benchmark Environment
+          </h3>
+          <div class="p-4 bg-ink text-paper rounded-md border-2 border-ink space-y-1.5 font-mono text-sm mt-3">
+            <div class="text-acid font-bold uppercase">Hardware &amp; Runtime</div>
+            <div>CPU: Apple Silicon (darwin/arm64)</div>
+            <div>Runtime: Node.js v24.22.1 (V8)</div>
+            <div>
+              Command: <code>pnpm run bench</code>
+            </div>
+          </div>
+        </div>
+        <div class="md:col-span-8 md:pt-1 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+          <p>
+            All benchmarks serialize, deserialize, inspect, and mutate the same 11-field{' '}
+            <code>PeerUpdate</code> message used in the Go benchmark suite: unsigned and ZigZag-signed
+            integers, booleans, IEEE-754 floats, string lists, packed <code>uint32</code> prefix
+            arrays, a 6-field nested <code>Location</code> sub-message, and a 4-element repeated{' '}
+            <code>Neighbor</code> sub-message list.
+          </p>
+          <p class="text-sm sm:text-base text-ink/80">
+            The benchmark harness is located in{' '}
+            <a
+              href="https://github.com/sudorandom/omnibuf-es/blob/main/benchmarks/bench.ts"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="doc-link font-mono"
+            >
+              benchmarks/bench.ts
+            </a>{' '}
+            in the <code>omnibuf-es</code> repository and can be reproduced locally with{' '}
+            <code>pnpm run bench</code> or <code>just bench</code>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TypeScript & JS FAQ -->
+    <section
+      id="es-faq"
+      class="scroll-mt-16 py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+    >
+      <div class="max-w-3xl mb-10">
+        <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
+          TypeScript &amp; JS{' '}
+          <span class="font-serif italic font-normal normal-case text-[#FF4F18]">questions.</span>
+        </h2>
+      </div>
+
+      <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
+        {esFaqItems.map((item) => (
+          <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            <h3 class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug">
+              {item.question}
+            </h3>
+
+            <div class="lg:col-span-7 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch] min-w-0">
+              {item.paragraphs.map((paragraph) => (
+                <p set:html={paragraph} />
+              ))}
+              {item.codeBlock && (
+                <div class="bg-ink text-paper p-4 sm:p-5 rounded-md border-2 border-ink font-mono text-xs sm:text-sm leading-relaxed overflow-x-auto [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
+                  <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                    <div class="text-xs font-bold uppercase text-acid">
+                      {item.codeLabel ?? 'Example'}
+                    </div>
+                    <button
+                      type="button"
+                      data-copy={item.codeBlock}
+                      class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <Code code={item.codeBlock} lang="ts" theme="github-dark" />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <script is:inline type="application/ld+json" set:html={JSON.stringify(esFaqJsonLd)} />
+    </section>
+
+    <section class="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink no-print">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
+          Explore the wire layout, Go implementation &amp; specification
+        </div>
+        <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
+          <a href="/how-it-works" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
+            How It Works &rarr;
+          </a>
+          <a href="/go" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
+            OmniBuf for Go &rarr;
+          </a>
+          <a href="/spec" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
+            Wire Specification &rarr;
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</Layout>
+
+<script>
+  const liveRegion = document.getElementById('copy-live-region');
+  const timers = new WeakMap<HTMLButtonElement, number>();
+  document.querySelectorAll<HTMLButtonElement>('.copy-snippet-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const text = btn.getAttribute('data-copy');
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+      const orig =
+        btn.dataset.origText || (btn.dataset.origText = btn.textContent?.trim() || 'Copy');
+      const prevTimer = timers.get(btn);
+      if (prevTimer) window.clearTimeout(prevTimer);
+      btn.textContent = 'Copied!';
+      if (liveRegion) liveRegion.textContent = 'Copied code snippet to clipboard.';
+      const timerId = window.setTimeout(() => {
+        btn.textContent = orig;
+      }, 1500);
+      timers.set(btn, timerId);
+    });
+  });
+</script>

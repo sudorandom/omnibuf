@@ -1,24 +1,25 @@
 ---
 import { benchmarkCategories } from '../data/benchmarks';
+
+const goBenchmarkCategories = benchmarkCategories.filter((cat) => cat.unit !== 'B');
 ---
 
 <section
   id="benchmarks"
-  class="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+  class="scroll-mt-16 py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
 >
   <div class="max-w-3xl mb-10">
     <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
-      Benchmarks &amp;{' '}
-      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">wire metrics.</span>
+      Go <span class="font-serif italic font-normal normal-case text-[#FF4F18]">benchmarks.</span>
     </h2>
     <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
       Measured on an 11-field message with scalars, strings, packed arrays, and nested messages.{' '}
-      <strong>Shorter bars = Faster / Smaller.</strong>
+      <strong>Shorter bars = Faster.</strong>
     </p>
   </div>
 
   <div class="space-y-8">
-    {benchmarkCategories.map((cat) => (
+    {goBenchmarkCategories.map((cat) => (
       <div class="os-window overflow-hidden">
         <div class="os-titlebar bg-[#E5E0D5]">
           <span class="font-mono text-sm sm:text-base font-bold uppercase">{cat.title}</span>
@@ -36,17 +37,12 @@ import { benchmarkCategories } from '../data/benchmarks';
               cat.rows[0].val;
             return cat.rows.map((r) => {
               const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
-              let ratioStr = cat.unit === 'B' ? 'Baseline (1x)' : '1.0x (base)';
+              let ratioStr = '1.0x (base)';
               if (r.val !== omniVal) {
-                if (cat.unit === 'B') {
-                  const pctDiff = Math.round((Math.abs(r.val - omniVal) / omniVal) * 100);
-                  ratioStr = r.val < omniVal ? `${pctDiff}% smaller` : `+${pctDiff}% larger`;
-                } else {
-                  ratioStr =
-                    r.val < omniVal
-                      ? `${(omniVal / r.val).toFixed(1)}x faster`
-                      : `${(r.val / omniVal).toFixed(1)}x slower`;
-                }
+                ratioStr =
+                  r.val < omniVal
+                    ? `${(omniVal / r.val).toFixed(1)}x faster`
+                    : `${(r.val / omniVal).toFixed(1)}x slower`;
               }
               return (
                 <div
@@ -55,7 +51,7 @@ import { benchmarkCategories } from '../data/benchmarks';
                     r.baseline
                       ? 'py-2.5 bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
                       : r.highlight
-                        ? 'py-2 bg-[#FAF8F2] border-2 border-dashed border-ink font-bold'
+                        ? 'py-2 bg-acid/25 border-2 border-dashed border-ink font-bold'
                         : 'py-2 border border-ink/15 bg-white',
                   ]}
                 >
@@ -86,5 +82,33 @@ import { benchmarkCategories } from '../data/benchmarks';
         </div>
       </div>
     ))}
+  </div>
+
+  <!-- Benchmark Environment & Reproducibility -->
+  <div class="mt-10 pt-10 border-t-2 border-ink/15 grid md:grid-cols-12 gap-6 lg:gap-8 items-start">
+    <div class="md:col-span-4 space-y-2">
+      <h3 class="text-xl sm:text-2xl font-bold uppercase tracking-tight leading-snug">
+        Benchmark Environment
+      </h3>
+      <div class="p-4 bg-ink text-paper rounded-md border-2 border-ink space-y-1.5 font-mono text-sm mt-3">
+        <div class="text-acid font-bold uppercase">Hardware &amp; Runtime</div>
+        <div>CPU: Apple M1 Pro (darwin/arm64)</div>
+        <div>Compiler: Go 1.27.1</div>
+        <div>
+          Command: <code>just bench</code>
+        </div>
+      </div>
+    </div>
+    <div class="md:col-span-8 md:pt-1 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+      <p>
+        All benchmarks serialize and deserialize an identical 11-field message containing unsigned
+        and ZigZag-signed integers, booleans, IEEE-754 floats, string lists, packed integer arrays,
+        a 6-field nested sub-message, and a 4-element repeated sub-message list.
+      </p>
+      <!-- prettier-ignore -->
+      <p class="text-sm sm:text-base text-ink/80">
+        Source code for the harnesses and codec implementations is in <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/jsonv2_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">jsonv2_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs_test.go</a>. Raw output from <code>GOEXPERIMENT=jsonv2 go test -bench=. -benchmem</code> is checked into <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
+      </p>
+    </div>
   </div>
 </section>

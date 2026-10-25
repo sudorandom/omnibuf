@@ -28,7 +28,10 @@ const faqItems: FAQItem[] = [
   {
     question: 'What languages are supported?',
     paragraphs: [
-      'Right now, <a href="/go" class="doc-link">Go</a> is implemented (supporting plain Go structs with <code>omnibuf:"..."</code> struct tags, existing <code>.pb.go</code> structs, and <code>protoc-gen-omnibuf</code> code generation). The wire specification is language-agnostic and built around standard little-endian loads and hardware bit-scans, with additional language implementations planned as the specification stabilizes.',
+      '<a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JavaScript</a> are currently supported:',
+      '<strong><a href="/go" class="doc-link">Go</a></strong> supports plain Go structs with <code>omnibuf:"..."</code> struct tags, existing <code>.pb.go</code> structs, and <code>protoc-gen-omnibuf</code> code generation.',
+      '<strong><a href="/es" class="doc-link">TypeScript / JavaScript</a></strong> (<code>@omnibuf/core</code>, <code>@omnibuf/web</code>, <code>@omnibuf/node</code>) supports declarative <code>defineMessage</code> schemas, existing <code>@bufbuild/protobuf</code> descriptors, and <code>protoc-gen-omnibuf-es</code> code generation.',
+      'The wire specification is language-agnostic, with additional language implementations planned as the specification stabilizes.',
     ],
   },
 ];

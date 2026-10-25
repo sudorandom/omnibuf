@@ -125,7 +125,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     ],
     oppWinsList: [
       'MessagePack can encode untyped dynamic maps (such as map[string]any) when you do not have a struct or assigned field numbers.',
-      'MessagePack has broad multi-language library support when interoperating with non-Go services today.',
+      'MessagePack has broad multi-language library support when interoperating with languages beyond Go and TypeScript/JavaScript today.',
     ],
     stats: [
       { label: 'Wire Size', score: 52 },

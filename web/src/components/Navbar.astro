@@ -1,6 +1,6 @@
 ---
 interface Props {
-  currentPage?: 'home' | 'how-it-works' | 'benchmarks' | 'spec' | 'go' | 'none';
+  currentPage?: 'home' | 'how-it-works' | 'spec' | 'go' | 'es' | 'none';
 }
 
 const { currentPage = 'home' } = Astro.props;
@@ -8,11 +8,13 @@ const { currentPage = 'home' } = Astro.props;
 const pages = [
   { href: '/', key: 'home', label: 'Overview' },
   { href: '/how-it-works', key: 'how-it-works', label: 'How It Works' },
-  { href: '/benchmarks', key: 'benchmarks', label: 'Benchmarks' },
   { href: '/spec', key: 'spec', label: 'Specification' },
 ] as const;
 
-const languages = [{ href: '/go', key: 'go', label: 'Go' }] as const;
+const languages = [
+  { href: '/go', key: 'go', label: 'Go' },
+  { href: '/es', key: 'es', label: 'TypeScript / JS' },
+] as const;
 
 const activeLang = languages.find((l) => l.key === currentPage);
 const activePageLabel =

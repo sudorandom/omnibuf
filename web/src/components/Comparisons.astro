@@ -1,6 +1,8 @@
 ---
-import { formatProfiles, opponentKeys } from '../data/benchmarks';
+import { benchmarkCategories, formatProfiles, opponentKeys } from '../data/benchmarks';
 import RadarChart from './RadarChart.astro';
+
+const packetSizeCat = benchmarkCategories.find((cat) => cat.unit === 'B');
 ---
 
 <section
@@ -14,21 +16,84 @@ import RadarChart from './RadarChart.astro';
     </h2>
   </div>
 
+  {packetSizeCat && (
+    <div id="packet-size" class="os-window overflow-hidden mb-10 scroll-mt-20">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <span class="font-mono text-sm sm:text-base font-bold uppercase">
+          {packetSizeCat.title}
+        </span>
+        <div class="os-stripes" />
+      </div>
+
+      <div class="p-5 sm:p-7 bg-[#FAF8F2] space-y-3">
+        <p class="text-sm sm:text-base text-ink/85 leading-relaxed pb-2 max-w-[70ch]">
+          {packetSizeCat.methodology}
+        </p>
+        {(() => {
+          const omniVal =
+            packetSizeCat.rows.find((row) => row.baseline)?.val ??
+            packetSizeCat.rows.find((row) => row.highlight)?.val ??
+            packetSizeCat.rows[0].val;
+          return packetSizeCat.rows.map((r) => {
+            const pct = Math.max(2, Math.min(100, (r.val / packetSizeCat.maxVal) * 100)).toFixed(1);
+            let ratioStr = 'Baseline (1x)';
+            if (r.val !== omniVal) {
+              const pctDiff = Math.round((Math.abs(r.val - omniVal) / omniVal) * 100);
+              ratioStr = r.val < omniVal ? `${pctDiff}% smaller` : `+${pctDiff}% larger`;
+            }
+            return (
+              <div
+                class:list={[
+                  'grid grid-cols-12 gap-3 items-center px-3 rounded min-w-0',
+                  r.baseline
+                    ? 'py-2.5 bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
+                    : r.highlight
+                      ? 'py-2 bg-acid/25 border-2 border-dashed border-ink font-bold'
+                      : 'py-2 border border-ink/15 bg-white',
+                ]}
+              >
+                <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
+                  {r.name}
+                </div>
+                <div class="col-span-8 sm:col-span-6 flex items-center min-w-0">
+                  <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
+                    <div
+                      class:list={[
+                        'h-full border-r border-ink',
+                        r.highlight ? 'bench-bar-omni' : 'bench-bar-competitor',
+                      ]}
+                      style={`width: ${pct}%;`}
+                    />
+                  </div>
+                </div>
+                <div class="col-span-4 sm:col-span-2 text-right font-mono tabular-nums leading-tight">
+                  <span class="text-sm sm:text-base font-bold text-ink">{ratioStr}</span>
+                  <span class="block text-xs text-ink/75 font-normal">
+                    {r.val} {packetSizeCat.unit}
+                  </span>
+                </div>
+              </div>
+            );
+          });
+        })()}
+      </div>
+    </div>
+  )}
+
   <div class="space-y-10">
     {opponentKeys.map((oppKey) => {
       const opp = formatProfiles[oppKey];
       return (
         <div id={`compare-${oppKey}`} class="os-window-lg overflow-hidden scroll-mt-20">
           <div class="os-titlebar bg-[#E5E0D5]">
-            <!-- prettier-ignore -->
+            {/* prettier-ignore */}
             <span class="font-mono text-sm sm:text-base font-bold uppercase">
-              OmniBuf vs. {opp.url ? <a href={opp.url} target="_blank" rel="noopener noreferrer" class="doc-link">{opp.name}</a> : opp.name}
-            </span>
+                OmniBuf vs. {opp.url ? <a href={opp.url} target="_blank" rel="noopener noreferrer" class="doc-link">{opp.name}</a> : opp.name}
+              </span>
             <div class="os-stripes" />
           </div>
 
           <div class="grid lg:grid-cols-12 divide-y-2 lg:divide-y-0 lg:divide-x-2 divide-ink items-stretch">
-            <!-- Left Column: Radar + Bottom Line -->
             <div class="lg:col-span-5 bg-ink text-paper p-6 sm:p-7 flex flex-col justify-between min-w-0">
               <div>
                 <div class="flex items-center justify-between border-b border-paper/15 pb-3 mb-4 font-mono text-sm">
@@ -47,7 +112,6 @@ import RadarChart from './RadarChart.astro';
               </div>
             </div>
 
-            <!-- Right Column: Stacked Pros & Cons separated by horizontal divider -->
             <div class="lg:col-span-7 divide-y-2 divide-ink flex flex-col justify-between min-w-0">
               <div class="p-6 sm:p-7 bg-acid/25 flex-1 flex flex-col justify-center">
                 <div class="font-mono text-sm font-bold uppercase text-ink mb-3 pb-2 border-b-2 border-ink/20">

@@ -3,27 +3,23 @@
 
 <section class="relative pt-10 pb-14 sm:pt-16 sm:pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
   <h1 class="text-[2.6rem] sm:text-7xl lg:text-[5.5rem] font-bold tracking-tight leading-[0.94] text-ink uppercase">
-    Keep your{' '}
-    <span class="bg-ink text-paper px-3 py-0.5 inline-block border-2 border-ink transform -rotate-1">
-      .proto
-    </span>{' '}
-    files.
+    A binary format to replace
     <br />
     <span class="font-serif italic font-normal normal-case text-[#FF4F18] text-[3.1rem] sm:text-8xl lg:text-[6.2rem]">
-      Upgrade the wire format.
+      Protobuf and JSON.
     </span>
   </h1>
 
   <div class="mt-8 max-w-4xl space-y-5">
     <!-- prettier-ignore -->
     <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
-      <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> got schemas right, mostly, but the wire format from 2001 made two costly mistakes: <strong>it requires the schema just to decode values</strong>, and its byte-by-byte <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a> are slow as hell with real hardware.
+      Most systems have to choose between <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> (compact binary payloads, but unreadable without a schema and slowed down by byte-by-byte <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a>) and <strong>JSON</strong> (works on plain structs and is inspectable anywhere, but is over 2x larger and 10x to 30x slower).
     </p>
     <p class="text-base sm:text-xl font-mono text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md">
-      <strong>OmniBuf</strong> gives you <strong>all the benefits of Protobuf</strong> (your
-      existing <code class="underline">.proto</code> files, compact binary payloads, schema
-      evolution, and raw byte concatenation) in a wire format that is{' '}
-      <strong>6x to 8x faster</strong> and <strong>inspectable without a schema</strong>.
+      <strong>OmniBuf</strong> replaces both. Use it with <code>.proto</code> files or directly on
+      plain structs and objects: it runs <strong>6x to 8x faster than Protobuf</strong> (and{' '}
+      <strong>10x to 30x faster than JSON</strong>) while remaining{' '}
+      <strong>inspectable without a schema</strong>.
     </p>
 
     <div class="flex flex-wrap gap-3.5 pt-2 no-print">
@@ -34,16 +30,22 @@
         How It Works &rarr;
       </a>
       <a
-        href="/benchmarks"
-        class="os-btn px-5 py-3 bg-[#FAF8F2] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
-      >
-        Benchmarks &amp; Comparisons &rarr;
-      </a>
-      <a
         href="/go"
         class="os-btn px-5 py-3 bg-[#FAF8F2] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
       >
-        OmniBuf for Go &rarr;
+        Go &rarr;
+      </a>
+      <a
+        href="/es"
+        class="os-btn px-5 py-3 bg-[#FAF8F2] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
+      >
+        TypeScript / JS &rarr;
+      </a>
+      <a
+        href="/spec"
+        class="os-btn px-5 py-3 bg-[#FAF8F2] text-ink font-mono font-bold text-sm sm:text-base rounded-md"
+      >
+        Specification &rarr;
       </a>
     </div>
   </div>

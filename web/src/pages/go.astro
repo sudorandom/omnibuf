@@ -3,6 +3,7 @@ import { Code } from 'astro:components';
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Quickstart from '../components/Quickstart.astro';
+import Benchmarks from '../components/Benchmarks.astro';
 import Footer from '../components/Footer.astro';
 
 const opaqueSpliceCode = `view := pb.PeerOpaque(pkt)
@@ -107,8 +108,12 @@ const goFaqJsonLd = {
             , or generate single-pass codecs and lazy{' '}
             <a href="#plugin-tiers" class="doc-link">
               Opaque views
-            </a>
-            .
+            </a>{' '}
+            &mdash; see the{' '}
+            <a href="#benchmarks" class="doc-link">
+              Go benchmarks
+            </a>{' '}
+            below.
           </p>
           <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base pt-1 no-print">
             <a
@@ -150,6 +155,9 @@ const goFaqJsonLd = {
 
     <!-- Three Ways to Use OmniBuf in Go -->
     <Quickstart />
+
+    <!-- Go Benchmarks -->
+    <Benchmarks />
 
     <!-- Go FAQ -->
     <section
@@ -202,17 +210,14 @@ const goFaqJsonLd = {
     <section class="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink no-print">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
-          Explore the wire layout, benchmarks &amp; specification
+          Explore the wire layout, format comparisons &amp; specification
         </div>
         <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
           <a href="/how-it-works" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
             How It Works &rarr;
           </a>
-          <a
-            href="/benchmarks"
-            class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md"
-          >
-            Benchmarks &amp; Comparisons &rarr;
+          <a href="/es" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
+            TypeScript / JS &rarr;
           </a>
           <a href="/spec" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
             Wire Specification &rarr;
