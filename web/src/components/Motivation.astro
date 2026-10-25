@@ -79,7 +79,29 @@
       </div>
     </div>
 
-    <!-- 4. ALL THE BENEFITS OF PROTOBUF -->
+    <!-- 4. REPLACE STRUCT-DERIVED JSON WITHOUT .PROTO -->
+    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+      <div class="lg:col-span-8 space-y-3">
+        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+          Replace struct-derived JSON without a .proto build step
+        </h3>
+        <!-- prettier-ignore -->
+        <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
+          Many services use JSON simply because they want to serialize native <a href="/go#struct-tags" class="doc-link">Go structs</a> or <a href="/es#define-message" class="doc-link">TypeScript objects</a> without maintaining <code>.proto</code> files or running a code generator. OmniBuf works the same way via <code>omnibuf:"1"</code> struct tags in Go and <code>defineMessage()</code> in TypeScript &mdash; encoding <strong>5x to 11x faster than JSON</strong> at less than half the wire size, preserving 64-bit integers and raw <code>[]byte</code>/<code>Uint8Array</code> fields without base64, and optionally embedding <strong>Field #0</strong> field names once per packet when you want named JSON-like inspection.
+        </p>
+      </div>
+      <div class="lg:col-span-4">
+        <div class="p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
+          <div class="text-acid font-bold">No .proto or codegen required</div>
+          <div class="text-white font-bold">5x–11x faster than struct JSON</div>
+          <div class="text-paper/75 text-sm">
+            Go <code>omnibuf:"1"</code> &bull; TS <code>defineMessage</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. ALL THE BENEFITS OF PROTOBUF -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-8 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
