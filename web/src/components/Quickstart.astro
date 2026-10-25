@@ -2,16 +2,20 @@
 import { Code } from 'astro:components';
 
 const structTagSnippet = `type Peer struct {
-	ID        uint64            \`omnibuf:"1,name=peer_id"\`
-	Router    string            \`omnibuf:"2,name=router"\`
-	Active    bool              \`omnibuf:"3,name=active"\`
-	LatencyUS uint32            \`omnibuf:"4,name=latency_us,wire=fixed32,omitempty"\`
-	Prefixes  []uint32          \`omnibuf:"5,name=prefixes"\`
-	Labels    map[string]string \`omnibuf:"6,name=labels,omitempty"\`
-	Internal  string            \`omnibuf:"-"\`
+	ID       uint64            \`omnibuf:"1,name=peer_id"\`
+	Router   string            \`omnibuf:"2,name=router,omitempty"\`
+	Active   bool              \`omnibuf:"3,name=active"\`
+	Latency  uint32            \`omnibuf:"4,wire=fixed32"\`
+	Prefixes []uint32          \`omnibuf:"5,name=prefixes"\`
+	Labels   map[string]string \`omnibuf:"6,omitempty"\`
+	Internal string            \`omnibuf:"-"\`
 }
 
-pkt, err := omnibuf.Marshal(&Peer{ID: 64512, Router: "rtr-01", Active: true})
+pkt, err := omnibuf.Marshal(&Peer{
+	ID:     64512,
+	Router: "rtr-01",
+	Active: true,
+})
 var out Peer
 err = omnibuf.Unmarshal(pkt, &out)`;
 
