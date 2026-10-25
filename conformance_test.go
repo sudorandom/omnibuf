@@ -15,6 +15,7 @@ import (
 	. "github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/conformance"
 	"github.com/sudorandom/omnibuf/pb"
+	. "github.com/sudorandom/omnibuf/wire"
 )
 
 // ============================================================================
@@ -592,14 +593,14 @@ func TestProtobufStyleConformanceCorpus(t *testing.T) {
 	{
 		// Sparse packet with Field #0 inline schema (SchemaMeta) for only 3 present fields: #2, #5, #14
 		enc := NewEncoder(128)
-		enc.WriteRaw(AppendField0SchemaMetaDeterministic(nil, &SchemaMeta{
+		enc.WriteRaw((&SchemaMeta{
 			TypeName: "SparseTelemetry",
 			Fields: map[uint32]string{
 				2:  "uptime_sec",
 				5:  "active",
 				14: "cpu_load",
 			},
-		}, true))
+		}).AppendField0(nil, true))
 		enc.WriteUint(2, 99887766)
 		enc.WriteBool(5, true)
 		enc.WriteFloat64(14, 0.875)
@@ -1198,13 +1199,13 @@ func buildConcatAndOutOfOrderVectors(t *testing.T) []ConformanceVector {
 
 	// K2: Concatenating two self-describing (Field #0) messages and decoding via DecodeBlind
 	encA := NewEncoder(128)
-	encA.WriteRaw(AppendField0SchemaMetaDeterministic(nil, &SchemaMeta{Fields: map[uint32]string{1: "asn", 2: "router_id"}}, true))
+	encA.WriteRaw((&SchemaMeta{Fields: map[uint32]string{1: "asn", 2: "router_id"}}).AppendField0(nil, true))
 	encA.WriteUint(1, 64500)
 	encA.WriteString(2, "old-rtr")
 	sdA := append([]byte(nil), encA.Finish()...)
 
 	encB.Reset()
-	encB.WriteRaw(AppendField0SchemaMetaDeterministic(nil, &SchemaMeta{Fields: map[uint32]string{2: "router_id", 11: "sequence"}}, true))
+	encB.WriteRaw((&SchemaMeta{Fields: map[uint32]string{2: "router_id", 11: "sequence"}}).AppendField0(nil, true))
 	encB.WriteString(2, "new-rtr")
 	encB.WriteUint(11, 42)
 	sdB := append([]byte(nil), encB.Finish()...)

@@ -474,10 +474,43 @@ func canonicalMessageType(schema string) string {
 	}
 }
 
+// Location is the canonical nested location struct for omnibuf.bench.PeerUpdate conformance tests.
+type Location struct {
+	Region     string  `omnibuf:"1,name=region" json:"region"`
+	Datacenter string  `omnibuf:"2,name=datacenter" json:"datacenter"`
+	City       string  `omnibuf:"3,name=city" json:"city"`
+	Rack       uint32  `omnibuf:"4,name=rack" json:"rack"`
+	Latitude   float32 `omnibuf:"5,name=latitude" json:"latitude"`
+	Longitude  float32 `omnibuf:"6,name=longitude" json:"longitude"`
+}
+
+// Neighbor is the canonical repeated neighbor struct for omnibuf.bench.PeerUpdate conformance tests.
+type Neighbor struct {
+	PeerASN     uint32 `omnibuf:"1,name=peer_asn" json:"peer_asn"`
+	Router      string `omnibuf:"2,name=router" json:"router"`
+	LatencyUS   uint32 `omnibuf:"3,name=latency_us" json:"latency_us"`
+	Established bool   `omnibuf:"4,name=established" json:"established"`
+}
+
+// PeerUpdate is the canonical plain annotated struct for omnibuf.bench.PeerUpdate conformance tests.
+type PeerUpdate struct {
+	ASN       uint32     `omnibuf:"1,name=asn" json:"asn"`
+	RouterID  string     `omnibuf:"2,name=router_id" json:"router_id"`
+	Active    bool       `omnibuf:"3,name=active" json:"active"`
+	UptimeSec uint64     `omnibuf:"4,name=uptime_sec" json:"uptime_sec"`
+	RssiDbm   int32      `omnibuf:"5,name=rssi_dbm" json:"rssi_dbm"`
+	CPULoad   float64    `omnibuf:"6,name=cpu_load" json:"cpu_load"`
+	Tags      []string   `omnibuf:"7,name=tags" json:"tags"`
+	Prefixes  []uint32   `omnibuf:"8,name=prefixes" json:"prefixes"`
+	Location  Location   `omnibuf:"9,name=location" json:"location"`
+	Neighbors []Neighbor `omnibuf:"10,name=neighbors" json:"neighbors"`
+	Sequence  uint64     `omnibuf:"11,name=sequence" json:"sequence"`
+}
+
 func verifyRoundTripEquivalence(schema string, inputWire, outputWire []byte) error {
 	switch schema {
 	case "PeerUpdate":
-		var want, got omnibuf.PeerUpdate
+		var want, got PeerUpdate
 		if err := omnibuf.Unmarshal(inputWire, &want); err != nil {
 			return fmt.Errorf("runner decode input PeerUpdate: %w", err)
 		}

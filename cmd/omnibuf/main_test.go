@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/pb"
+	obwire "github.com/sudorandom/omnibuf/wire"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -177,15 +177,15 @@ func TestCLIHexAndBlindDecodeNonStringMapKeys(t *testing.T) {
 
 	// Test blind decode of a WireMap with uint64 keys (which produces map[any]any in DecodeBlind)
 	var wire []byte
-	wire = omnibuf.AppendVarint(wire, (1<<4)|uint64(omnibuf.WireMap))
+	wire = obwire.AppendVarint(wire, (1<<4)|uint64(obwire.WireMap))
 	lenPos := len(wire)
 	wire = append(wire, 0, 0)
-	wire = append(wire, omnibuf.MapHeaderByte(omnibuf.WireUint, omnibuf.WireString))
-	wire = omnibuf.AppendVarint(wire, 1)
-	wire = omnibuf.AppendVarint(wire, 42)
-	wire = omnibuf.AppendVarint(wire, 2)
+	wire = append(wire, obwire.MapHeaderByte(obwire.WireUint, obwire.WireString))
+	wire = obwire.AppendVarint(wire, 1)
+	wire = obwire.AppendVarint(wire, 42)
+	wire = obwire.AppendVarint(wire, 2)
 	wire = append(wire, "ok"...)
-	wire = omnibuf.BackpatchContainerLen(wire, lenPos)
+	wire = obwire.BackpatchContainerLen(wire, lenPos)
 
 	wireHex := hex.EncodeToString(wire)
 	blindOut.Reset()

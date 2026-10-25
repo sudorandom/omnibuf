@@ -1,4 +1,4 @@
-package omnibuf
+package omnibuf_test
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 
 	capnp "capnproto.org/go/capnp/v3"
 	flatbuffers "github.com/google/flatbuffers/go"
+	. "github.com/sudorandom/omnibuf"
+	. "github.com/sudorandom/omnibuf/wire"
 	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -144,7 +146,26 @@ func SamplePeerUpdate() PeerUpdate {
 // 1. OmniBuf Encoder & Decoder
 // ============================================================================
 
-var peerSchemaMetaWire = AppendField0SchemaMetaDeterministic(nil, peerSchemaMeta, true)
+func growSlice[T any](dst []T, add int) ([]T, int) {
+	start := len(dst)
+	total := start + add
+	if cap(dst) < total || dst == nil {
+		next := make([]T, total)
+		copy(next, dst)
+		return next, start
+	}
+	return dst[:total], start
+}
+
+func sliceForDecode[T any](p *[]T, alreadySeen bool) []T {
+	sl := *p
+	if !alreadySeen && sl != nil {
+		return sl[:0]
+	}
+	return sl
+}
+
+var peerSchemaMetaWire = peerSchemaMeta.AppendField0(nil, true)
 
 // EncodePeerOmniBuf encodes PeerUpdate into enc in shared-schema mode (or self-describing mode if withField0 is true).
 func EncodePeerOmniBuf(enc *Encoder, p *PeerUpdate, withField0 bool) []byte {

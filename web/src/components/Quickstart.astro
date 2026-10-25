@@ -8,7 +8,6 @@ const structTagSnippet = `type Peer struct {
 	Latency  uint32            \`omnibuf:"4,wire=fixed32"\`
 	Prefixes []uint32          \`omnibuf:"5,name=prefixes"\`
 	Labels   map[string]string \`omnibuf:"6,omitempty"\`
-	Internal string            \`omnibuf:"-"\`
 }
 
 pkt, err := omnibuf.Marshal(&Peer{
@@ -77,7 +76,7 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
         </p>
         <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
           <li>
-            <code>1..65535</code> sets the wire field number (or <code>-</code> to skip a field).
+            <code>1..65535</code> sets the wire field number (untagged fields are ignored).
           </li>
           <li>
             <code>name=...</code> sets the field name written to Field #0 (defaults to the Go field

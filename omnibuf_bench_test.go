@@ -6,6 +6,7 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 	. "github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/pb"
+	. "github.com/sudorandom/omnibuf/wire"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 

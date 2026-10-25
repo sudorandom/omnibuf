@@ -5,8 +5,6 @@ package omnibuf_test
 import (
 	jsonv2 "encoding/json/v2"
 	"testing"
-
-	. "github.com/sudorandom/omnibuf"
 )
 
 func BenchmarkMarshal_JSONv2(b *testing.B) {

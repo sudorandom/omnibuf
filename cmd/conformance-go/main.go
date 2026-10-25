@@ -159,7 +159,7 @@ func handleAnnotatedStructTier(req *conformance.ConformanceRequest) *conformance
 	}
 	switch req.MessageType {
 	case "omnibuf.bench.PeerUpdate":
-		var msg omnibuf.PeerUpdate
+		var msg conformance.PeerUpdate
 		if err := omnibuf.Unmarshal(req.OmniBufPayload, &msg); err != nil {
 			return &conformance.ConformanceResponse{ParseError: err.Error()}
 		}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	. "github.com/sudorandom/omnibuf"
+	. "github.com/sudorandom/omnibuf/wire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -506,7 +507,7 @@ func TestDynamicPB_FieldNumberAndWireTypeExhaustiveMatrix(t *testing.T) {
 				spec.verify(t, wire, fnum, outMsg, fd)
 
 				// 2. Self-describing (Field #0) Marshal + DecodeBlind + Unmarshal
-				wireSD, err := MarshalProtoReflect(inMsg, true)
+				wireSD, err := (MarshalOptions{SelfDescribing: true}).Marshal(inMsg)
 				if err != nil {
 					t.Fatalf("MarshalProtoReflect(includeField0=true) failed: %v", err)
 				}
@@ -677,7 +678,7 @@ func TestDynamicPB_GeneralizedWireMapMatrix(t *testing.T) {
 	m7.Set(protoreflect.ValueOfUint32(0xDEADBEEF).MapKey(), protoreflect.ValueOfBool(true))
 
 	// Encode with Field #0 enabled (so nested ChildMsg inside map<string, ChildMsg> also gets Field #0!)
-	wire, err := MarshalProtoReflect(inMsg, true)
+	wire, err := (MarshalOptions{SelfDescribing: true}).Marshal(inMsg)
 	if err != nil {
 		t.Fatalf("MarshalProtoReflect failed: %v", err)
 	}

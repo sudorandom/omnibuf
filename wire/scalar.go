@@ -1,8 +1,7 @@
-package omnibuf
+package wire
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math"
 	"unsafe"
 )
@@ -80,18 +79,6 @@ func DecodeStr(b []byte, zeroCopy bool) string {
 		return unsafe.String(&b[0], len(b))
 	}
 	return string(b)
-}
-
-func readLenSlice(data []byte, pos int, minLen uint64) (body []byte, nextPos int, err error) {
-	bLen, bn := DecodeVarint(data[pos:])
-	if bn == 0 {
-		return nil, 0, fmt.Errorf("omnibuf: truncated length varint at %d", pos)
-	}
-	pos += bn
-	if bLen < minLen || bLen > uint64(len(data)-pos) {
-		return nil, 0, fmt.Errorf("omnibuf: invalid byteLen %d at %d", bLen, pos)
-	}
-	return data[pos : pos+int(bLen)], pos + int(bLen), nil
 }
 
 // ReadUint reads a uint64 field with 0 heap allocations.

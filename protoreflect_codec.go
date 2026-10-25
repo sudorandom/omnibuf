@@ -12,12 +12,12 @@ import (
 
 // MarshalOptions configures OmniBuf wire encoding.
 type MarshalOptions struct {
-	// Deterministic sorts WireMap keys in ascending order so identical messages
+	// Deterministic sorts wireMap keys in ascending order so identical messages
 	// always produce byte-for-byte identical wire output (useful for golden files,
 	// reproducible builds, and content-addressable hashing).
 	Deterministic bool
 
-	// SelfDescribing emits Field #0 (Tag = 0x0B, WireSubMsg = 5, omnibuf.v1.SchemaMeta)
+	// SelfDescribing emits Field #0 (Tag = 0x0B, wireSubMsg = 5, omnibuf.v1.SchemaMeta)
 	// at byte 0 of the root message with field names and nested children schemas.
 	SelfDescribing bool
 }
@@ -36,26 +36,14 @@ func (o MarshalOptions) MarshalAppend(dst []byte, v any) ([]byte, error) {
 }
 
 // MarshalDeterministic encodes any struct pointer or protoreflect.Message with
-// deterministic WireMap key ordering.
+// deterministic wireMap key ordering.
 func MarshalDeterministic(v any) ([]byte, error) {
 	return MarshalOptions{Deterministic: true}.Marshal(v)
 }
 
-// MarshalProtoReflect encodes any protoreflect.Message (including *dynamicpb.Message)
-// into an OmniBuf packet. When includeField0 is true, Field #0 (WireSubMsg, SchemaMeta) is
-// emitted at byte 0 of the root message with the schema's field names and nested children schemas.
-func MarshalProtoReflect(m protoreflect.Message, includeField0 bool) ([]byte, error) {
-	return MarshalProtoReflectAppend(nil, m, includeField0)
-}
-
-// MarshalProtoReflectAppend appends the OmniBuf encoding of m to dst[:0].
-func MarshalProtoReflectAppend(dst []byte, m protoreflect.Message, includeField0 bool) ([]byte, error) {
-	return MarshalOptions{SelfDescribing: includeField0}.marshalProtoReflectAppend(dst, m)
-}
-
 func (o MarshalOptions) marshalProtoReflectAppend(dst []byte, m protoreflect.Message) ([]byte, error) {
 	if m == nil {
-		return nil, fmt.Errorf("omnibuf: MarshalProtoReflect requires non-nil protoreflect.Message")
+		return nil, fmt.Errorf("omnibuf: Marshal requires non-nil protoreflect.Message")
 	}
 	if cap(dst) < 256 {
 		dst = make([]byte, 0, 256)
@@ -64,7 +52,7 @@ func (o MarshalOptions) marshalProtoReflectAppend(dst []byte, m protoreflect.Mes
 	}
 	if o.SelfDescribing {
 		meta := buildProtoReflectSchemaMeta(m.Descriptor(), 0)
-		dst = AppendField0SchemaMetaDeterministic(dst, meta, o.Deterministic)
+		dst = appendField0SchemaMetaDeterministic(dst, meta, o.Deterministic)
 	}
 	bodyOpts := o
 	bodyOpts.SelfDescribing = false
@@ -103,7 +91,7 @@ func buildProtoReflectSchemaMeta(md protoreflect.MessageDescriptor, depth int) *
 
 func appendRawTag(dst []byte, fieldNum uint16, wt uint8) []byte {
 	tag := (uint64(fieldNum) << 4) | uint64(wt&0x0F)
-	return AppendVarint(dst, tag)
+	return appendVarint(dst, tag)
 }
 
 func sortProtoMapKeys(kd protoreflect.FieldDescriptor, keys []protoreflect.MapKey) {
@@ -134,21 +122,21 @@ func sortProtoMapKeys(kd protoreflect.FieldDescriptor, keys []protoreflect.MapKe
 func protoScalarWireType(k protoreflect.Kind) (uint8, error) {
 	switch k {
 	case protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.EnumKind:
-		return WireUint, nil
+		return wireUint, nil
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Int64Kind, protoreflect.Sint64Kind:
-		return WireSint, nil
+		return wireSint, nil
 	case protoreflect.StringKind:
-		return WireString, nil
+		return wireString, nil
 	case protoreflect.BytesKind:
-		return WireBytes, nil
+		return wireBytes, nil
 	case protoreflect.MessageKind:
-		return WireSubMsg, nil
+		return wireSubMsg, nil
 	case protoreflect.FloatKind, protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
-		return WireFixed32, nil
+		return wireFixed32, nil
 	case protoreflect.DoubleKind, protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind:
-		return WireFixed64, nil
+		return wireFixed64, nil
 	case protoreflect.BoolKind:
-		return WireBoolTrue, nil
+		return wireBoolTrue, nil
 	default:
 		return 0, fmt.Errorf("omnibuf: unsupported kind %v", k)
 	}
@@ -201,18 +189,18 @@ func protoValueFromFixed64(k protoreflect.Kind, bits uint64) protoreflect.Value 
 func appendProtoScalarPayload(dst []byte, k protoreflect.Kind, v protoreflect.Value) ([]byte, error) {
 	switch k {
 	case protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-		return AppendVarint(dst, v.Uint()), nil
+		return appendVarint(dst, v.Uint()), nil
 	case protoreflect.EnumKind:
-		return AppendVarint(dst, uint64(v.Enum())), nil
+		return appendVarint(dst, uint64(v.Enum())), nil
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Int64Kind, protoreflect.Sint64Kind:
-		return AppendVarint(dst, EncodeZigZag(v.Int())), nil
+		return appendVarint(dst, encodeZigZag(v.Int())), nil
 	case protoreflect.StringKind:
 		s := v.String()
-		dst = AppendVarint(dst, uint64(len(s)))
+		dst = appendVarint(dst, uint64(len(s)))
 		return append(dst, s...), nil
 	case protoreflect.BytesKind:
 		b := v.Bytes()
-		dst = AppendVarint(dst, uint64(len(b)))
+		dst = appendVarint(dst, uint64(len(b)))
 		return append(dst, b...), nil
 	case protoreflect.FloatKind, protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
 		bits := protoFixed32Bits(k, v)
@@ -231,35 +219,35 @@ func appendProtoScalarPayload(dst []byte, k protoreflect.Kind, v protoreflect.Va
 func decodeProtoScalarPayload(data []byte, pos int, k protoreflect.Kind) (protoreflect.Value, int, error) {
 	switch k {
 	case protoreflect.Uint32Kind:
-		v, vn := DecodeVarint(data[pos:])
+		v, vn := decodeVarint(data[pos:])
 		if vn == 0 {
 			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: truncated uint32 at %d", pos)
 		}
 		return protoreflect.ValueOfUint32(uint32(v)), pos + vn, nil
 	case protoreflect.Uint64Kind:
-		v, vn := DecodeVarint(data[pos:])
+		v, vn := decodeVarint(data[pos:])
 		if vn == 0 {
 			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: truncated uint64 at %d", pos)
 		}
 		return protoreflect.ValueOfUint64(v), pos + vn, nil
 	case protoreflect.EnumKind:
-		v, vn := DecodeVarint(data[pos:])
+		v, vn := decodeVarint(data[pos:])
 		if vn == 0 {
 			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: truncated enum at %d", pos)
 		}
 		return protoreflect.ValueOfEnum(protoreflect.EnumNumber(v)), pos + vn, nil
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind:
-		v, vn := DecodeVarint(data[pos:])
+		v, vn := decodeVarint(data[pos:])
 		if vn == 0 {
 			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: truncated int32 at %d", pos)
 		}
-		return protoreflect.ValueOfInt32(int32(DecodeZigZag(v))), pos + vn, nil
+		return protoreflect.ValueOfInt32(int32(decodeZigZag(v))), pos + vn, nil
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind:
-		v, vn := DecodeVarint(data[pos:])
+		v, vn := decodeVarint(data[pos:])
 		if vn == 0 {
 			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: truncated int64 at %d", pos)
 		}
-		return protoreflect.ValueOfInt64(DecodeZigZag(v)), pos + vn, nil
+		return protoreflect.ValueOfInt64(decodeZigZag(v)), pos + vn, nil
 	case protoreflect.StringKind:
 		s, nextPos, err := readLenSlice(data, pos, 0)
 		if err != nil {
@@ -308,10 +296,10 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 			if err != nil {
 				return nil, fmt.Errorf("omnibuf: field %s: %w", fd.Name(), err)
 			}
-			dst = appendRawTag(dst, fnum, WireMap)
+			dst = appendRawTag(dst, fnum, wireMap)
 			lenPos := len(dst)
-			dst = append(dst, 0, 0, MapHeaderByte(keyWT, valWT))
-			dst = AppendVarint(dst, uint64(mp.Len()))
+			dst = append(dst, 0, 0, mapHeaderByte(keyWT, valWT))
+			dst = appendVarint(dst, uint64(mp.Len()))
 			if opts.Deterministic && mp.Len() > 1 {
 				keys := make([]protoreflect.MapKey, 0, mp.Len())
 				mp.Range(func(k protoreflect.MapKey, _ protoreflect.Value) bool {
@@ -343,7 +331,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 					return nil, mapErr
 				}
 			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = backpatchContainerLen(dst, lenPos)
 			continue
 		}
 
@@ -352,10 +340,10 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 			c := list.Len()
 			switch fd.Kind() {
 			case protoreflect.StringKind, protoreflect.BytesKind:
-				dst = appendRawTag(dst, fnum, WireStringArr)
+				dst = appendRawTag(dst, fnum, wireStringArr)
 				lenPos := len(dst)
 				dst = append(dst, 0, 0)
-				dst = AppendVarint(dst, uint64(c))
+				dst = appendVarint(dst, uint64(c))
 				for j := range c {
 					var err error
 					dst, err = appendProtoScalarPayload(dst, fd.Kind(), list.Get(j))
@@ -363,48 +351,48 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 						return nil, err
 					}
 				}
-				dst = BackpatchContainerLen(dst, lenPos)
+				dst = backpatchContainerLen(dst, lenPos)
 			case protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.EnumKind, protoreflect.BoolKind:
-				dst = appendRawTag(dst, fnum, WireUintArr)
+				dst = appendRawTag(dst, fnum, wireUintArr)
 				lenPos := len(dst)
 				dst = append(dst, 0, 0)
-				dst = AppendVarint(dst, uint64(c))
+				dst = appendVarint(dst, uint64(c))
 				for j := range c {
 					switch fd.Kind() {
 					case protoreflect.EnumKind:
-						dst = AppendVarint(dst, uint64(list.Get(j).Enum()))
+						dst = appendVarint(dst, uint64(list.Get(j).Enum()))
 					case protoreflect.BoolKind:
 						if list.Get(j).Bool() {
-							dst = AppendVarint(dst, 1)
+							dst = appendVarint(dst, 1)
 						} else {
-							dst = AppendVarint(dst, 0)
+							dst = appendVarint(dst, 0)
 						}
 					default:
-						dst = AppendVarint(dst, list.Get(j).Uint())
+						dst = appendVarint(dst, list.Get(j).Uint())
 					}
 				}
-				dst = BackpatchContainerLen(dst, lenPos)
+				dst = backpatchContainerLen(dst, lenPos)
 			case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Int64Kind, protoreflect.Sint64Kind:
-				dst = appendRawTag(dst, fnum, WireSintArr)
+				dst = appendRawTag(dst, fnum, wireSintArr)
 				lenPos := len(dst)
 				dst = append(dst, 0, 0)
-				dst = AppendVarint(dst, uint64(c))
+				dst = appendVarint(dst, uint64(c))
 				for j := range c {
-					dst = AppendVarint(dst, EncodeZigZag(list.Get(j).Int()))
+					dst = appendVarint(dst, encodeZigZag(list.Get(j).Int()))
 				}
-				dst = BackpatchContainerLen(dst, lenPos)
+				dst = backpatchContainerLen(dst, lenPos)
 			case protoreflect.FloatKind, protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
-				dst = appendRawTag(dst, fnum, WireFixedArr)
-				dst = AppendVarint(dst, uint64(1+c*4))
-				dst = append(dst, WireFixed32)
+				dst = appendRawTag(dst, fnum, wireFixedArr)
+				dst = appendVarint(dst, uint64(1+c*4))
+				dst = append(dst, wireFixed32)
 				for j := range c {
 					bits := protoFixed32Bits(fd.Kind(), list.Get(j))
 					dst = append(dst, byte(bits), byte(bits>>8), byte(bits>>16), byte(bits>>24))
 				}
 			case protoreflect.DoubleKind, protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind:
-				dst = appendRawTag(dst, fnum, WireFixedArr)
-				dst = AppendVarint(dst, uint64(1+c*8))
-				dst = append(dst, WireFixed64)
+				dst = appendRawTag(dst, fnum, wireFixedArr)
+				dst = appendVarint(dst, uint64(1+c*8))
+				dst = append(dst, wireFixed64)
 				for j := range c {
 					bits := protoFixed64Bits(fd.Kind(), list.Get(j))
 					dst = append(dst,
@@ -413,7 +401,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 					)
 				}
 			case protoreflect.MessageKind:
-				dst = appendRawTag(dst, fnum, WireSubMsgArr)
+				dst = appendRawTag(dst, fnum, wireSubMsgArr)
 				arrLenPos := len(dst)
 				dst = append(dst, 0, 0)
 				for j := range c {
@@ -424,9 +412,9 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 					if err != nil {
 						return nil, err
 					}
-					dst = BackpatchContainerLen(dst, elemLenPos)
+					dst = backpatchContainerLen(dst, elemLenPos)
 				}
-				dst = BackpatchContainerLen(dst, arrLenPos)
+				dst = backpatchContainerLen(dst, arrLenPos)
 			default:
 				return nil, fmt.Errorf("omnibuf: unsupported repeated kind %v on field %s", fd.Kind(), fd.Name())
 			}
@@ -439,7 +427,7 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 			if !m.Has(fd) {
 				continue
 			}
-			dst = appendRawTag(dst, fnum, WireSubMsg)
+			dst = appendRawTag(dst, fnum, wireSubMsg)
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
 			var err error
@@ -447,11 +435,11 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 			if err != nil {
 				return nil, err
 			}
-			dst = BackpatchContainerLen(dst, lenPos)
+			dst = backpatchContainerLen(dst, lenPos)
 		case protoreflect.BoolKind:
-			wt := WireBoolFalse
+			wt := wireBoolFalse
 			if val.Bool() {
-				wt = WireBoolTrue
+				wt = wireBoolTrue
 			}
 			dst = appendRawTag(dst, fnum, wt)
 		default:
@@ -469,10 +457,9 @@ func encodeProtoReflectMsg(dst []byte, m protoreflect.Message, opts MarshalOptio
 	return dst, nil
 }
 
-// UnmarshalProtoReflect decodes an OmniBuf packet into any protoreflect.Message (including *dynamicpb.Message).
-func UnmarshalProtoReflect(data []byte, m protoreflect.Message) error {
+func unmarshalProtoReflect(data []byte, m protoreflect.Message) error {
 	if m == nil {
-		return fmt.Errorf("omnibuf: UnmarshalProtoReflect requires non-nil protoreflect.Message")
+		return fmt.Errorf("omnibuf: Unmarshal requires non-nil protoreflect.Message")
 	}
 	return decodeProtoReflectMsg(data, m, 0)
 }
@@ -480,16 +467,16 @@ func UnmarshalProtoReflect(data []byte, m protoreflect.Message) error {
 func expectedListWireType(k protoreflect.Kind) uint8 {
 	switch k {
 	case protoreflect.StringKind, protoreflect.BytesKind:
-		return WireStringArr
+		return wireStringArr
 	case protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.EnumKind, protoreflect.BoolKind:
-		return WireUintArr
+		return wireUintArr
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Int64Kind, protoreflect.Sint64Kind:
-		return WireSintArr
+		return wireSintArr
 	case protoreflect.FloatKind, protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind,
 		protoreflect.DoubleKind, protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind:
-		return WireFixedArr
+		return wireFixedArr
 	default:
-		return WireSubMsgArr
+		return wireSubMsgArr
 	}
 }
 
@@ -503,7 +490,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 	seen := make(map[uint16]bool)
 
 	for pos < n {
-		tag, tn := DecodeVarint(data[pos:])
+		tag, tn := decodeVarint(data[pos:])
 		if tn == 0 {
 			return fmt.Errorf("omnibuf: truncated tag at %d", pos)
 		}
@@ -512,10 +499,10 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 		wt := uint8(tag & 0x0F)
 
 		if fnum == 0 {
-			if wt != WireSubMsg {
+			if wt != wireSubMsg {
 				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
 			}
-			nextPos, err := SkipValue(data, pos, wt)
+			nextPos, err := skipValue(data, pos, wt)
 			if err != nil {
 				return err
 			}
@@ -525,7 +512,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 
 		fd := fields.ByNumber(protoreflect.FieldNumber(fnum))
 		if fd == nil {
-			nextPos, err := SkipValue(data, pos, wt)
+			nextPos, err := skipValue(data, pos, wt)
 			if err != nil {
 				return err
 			}
@@ -537,8 +524,8 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 		seen[fnum] = true
 
 		if fd.IsMap() {
-			if wt != WireMap {
-				nextPos, err := SkipValue(data, pos, wt)
+			if wt != wireMap {
+				nextPos, err := skipValue(data, pos, wt)
 				if err != nil {
 					return err
 				}
@@ -554,15 +541,15 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 			valWT := mapType & 0x0F
 			expKeyWT, err := protoScalarWireType(fd.MapKey().Kind())
 			if err != nil || keyWT != expKeyWT {
-				return fmt.Errorf("omnibuf: WireMap key wire type mismatch at %d", pos)
+				return fmt.Errorf("omnibuf: wireMap key wire type mismatch at %d", pos)
 			}
 			expValWT, err := protoScalarWireType(fd.MapValue().Kind())
 			if err != nil || valWT != expValWT {
-				return fmt.Errorf("omnibuf: WireMap val wire type mismatch at %d", pos)
+				return fmt.Errorf("omnibuf: wireMap val wire type mismatch at %d", pos)
 			}
-			count, cn := DecodeVarint(body[1:])
+			count, cn := decodeVarint(body[1:])
 			if cn == 0 || count > uint64(len(body)-(1+cn)) {
-				return fmt.Errorf("omnibuf: invalid WireMap count at %d", pos)
+				return fmt.Errorf("omnibuf: invalid wireMap count at %d", pos)
 			}
 			p := 1 + cn
 			mp := m.Mutable(fd).Map()
@@ -585,7 +572,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 				mp.Set(kv.MapKey(), mv)
 			}
 			if p != len(body) {
-				return fmt.Errorf("omnibuf: WireMap trailing bytes at %d", p)
+				return fmt.Errorf("omnibuf: wireMap trailing bytes at %d", p)
 			}
 			pos = nextPos
 			continue
@@ -593,7 +580,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 
 		if fd.IsList() {
 			if wt != expectedListWireType(fd.Kind()) {
-				nextPos, err := SkipValue(data, pos, wt)
+				nextPos, err := skipValue(data, pos, wt)
 				if err != nil {
 					return err
 				}
@@ -610,9 +597,9 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 				if err != nil {
 					return err
 				}
-				count, cn := DecodeVarint(body)
+				count, cn := decodeVarint(body)
 				if cn == 0 || count > uint64(len(body)-cn) {
-					return fmt.Errorf("omnibuf: invalid WireStringArr count at %d", pos)
+					return fmt.Errorf("omnibuf: invalid wireStringArr count at %d", pos)
 				}
 				p := cn
 				for range int(count) {
@@ -624,7 +611,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 					p = nextP
 				}
 				if p != len(body) {
-					return fmt.Errorf("omnibuf: WireStringArr byteLen mismatch at %d", pos)
+					return fmt.Errorf("omnibuf: wireStringArr byteLen mismatch at %d", pos)
 				}
 				pos = nextPos
 			case protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.EnumKind, protoreflect.BoolKind:
@@ -632,15 +619,15 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 				if err != nil {
 					return err
 				}
-				count, cn := DecodeVarint(body)
+				count, cn := decodeVarint(body)
 				if cn == 0 || count > uint64(len(body)-cn) {
-					return fmt.Errorf("omnibuf: invalid WireUintArr count at %d", pos)
+					return fmt.Errorf("omnibuf: invalid wireUintArr count at %d", pos)
 				}
 				p := cn
 				for range int(count) {
-					v, vn := DecodeVarint(body[p:])
+					v, vn := decodeVarint(body[p:])
 					if vn == 0 {
-						return fmt.Errorf("omnibuf: truncated WireUintArr elem at %d", p)
+						return fmt.Errorf("omnibuf: truncated wireUintArr elem at %d", p)
 					}
 					p += vn
 					switch fd.Kind() {
@@ -655,7 +642,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 					}
 				}
 				if p != len(body) {
-					return fmt.Errorf("omnibuf: WireUintArr byteLen mismatch at %d", pos)
+					return fmt.Errorf("omnibuf: wireUintArr byteLen mismatch at %d", pos)
 				}
 				pos = nextPos
 			case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Int64Kind, protoreflect.Sint64Kind:
@@ -663,25 +650,25 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 				if err != nil {
 					return err
 				}
-				count, cn := DecodeVarint(body)
+				count, cn := decodeVarint(body)
 				if cn == 0 || count > uint64(len(body)-cn) {
-					return fmt.Errorf("omnibuf: invalid WireSintArr count at %d", pos)
+					return fmt.Errorf("omnibuf: invalid wireSintArr count at %d", pos)
 				}
 				p := cn
 				for range int(count) {
-					v, vn := DecodeVarint(body[p:])
+					v, vn := decodeVarint(body[p:])
 					if vn == 0 {
-						return fmt.Errorf("omnibuf: truncated WireSintArr elem at %d", p)
+						return fmt.Errorf("omnibuf: truncated wireSintArr elem at %d", p)
 					}
 					p += vn
 					if fd.Kind() == protoreflect.Int32Kind || fd.Kind() == protoreflect.Sint32Kind {
-						list.Append(protoreflect.ValueOfInt32(int32(DecodeZigZag(v))))
+						list.Append(protoreflect.ValueOfInt32(int32(decodeZigZag(v))))
 					} else {
-						list.Append(protoreflect.ValueOfInt64(DecodeZigZag(v)))
+						list.Append(protoreflect.ValueOfInt64(decodeZigZag(v)))
 					}
 				}
 				if p != len(body) {
-					return fmt.Errorf("omnibuf: WireSintArr byteLen mismatch at %d", pos)
+					return fmt.Errorf("omnibuf: wireSintArr byteLen mismatch at %d", pos)
 				}
 				pos = nextPos
 			case protoreflect.FloatKind, protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
@@ -689,8 +676,8 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 				if err != nil {
 					return err
 				}
-				if body[0] != WireFixed32 || (len(body)-1)%4 != 0 {
-					return fmt.Errorf("omnibuf: invalid WireFixedArr(Fixed32) at %d", pos)
+				if body[0] != wireFixed32 || (len(body)-1)%4 != 0 {
+					return fmt.Errorf("omnibuf: invalid wireFixedArr(Fixed32) at %d", pos)
 				}
 				for p := 1; p < len(body); p += 4 {
 					list.Append(protoValueFromFixed32(fd.Kind(), binary.LittleEndian.Uint32(body[p:p+4])))
@@ -701,8 +688,8 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 				if err != nil {
 					return err
 				}
-				if body[0] != WireFixed64 || (len(body)-1)%8 != 0 {
-					return fmt.Errorf("omnibuf: invalid WireFixedArr(Fixed64) at %d", pos)
+				if body[0] != wireFixed64 || (len(body)-1)%8 != 0 {
+					return fmt.Errorf("omnibuf: invalid wireFixedArr(Fixed64) at %d", pos)
 				}
 				for p := 1; p < len(body); p += 8 {
 					list.Append(protoValueFromFixed64(fd.Kind(), binary.LittleEndian.Uint64(body[p:p+8])))
@@ -713,13 +700,13 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 				if err != nil {
 					return err
 				}
-				elemCount, ok := CountSubMsgArrElems(arrPayload)
+				elemCount, ok := countSubMsgArrElems(arrPayload)
 				if !ok {
-					return fmt.Errorf("omnibuf: corrupt WireSubMsgArr at %d", pos)
+					return fmt.Errorf("omnibuf: corrupt wireSubMsgArr at %d", pos)
 				}
 				p := 0
 				for range elemCount {
-					el, en := DecodeVarint(arrPayload[p:])
+					el, en := decodeVarint(arrPayload[p:])
 					p += en
 					elemMsg := list.NewElement().Message()
 					if err := decodeProtoReflectMsg(arrPayload[p:p+int(el)], elemMsg, depth+1); err != nil {
@@ -735,21 +722,21 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int) error
 
 		// Singular field:
 		if fd.Kind() == protoreflect.BoolKind {
-			if wt != WireBoolFalse && wt != WireBoolTrue {
-				nextPos, err := SkipValue(data, pos, wt)
+			if wt != wireBoolFalse && wt != wireBoolTrue {
+				nextPos, err := skipValue(data, pos, wt)
 				if err != nil {
 					return err
 				}
 				pos = nextPos
 				continue
 			}
-			m.Set(fd, protoreflect.ValueOfBool(wt == WireBoolTrue))
+			m.Set(fd, protoreflect.ValueOfBool(wt == wireBoolTrue))
 			continue
 		}
 
 		expWT, err := protoScalarWireType(fd.Kind())
 		if err != nil || wt != expWT {
-			nextPos, err := SkipValue(data, pos, wt)
+			nextPos, err := skipValue(data, pos, wt)
 			if err != nil {
 				return err
 			}
@@ -795,7 +782,7 @@ func appendMapEntryVal(dst []byte, vd protoreflect.FieldDescriptor, v protorefle
 		if err != nil {
 			return nil, err
 		}
-		return BackpatchContainerLen(dst, lenPos), nil
+		return backpatchContainerLen(dst, lenPos), nil
 	default:
 		return appendProtoScalarPayload(dst, vd.Kind(), v)
 	}
@@ -805,11 +792,11 @@ func decodeMapEntryVal(body []byte, p int, vd protoreflect.FieldDescriptor, mp p
 	switch vd.Kind() {
 	case protoreflect.BoolKind:
 		if len(body)-p < 1 {
-			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: truncated WireMap bool val at %d", p)
+			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: truncated wireMap bool val at %d", p)
 		}
 		b := body[p]
 		if b != 0 && b != 1 {
-			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: invalid WireMap bool val %d at %d", b, p)
+			return protoreflect.Value{}, 0, fmt.Errorf("omnibuf: invalid wireMap bool val %d at %d", b, p)
 		}
 		return protoreflect.ValueOfBool(b == 1), p + 1, nil
 	case protoreflect.MessageKind:

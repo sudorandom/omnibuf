@@ -1,4 +1,4 @@
-package omnibuf
+package wire
 
 import (
 	"encoding/binary"
