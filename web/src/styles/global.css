@@ -579,8 +579,7 @@ html.dark .bg-acid .text-ink,
 html.dark .hover\:bg-acid:hover,
 html.dark .hover\:bg-acid:hover.hover\:text-ink,
 html.dark details[open] > summary.group-open\:bg-acid,
-html.dark a[data-spec-link][data-active='true'],
-html.dark button[data-inspector-tab][data-active='true'] {
+html.dark a[data-spec-link][data-active='true'] {
   background-color: #d4ff33 !important;
   color: #111111 !important;
 }
