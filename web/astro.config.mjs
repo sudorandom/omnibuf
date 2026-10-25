@@ -109,7 +109,7 @@ function checkInternalLinksAndAnchors() {
 }
 
 export default defineConfig({
-  site: 'https://omnibuf.dev',
+  site: 'https://omnibuf.com',
   integrations: [checkInternalLinksAndAnchors()],
   vite: {
     css: {

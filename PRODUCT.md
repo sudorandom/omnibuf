@@ -12,7 +12,7 @@ Backend and systems engineers evaluating binary serialization formats, reading t
 
 ## Product Purpose
 
-OmniBuf (`omnibuf.dev`) is a binary wire format and code generator for `.proto` schemas. It exists to keep everything Protobuf got right at the schema layer (explicit field IDs, forward/backward schema evolution, compact binary payloads, and raw byte concatenation) while fixing the two biggest drawbacks of Protobuf's 2001 wire format: byte-by-byte LEB128 varint decoding and wire types that cannot be decoded or inspected without a schema.
+OmniBuf (`omnibuf.com`) is a binary wire format and code generator for `.proto` schemas. It exists to keep everything Protobuf got right at the schema layer (explicit field IDs, forward/backward schema evolution, compact binary payloads, and raw byte concatenation) while fixing the two biggest drawbacks of Protobuf's 2001 wire format: byte-by-byte LEB128 varint decoding and wire types that cannot be decoded or inspected without a schema.
 
 Success on the web surface means an engineer can immediately understand how the wire format works at the byte level, verify its trade-offs against existing serializers with reproducible benchmarks, and adopt or implement the specification.
 
