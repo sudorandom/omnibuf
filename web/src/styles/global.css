@@ -414,7 +414,8 @@ html:not(.dark) .text-\[\#FF4F18\] {
   color: #e03e0b;
 }
 
-html:not(.dark) .bg-ink .text-\[\#FF4F18\] {
+html:not(.dark) .bg-ink .text-\[\#FF4F18\],
+html:not(.dark) .spec-prose pre .text-\[\#FF4F18\] {
   color: #ff4f18;
 }
 
@@ -578,7 +579,8 @@ html.dark .bg-acid .text-ink,
 html.dark .hover\:bg-acid:hover,
 html.dark .hover\:bg-acid:hover.hover\:text-ink,
 html.dark details[open] > summary.group-open\:bg-acid,
-html.dark a[data-spec-link][data-active='true'] {
+html.dark a[data-spec-link][data-active='true'],
+html.dark button[data-inspector-tab][data-active='true'] {
   background-color: #d4ff33 !important;
   color: #111111 !important;
 }
@@ -615,7 +617,8 @@ html.dark .shadow-\[2px_2px_0px_\#111111\] {
   box-shadow: 2px 2px 0px #050608 !important;
 }
 
-html.dark .hover\:shadow-\[3px_3px_0px_\#111111\]:hover {
+html.dark .hover\:shadow-\[3px_3px_0px_\#111111\]:hover,
+html.dark .focus-visible\:shadow-\[3px_3px_0px_\#111111\]:focus-visible {
   box-shadow: 3px 3px 0px #050608 !important;
 }
 

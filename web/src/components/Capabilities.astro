@@ -12,55 +12,345 @@
   </div>
 
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
-    <!-- Row 1: Schema-Less Wire Inspection -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-6 space-y-2.5 min-w-0">
-        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Every wire type is explicit
-        </h3>
-        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          In Protobuf, strings, bytes, nested messages, maps, and arrays all share{' '}
-          <code>Wire Type 2</code>. OmniBuf's 4-bit tag identifies every type right on the wire so
-          tools can inspect packets without the original schema.
-        </p>
-      </div>
-      <div class="lg:col-span-6 grid sm:grid-cols-2 gap-3.5 font-mono text-sm min-w-0">
-        <div class="p-4 bg-[#FAF8F2] border-2 border-ink rounded-md overflow-x-auto">
-          <!-- prettier-ignore -->
-          <div class="text-xs font-bold text-ink/75 mb-1.5">
-            <a href="https://github.com/protocolbuffers/protoscope" target="_blank" rel="noopener noreferrer" class="doc-link">protoscope</a>
-          </div>
-          <pre class="text-sm text-ink/85 leading-snug"><span class="text-[#C23000] font-bold">3:</span> 1 <span class="text-ink/75"># int or bool?</span>
-<span class="text-[#C23000] font-bold">9:</span> &#123;<span class="text-ink/75">"\x1a\x03FRA\x20*"</span>&#125;</pre>
+    <!-- Row 1 & 2: Schema-Less Wire Inspection + Interactive Packet Inspector -->
+    <div class="py-8 sm:py-10 space-y-6">
+      <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+        <div class="lg:col-span-6 space-y-2.5 min-w-0">
+          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+            Every wire type is explicit
+          </h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+            In Protobuf, strings, bytes, nested messages, maps, and arrays all share{' '}
+            <code>Wire Type 2</code>. OmniBuf's 4-bit tag identifies every type right on the wire so
+            tools can inspect packets without the original schema.
+          </p>
         </div>
-        <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto">
-          <div class="text-xs font-bold text-acid mb-1.5">omnibuf decode</div>
-          <pre class="text-sm text-paper/95 leading-snug">&#123;<span class="text-acid font-bold">"3":</span> <span class="text-[#FF4F18] font-bold">true</span>,
- <span class="text-acid font-bold">"9":</span> &#123;<span class="text-acid">"3":</span> <span class="text-paper font-bold">"FRA"</span>, <span class="text-acid">"4":</span> 42&#125;&#125;</pre>
+        <div class="lg:col-span-6 space-y-2.5 min-w-0">
+          <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
+            Optional inline field names (Field #0)
+          </h3>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+            Send only field numbers in production RPCs for compact binary packets, or enable{' '}
+            <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>) to embed the field-name table
+            once per message so <code>omnibuf decode</code> outputs full named JSON with no schema
+            file required.
+          </p>
         </div>
       </div>
-    </div>
 
-    <!-- Row 2: Optional Field #0 Inline Field Names -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-6 space-y-2.5 min-w-0">
-        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Optional inline field names (Field #0)
-        </h3>
-        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Send only field numbers in production RPCs for compact binary packets, or enable{' '}
-          <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>) to embed the field-name table
-          once per message so <code>omnibuf decode</code> outputs full named JSON with no schema
-          file required.
-        </p>
-      </div>
-      <div class="lg:col-span-6 font-mono text-sm min-w-0">
-        <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto">
-          <div class="text-xs font-bold text-acid mb-1.5">
-            omnibuf decode (packet with Field #0)
+      <!-- Interactive Pre-Computed Packet Inspector -->
+      <div
+        id="packet-inspector"
+        class="bg-[#FAF8F2] border-2 border-ink rounded-md p-4 sm:p-5 space-y-4 font-mono"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink/15 pb-3.5">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 bg-ink text-acid text-xs font-bold uppercase rounded">
+              Interactive Wire Inspector
+            </span>
+            <span class="text-xs sm:text-sm text-ink/80 font-bold">
+              Node &#123; id: 300, active: true, location: &#123; city: "FRA", rack: 42 &#125;
+              &#125;
+            </span>
           </div>
-          <pre class="text-sm text-paper/95 leading-snug">&#123;<span class="text-acid font-bold">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>,
- <span class="text-acid font-bold">"location":</span> &#123;<span class="text-acid">"city":</span> <span class="text-paper font-bold">"FRA"</span>, <span class="text-acid">"rack":</span> 42&#125;&#125;</pre>
+          <div
+            role="tablist"
+            aria-label="Select packet encoding mode to inspect"
+            class="flex flex-wrap gap-2"
+          >
+            <button
+              type="button"
+              role="tab"
+              id="tab-inspector-standard"
+              aria-selected="true"
+              aria-controls="panel-inspector-standard"
+              data-inspector-tab="standard"
+              data-active="true"
+              class="px-3 py-1.5 text-xs sm:text-sm font-bold uppercase rounded border-2 border-ink bg-paper text-ink hover:bg-acid/40 data-[active=true]:bg-acid data-[active=true]:text-ink data-[active=true]:shadow-[2px_2px_0px_#111111] transition cursor-pointer"
+            >
+              1. Standard (16 B)
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-inspector-field0"
+              aria-selected="false"
+              aria-controls="panel-inspector-field0"
+              data-inspector-tab="field0"
+              data-active="false"
+              class="px-3 py-1.5 text-xs sm:text-sm font-bold uppercase rounded border-2 border-ink bg-paper text-ink hover:bg-acid/40 data-[active=true]:bg-acid data-[active=true]:text-ink data-[active=true]:shadow-[2px_2px_0px_#111111] transition cursor-pointer"
+            >
+              2. With Field #0 (63 B)
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-inspector-proto"
+              aria-selected="false"
+              aria-controls="panel-inspector-proto"
+              data-inspector-tab="proto"
+              data-active="false"
+              class="px-3 py-1.5 text-xs sm:text-sm font-bold uppercase rounded border-2 border-ink bg-paper text-ink hover:bg-acid/40 data-[active=true]:bg-acid data-[active=true]:text-ink data-[active=true]:shadow-[2px_2px_0px_#111111] transition cursor-pointer"
+            >
+              3. Protobuf (protoscope)
+            </button>
+          </div>
+        </div>
+
+        <!-- Panel 1: OmniBuf Standard (No Field #0) -->
+        <div
+          id="panel-inspector-standard"
+          role="tabpanel"
+          aria-labelledby="tab-inspector-standard"
+          data-inspector-panel="standard"
+          class="grid lg:grid-cols-12 gap-4 items-stretch"
+        >
+          <div class="lg:col-span-6 p-4 bg-paper border-2 border-ink rounded-md flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between gap-2 text-xs font-bold uppercase text-ink/75 mb-2">
+                <span>Raw Wire Bytes (16 Bytes)</span>
+                <span class="text-[#C23000]">No Schema File</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 text-xs sm:text-sm leading-relaxed">
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-paper rounded"
+                  title="Field #1, WireUint (0)"
+                >
+                  21
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-acid/45 text-ink font-bold border border-ink/30 rounded"
+                  title="uint 300 (2B Prefix-Varint)"
+                >
+                  5A 02
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-acid font-bold rounded"
+                  title="Field #3, WireBoolTrue (2) — 0 value bytes!"
+                >
+                  63
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-paper rounded"
+                  title="Field #9, WireSubMsg (5)"
+                >
+                  31
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#FF4F18]/20 text-ink font-bold border border-ink/30 rounded"
+                  title="ByteLen = 7 bytes"
+                >
+                  0E
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-paper rounded"
+                  title="Field #3, WireString (3)"
+                >
+                  67
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#FF4F18]/20 text-ink font-bold border border-ink/30 rounded"
+                  title="ByteLen = 3 bytes"
+                >
+                  07
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-acid/45 text-ink font-bold border border-ink/30 rounded"
+                  title='"FRA"'
+                >
+                  46 52 41
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-paper rounded"
+                  title="Field #4, WireUint (0)"
+                >
+                  81
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-acid/45 text-ink font-bold border border-ink/30 rounded"
+                  title="uint 42"
+                >
+                  55
+                </span>
+              </div>
+            </div>
+            <div class="text-xs text-ink/80 pt-2 border-t border-ink/15">
+              4-bit tags distinguish <code>uint</code> (<code>0</code>), <code>bool=true</code> (
+              <code>2</code>, 0 value bytes), <code>submsg</code> (<code>5</code>), and{' '}
+              <code>string</code> (<code>3</code>) directly on the wire.
+            </div>
+          </div>
+
+          <div class="lg:col-span-6 p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 text-xs font-bold text-acid mb-2">
+                <span>$ omnibuf decode &lt; node.omnibuf</span>
+                <span class="px-2 py-0.5 bg-paper/15 text-paper rounded">DecodeBlind</span>
+              </div>
+              <pre class="text-sm text-paper/95 leading-snug">&#123;
+  <span class="text-acid font-bold">"1":</span> 300,
+  <span class="text-acid font-bold">"3":</span> <span class="text-[#FF4F18] font-bold">true</span>,
+  <span class="text-acid font-bold">"9":</span> &#123; <span class="text-acid font-bold">"3":</span> <span class="text-paper font-bold">"FRA"</span>, <span class="text-acid font-bold">"4":</span> 42 &#125;
+&#125;</pre>
+            </div>
+            <div class="text-xs text-paper/75 pt-2 mt-2 border-t border-paper/15">
+              Exact JSON types and nested structure recovered with zero <code>.proto</code>{' '}
+              descriptors.
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: OmniBuf with Field #0 Inline SchemaMeta -->
+        <div
+          id="panel-inspector-field0"
+          role="tabpanel"
+          aria-labelledby="tab-inspector-field0"
+          data-inspector-panel="field0"
+          class="hidden grid lg:grid-cols-12 gap-4 items-stretch"
+        >
+          <div class="lg:col-span-6 p-4 bg-paper border-2 border-ink rounded-md flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between gap-2 text-xs font-bold uppercase text-ink/75 mb-2">
+                <span>Raw Wire Bytes (63 Bytes)</span>
+                <span class="text-[#C23000]">Field #0 Header + 16B Payload</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm leading-relaxed">
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-acid font-bold rounded"
+                  title="Field #0, WireSubMsg (5)"
+                >
+                  0B
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#FF4F18]/20 text-ink font-bold border border-ink/30 rounded"
+                  title="SchemaMeta ByteLen = 45B"
+                >
+                  5B
+                </span>
+                <span class="px-2 py-0.5 bg-acid/45 text-ink font-bold border border-ink/40 rounded">
+                  SchemaMeta: 1&rarr;"id", 3&rarr;"active", 9&rarr;"location" &#123;3&rarr;"city",
+                  4&rarr;"rack"&#125;
+                </span>
+                <span class="text-ink/70 font-bold">+</span>
+                <span class="px-1.5 py-0.5 bg-ink text-paper rounded">
+                  21 5A 02 63 31 0E 67 07 46 52 41 81 55
+                </span>
+              </div>
+            </div>
+            <div class="text-xs text-ink/80 pt-2 border-t border-ink/15">
+              <code>MarshalOptions&#123;SelfDescribing: true&#125;</code> prepends{' '}
+              <code>Field #0</code> once at the root message. Schema-aware decoders skip{' '}
+              <code>Field #0</code> in 1 step.
+            </div>
+          </div>
+
+          <div class="lg:col-span-6 p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 text-xs font-bold text-acid mb-2">
+                <span>$ omnibuf decode &lt; node_self_desc.omnibuf</span>
+                <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded">Named JSON</span>
+              </div>
+              <pre class="text-sm text-paper/95 leading-snug">&#123;
+  <span class="text-acid font-bold">"id":</span> 300,
+  <span class="text-acid font-bold">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>,
+  <span class="text-acid font-bold">"location":</span> &#123; <span class="text-acid font-bold">"city":</span> <span class="text-paper font-bold">"FRA"</span>, <span class="text-acid font-bold">"rack":</span> 42 &#125;
+&#125;</pre>
+            </div>
+            <div class="text-xs text-paper/75 pt-2 mt-2 border-t border-paper/15">
+              Full human-readable field names reconstructed directly from the wire packet.
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 3: Protobuf Wire (protoscope) -->
+        <div
+          id="panel-inspector-proto"
+          role="tabpanel"
+          aria-labelledby="tab-inspector-proto"
+          data-inspector-panel="proto"
+          class="hidden grid lg:grid-cols-12 gap-4 items-stretch"
+        >
+          <div class="lg:col-span-6 p-4 bg-paper border-2 border-ink rounded-md flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between gap-2 text-xs font-bold uppercase text-ink/75 mb-2">
+                <span>Protobuf Wire Bytes (13 Bytes)</span>
+                <span class="text-[#C23000]">Ambiguous 3-Bit Tags</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 text-xs sm:text-sm leading-relaxed">
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-paper rounded"
+                  title="Field #1, Wire Type 0 (Varint)"
+                >
+                  08
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#E5E0D5] text-ink border border-ink/30 rounded"
+                  title="LEB128 300"
+                >
+                  AC 02
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-ink text-paper rounded"
+                  title="Field #3, Wire Type 0 (Varint — bool or int?)"
+                >
+                  18
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#E5E0D5] text-ink border border-ink/30 rounded"
+                  title="1 (bool true or int 1?)"
+                >
+                  01
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#C23000] text-white font-bold rounded"
+                  title="Field #9, Wire Type 2 (Length-Delimited — string, bytes, or submsg?)"
+                >
+                  4A
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#E5E0D5] text-ink border border-ink/30 rounded"
+                  title="Length = 7"
+                >
+                  07
+                </span>
+                <span
+                  class="px-1.5 py-0.5 bg-[#E5E0D5] text-ink border border-ink/30 rounded"
+                  title="Opaque Wire Type 2 bytes"
+                >
+                  1A 03 46 52 41 20 2A
+                </span>
+              </div>
+            </div>
+            <div class="text-xs text-ink/80 pt-2 border-t border-ink/15">
+              {/* prettier-ignore */}
+              In Protobuf, <code>Wire Type 0</code> merges booleans and integers, and{' '}
+              <a
+                href="https://github.com/protocolbuffers/protoscope"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="doc-link"
+              >
+                <code>protoscope</code>
+              </a>{' '}
+              must guess what <code>Wire Type 2</code> contains.
+            </div>
+          </div>
+
+          <div class="lg:col-span-6 p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 text-xs font-bold text-[#FF4F18] mb-2">
+                <span>$ protoscope node.pb</span>
+                <span class="px-2 py-0.5 bg-paper/15 text-paper rounded">Schema Required</span>
+              </div>
+              <pre class="text-sm text-paper/95 leading-snug"><span class="text-[#FF4F18] font-bold">1:</span> 300                <span class="text-paper/70"># uint32, sint32, or enum?</span>
+<span class="text-[#FF4F18] font-bold">3:</span> 1                  <span class="text-paper/70"># int 1 or bool true?</span>
+<span class="text-[#FF4F18] font-bold">9:</span> &#123;<span class="text-paper/80">"\x1a\x03FRA\x20*"</span>&#125; <span class="text-paper/70"># string, bytes, or submsg?</span></pre>
+            </div>
+            <div class="text-xs text-paper/75 pt-2 mt-2 border-t border-paper/15">
+              Without the matching <code>.proto</code> file, debugging tools cannot distinguish
+              nested messages from raw bytes.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -116,3 +406,48 @@
     </div>
   </div>
 </section>
+
+<script>
+  const inspectorTabs = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('#packet-inspector button[data-inspector-tab]'),
+  );
+  const inspectorPanels = Array.from(
+    document.querySelectorAll<HTMLElement>('#packet-inspector [data-inspector-panel]'),
+  );
+
+  function activateInspectorTab(targetKey: string, focusTab = false) {
+    for (const tab of inspectorTabs) {
+      const isMatch = tab.dataset.inspectorTab === targetKey;
+      tab.dataset.active = isMatch ? 'true' : 'false';
+      tab.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+      if (isMatch && focusTab) {
+        tab.focus();
+      }
+    }
+    for (const panel of inspectorPanels) {
+      const isMatch = panel.dataset.inspectorPanel === targetKey;
+      panel.classList.toggle('hidden', !isMatch);
+    }
+  }
+
+  for (const [idx, tab] of inspectorTabs.entries()) {
+    tab.addEventListener('click', () => {
+      if (tab.dataset.inspectorTab) {
+        activateInspectorTab(tab.dataset.inspectorTab);
+      }
+    });
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const nextIdx =
+          e.key === 'ArrowRight'
+            ? (idx + 1) % inspectorTabs.length
+            : (idx - 1 + inspectorTabs.length) % inspectorTabs.length;
+        const nextKey = inspectorTabs[nextIdx]?.dataset.inspectorTab;
+        if (nextKey) {
+          activateInspectorTab(nextKey, true);
+        }
+      }
+    });
+  }
+</script>

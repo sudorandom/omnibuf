@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	. "github.com/sudorandom/omnibuf"
+	"github.com/sudorandom/omnibuf/conformance"
 	"github.com/sudorandom/omnibuf/pb"
 )
 
@@ -1866,4 +1868,37 @@ func TestLargeContainerExpansionOver16KB(t *testing.T) {
 	if blind["field_11"] != orig.Sequence {
 		t.Fatalf("DecodeBlind large packet field_11 = %v, want %d", blind["field_11"], orig.Sequence)
 	}
+}
+
+func TestConformanceRunnerAdapterHarness(t *testing.T) {
+	tmpDir := t.TempDir()
+	runnerBin := filepath.Join(tmpDir, "conformance-runner")
+	adapterBin := filepath.Join(tmpDir, "conformance-go")
+
+	if out, err := exec.Command("go", "build", "-o", runnerBin, "./cmd/conformance-runner").CombinedOutput(); err != nil {
+		t.Fatalf("build conformance-runner failed: %v\n%s", err, out)
+	}
+	if out, err := exec.Command("go", "build", "-o", adapterBin, "./cmd/conformance-go").CombinedOutput(); err != nil {
+		t.Fatalf("build conformance-go failed: %v\n%s", err, out)
+	}
+
+	corpusPath := filepath.Join("testdata", "conformance_corpus.json")
+	sum, err := conformance.RunSuite(adapterBin, corpusPath)
+	if err != nil {
+		t.Fatalf("conformance.RunSuite failed: %v", err)
+	}
+	if len(sum.Failures) > 0 {
+		t.Fatalf("conformance failures (%d):\n%s", len(sum.Failures), strings.Join(sum.Failures, "\n"))
+	}
+	if sum.PassedCases == 0 {
+		t.Fatalf("expected >0 passed conformance cases")
+	}
+
+	// Also verify the standalone conformance-runner CLI binary exits 0 against conformance-go
+	// #nosec G204 -- runnerBin and adapterBin are built in t.TempDir() above
+	out, err := exec.Command(runnerBin, "-corpus", corpusPath, adapterBin).CombinedOutput()
+	if err != nil {
+		t.Fatalf("conformance-runner CLI failed: %v\n%s", err, out)
+	}
+	t.Logf("\n%s", strings.TrimSpace(string(out)))
 }

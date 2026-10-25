@@ -28,7 +28,7 @@ const nodeSchemaCode = `message Node {
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Instead of checking continuation bits on every byte in a loop, the trailing zeros in Byte 0 tell the CPU the exact byte width (1, 2, 4, or 9 bytes) right away via <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener" class="doc-link"><code>TZCNT</code></a>, reading the whole integer at once (<strong>2x to 4x faster</strong> on single integers and <strong>~35% faster</strong> on mixed integer streams than Go's <code>protowire</code> and <code>vtprotobuf</code>). Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener" class="doc-link">ZigZag encoding</a>.
+          Instead of checking continuation bits on every byte in a loop, the trailing zeros in Byte 0 tell the CPU the exact byte width (1, 2, 4, or 9 bytes) right away via <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a>, reading the whole integer at once (<strong>2x to 4x faster</strong> on single integers and <strong>~35% faster</strong> on mixed integer streams than Go's <code>protowire</code> and <code>vtprotobuf</code>). Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener noreferrer" class="doc-link">ZigZag encoding</a>.
         </p>
       </div>
       <div class="lg:col-span-6">
@@ -156,7 +156,7 @@ const nodeSchemaCode = `message Node {
               <button
                 type="button"
                 data-copy={nodeSchemaCode}
-                class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
               >
                 Copy
               </button>

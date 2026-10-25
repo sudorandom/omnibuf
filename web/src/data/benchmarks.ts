@@ -217,7 +217,7 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'B',
     maxVal: 850,
     methodology:
-      "This benchmark compares the encoded byte size of the same 11-field message across formats. OmniBuf only uses a little bit more bytes on the wire than Protobuf (~6% on this message) to make every wire type and container length self-describing, while staying much smaller than FlatBuffers, Cap'n Proto, MessagePack, and JSON.",
+      "This benchmark compares the encoded byte size of the same 11-field message across formats. OmniBuf uses only slightly more bytes on the wire than Protobuf (~6% on this message) to make every wire type and container length self-describing, while staying much smaller than FlatBuffers, Cap'n Proto, MessagePack, and JSON.",
     rows: [
       { name: 'Protobuf', val: 341 },
       { name: 'OmniBuf', val: 362, highlight: true, baseline: true },

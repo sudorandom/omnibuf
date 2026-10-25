@@ -4,11 +4,8 @@
 <section id="motivation" class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
   <div class="max-w-3xl mb-10">
     <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
-      All the benefits of Protobuf.
-      <br />
-      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
-        Faster, inspectable, and spliceable.
-      </span>
+      Faster, inspectable,{' '}
+      <span class="font-serif italic font-normal normal-case text-[#FF4F18]">and spliceable.</span>
     </h2>
     <p class="mt-4 text-lg sm:text-xl text-ink/80 font-medium">
       You shouldn't have to give up <code>.proto</code> files or switch to pointer-heavy zero-copy
@@ -21,11 +18,11 @@
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-8 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          No byte-by-byte varint loops. No two-pass encoding.
+          No byte-by-byte varint loops. No two-pass encoding
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Protobuf's <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener" class="doc-link">LEB128</a> varints check a continuation bit on every byte, and its length-prefixed sub-messages force encoders to walk the struct tree twice (once to compute sizes, once to write bytes). OmniBuf puts the integer byte width in the first byte (<a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener" class="doc-link"><code>TZCNT</code></a>) so the CPU reads the whole integer at once without looping over each byte, and reserves 2-byte length slots so messages encode in a single pass.
+          Protobuf's <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128</a> varints check a continuation bit on every byte, and its length-prefixed sub-messages force encoders to walk the struct tree twice (once to compute sizes, once to write bytes). OmniBuf puts the integer byte width in the first byte (<a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a>) so the CPU reads the whole integer at once without looping over each byte, and reserves 2-byte length slots so messages encode in a single pass.
         </p>
       </div>
       <div class="lg:col-span-4">
@@ -41,11 +38,11 @@
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-8 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Inspect packets without a schema &amp; use normal structs.
+          Inspect packets without a schema &amp; use normal structs
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Protobuf lumps strings, byte slices, sub-messages, maps, and packed arrays into a single wire type (<code>Wire Type 2</code>). Without the <code>.proto</code> file, a decoder can only guess what a payload contains. OmniBuf uses a 4-bit wire type (~6% larger on the wire) so every type is explicit. Any CLI or log viewer can decode packets without a schema, and you still work with normal structs instead of <a href="https://flatbuffers.dev/" target="_blank" rel="noopener" class="doc-link">FlatBuffers</a> builders.
+          Protobuf lumps strings, byte slices, sub-messages, maps, and packed arrays into a single wire type (<code>Wire Type 2</code>). Without the <code>.proto</code> file, a decoder can only guess what a payload contains. OmniBuf uses a 4-bit wire type (~6% larger on the wire) so every type is explicit. Any CLI or log viewer can decode packets without a schema, and you still work with normal structs instead of <a href="https://flatbuffers.dev/" target="_blank" rel="noopener noreferrer" class="doc-link">FlatBuffers</a> builders.
         </p>
       </div>
       <div class="lg:col-span-4">
@@ -62,7 +59,7 @@
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-8 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Read, drop, or replace individual fields on raw bytes.
+          Read, drop, or replace individual fields on raw bytes
         </h3>
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
           Because every integer and container carries its exact byte width in its header, OmniBuf
@@ -86,7 +83,7 @@
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-8 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Keep your .proto files, schema evolution, and compact payloads.
+          Keep your .proto files, schema evolution, and compact payloads
         </h3>
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
           OmniBuf works directly with your existing <code>.proto</code> files and generated structs.

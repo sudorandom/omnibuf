@@ -1,0 +1,76 @@
+syntax = "proto3";
+package omnibuf.conformance;
+
+option go_package = "github.com/sudorandom/omnibuf/pb;pb";
+
+// WireFormat identifies the serialization format of payloads in ConformanceRequest and ConformanceResponse.
+enum WireFormat {
+  WIRE_FORMAT_UNSPECIFIED = 0;
+  WIRE_FORMAT_OMNIBUF = 1;
+  WIRE_FORMAT_JSON = 2;
+}
+
+// TestTier selects which required implementation tier the adapter binary must exercise.
+enum TestTier {
+  TEST_TIER_UNSPECIFIED = 0;
+  // Generated code from the language's protoc-gen-omnibuf-* plugin.
+  TEST_TIER_PLUGIN = 1;
+  // Standard protoc-generated Protobuf types without the OmniBuf plugin.
+  TEST_TIER_PROTOBUF_TYPES = 2;
+  // Plain language structs/classes/objects with field annotations or declarative type mappings.
+  TEST_TIER_ANNOTATED_STRUCT = 3;
+  // Schema-less inspection (DecodeBlind / DecodeBlindJSON).
+  TEST_TIER_BLIND = 4;
+}
+
+// ConformanceRequest is sent from conformance-runner to the testee adapter binary over stdin
+// (prefixed by a 4-byte little-endian uint32 byte length).
+message ConformanceRequest {
+  string test_name = 1;
+  string message_type = 2;
+  TestTier tier = 3;
+  WireFormat requested_output_format = 4;
+  bytes omnibuf_payload = 5;
+  string json_payload = 6;
+  bool self_describing = 7;
+}
+
+// ConformanceResponse is returned by the testee adapter binary over stdout
+// (prefixed by a 4-byte little-endian uint32 byte length).
+message ConformanceResponse {
+  string parse_error = 1;
+  string serialize_error = 2;
+  string runtime_error = 3;
+  string skipped = 4;
+  bytes omnibuf_payload = 5;
+  string json_payload = 6;
+}
+
+// AllTypesSubMsg is a child message used by TestAllTypes.
+message AllTypesSubMsg {
+  uint32 id = 1;
+  string label = 2;
+  bool flag = 3;
+  sint64 score = 4;
+}
+
+// TestAllTypes exercises core OmniBuf wire types across fields 1..20.
+message TestAllTypes {
+  uint32 f1_uint32 = 1;
+  uint64 f2_uint64 = 2;
+  sint32 f3_sint32 = 3;
+  sint64 f4_sint64 = 4;
+  bool f5_bool = 5;
+  string f6_string = 6;
+  bytes f7_bytes = 7;
+  AllTypesSubMsg f8_sub_msg = 8;
+  repeated string f9_string_arr = 9;
+  repeated uint32 f10_uint32_arr = 10;
+  repeated AllTypesSubMsg f11_sub_msg_arr = 11;
+  map<string, uint64> f12_map_str_uint = 12;
+  float f13_float32 = 13;
+  double f14_float64 = 14;
+  fixed32 f15_fixed32 = 15;
+  fixed64 f16_fixed64 = 16;
+  string f20_overflow_str = 20;
+}

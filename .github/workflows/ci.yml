@@ -52,8 +52,11 @@ jobs:
       - name: Verify Go version
         run: go version
 
-      - name: Run unit & conformance tests
+      - name: Run unit tests
         run: just test
+
+      - name: Run conformance runner & Go adapter
+        run: just conformance
 
       - name: Run Go fuzz tests
         run: just fuzz 10s

@@ -10,9 +10,22 @@ default:
 test:
     go test -race -v ./...
 
-# Run only the Protobuf-style conformance & malicious wire suite (and verify testdata/conformance_corpus.json)
-conformance:
-    go test -v -run "TestProtobufStyleConformanceCorpus|TestSchemaEvolutionUnknownFieldsConformance|TestMalformedWireRejectionConformance|TestGoldenWireFiles" ./...
+# Build and run the conformance test runner binary against an adapter binary (defaults to Go adapter ./bin/conformance-go)
+conformance adapter="./bin/conformance-go": build-conformance
+    ./bin/conformance-runner "{{adapter}}"
+
+# Build both the conformance runner and the Go conformance adapter binaries into ./bin/
+build-conformance: build-conformance-runner build-conformance-go
+
+# Build the language-independent conformance test runner binary into ./bin/conformance-runner
+build-conformance-runner:
+    @mkdir -p bin
+    go build -o bin/conformance-runner ./cmd/conformance-runner
+
+# Build the Go conformance adapter binary into ./bin/conformance-go
+build-conformance-go:
+    @mkdir -p bin
+    go build -o bin/conformance-go ./cmd/conformance-go
 
 # Regenerate golden files in testdata/golden/ and testdata/conformance_corpus.json
 update-golden:
@@ -141,8 +154,8 @@ fmt-check: go-fmt-check buf-fmt-check web-fmt-check
 # Lint Go, Protobuf, and frontend code
 lint: go-lint buf-lint web-lint
 
-# Run all Go CI checks (format check, lint, unit/conformance tests, and fuzzing)
-ci-go fuzz_time="5s": go-fmt-check go-lint test (fuzz fuzz_time)
+# Run all Go CI checks (format check, lint, unit tests, conformance runner + adapter, and fuzzing)
+ci-go fuzz_time="5s": go-fmt-check go-lint test conformance (fuzz fuzz_time)
 
 # Run all Protobuf CI checks (format check, lint, and build)
 ci-proto: buf-fmt-check buf-lint buf-build

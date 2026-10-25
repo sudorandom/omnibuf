@@ -105,6 +105,14 @@ const tocSections = [
   },
   { id: 'sec-9', label: '9. End-to-End Annotated Example', children: [] },
   { id: 'sec-10', label: '10. Wire Validity & Rejection Rules', children: [] },
+  {
+    id: 'sec-11',
+    label: '11. Language Implementations & Conformance',
+    children: [
+      { id: 'sec-11-1', label: '11.1 Required Integration Tiers' },
+      { id: 'sec-11-2', label: '11.2 Conformance Test Suite' },
+    ],
+  },
 ];
 ---
 
@@ -640,7 +648,7 @@ const tocSections = [
             <button
               type="button"
               data-copy={zigZagGoCode}
-              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
             >
               Copy
             </button>
@@ -1281,7 +1289,7 @@ const tocSections = [
             <button
               type="button"
               data-copy={locateFieldGoCode}
-              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
             >
               Copy
             </button>
@@ -1323,7 +1331,7 @@ const tocSections = [
             <button
               type="button"
               data-copy={sec8MetaProtoCode}
-              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
             >
               Copy
             </button>
@@ -1371,7 +1379,7 @@ const tocSections = [
                 Length
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-acid border border-ink inline-block rounded-sm"></span>{' '}
+                <span class="w-3 h-3 bg-acid/45 border border-ink inline-block rounded-sm"></span>{' '}
                 Value
               </span>
             </div>
@@ -1556,7 +1564,7 @@ children[10] = &#123;
             <button
               type="button"
               data-copy={sec9ProtoCode}
-              class="copy-snippet-btn px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
             >
               Copy
             </button>
@@ -1576,7 +1584,7 @@ children[10] = &#123;
                 Length
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-acid border border-ink inline-block rounded-sm"></span>{' '}
+                <span class="w-3 h-3 bg-acid/45 border border-ink inline-block rounded-sm"></span>{' '}
                 Value
               </span>
             </div>
@@ -1777,6 +1785,85 @@ children[10] = &#123;
             </ul>
           </li>
         </ol>
+
+        <!-- SECTION 11 -->
+        <h2 id="sec-11">11. Language Implementation Requirements &amp; Conformance</h2>
+        <p>
+          OmniBuf implementations across programming languages SHOULD follow modern, idiomatic
+          practices for their target ecosystem (such as zero-copy slice or span views where memory
+          safety permits, buffer-append encoding APIs to support pooling, and standard language
+          error handling). To provide a consistent developer experience across ecosystems, every
+          complete OmniBuf implementation MUST support three integration tiers and pass the full
+          conformance test suite.
+        </p>
+
+        <h3 id="sec-11-1">11.1 Required Integration Tiers</h3>
+        <p>
+          Every complete OmniBuf language implementation MUST support encoding and decoding across
+          three progressive adoption tiers:
+        </p>
+        <ol>
+          <li>
+            <strong>
+              Protobuf Compiler Plugin (<code>protoc-gen-omnibuf-*</code>):
+            </strong>{' '}
+            A dedicated <code>protoc</code> /{' '}
+            <a href="https://buf.build" target="_blank" rel="noopener noreferrer">
+              <code>buf</code>
+            </a>{' '}
+            plugin that generates reflection-free, single-pass forward encoders, branchless{' '}
+            <code>TZCNT</code> decoders, and lazy header-hopping views (<code>Opaque</code>{' '}
+            accessors and raw field splicing) directly from <code>.proto</code> schemas.
+          </li>
+          <li>
+            <strong>Usable on Protobuf Types Without the Plugin:</strong> Drop-in serialization and
+            deserialization of standard <code>protoc</code>-generated message types (for example,{' '}
+            <code>.pb.go</code> structs in Go or standard Protobuf classes in C++, Java, Python,
+            Rust, and TypeScript) using the language's Protobuf runtime descriptors or reflection,
+            requiring zero build-pipeline changes.
+          </li>
+          <li>
+            <strong>
+              Usable on Normal Classes, Objects, or Structs with Annotations (or Declarative Type
+              Mapping):
+            </strong>{' '}
+            Direct serialization of plain language types (structs, classes, records, or data
+            objects) without <code>.proto</code> files using native field annotations, attributes,
+            decorators, or struct tags (such as Go's <code>`omnibuf:"1,name=city"`</code>, Rust
+            derive attributes, or Java/C#/Python/TypeScript decorators) to declare field numbers,
+            JSON/
+            <code>Field #0</code> names, and wire-type overrides (<code>wire=sint</code>,{' '}
+            <code>wire=fixed32</code>, <code>wire=fixed64</code>). In languages that do not have a
+            built-in annotation or attribute feature, the implementation MUST provide an idiomatic
+            declarative type-mapping API or descriptor table to bind field numbers, JSON names, and
+            wire types to plain objects or structs.
+          </li>
+        </ol>
+
+        <h3 id="sec-11-2">11.2 Conformance Test Suite</h3>
+        <p>
+          All implementations MUST pass the official OmniBuf Conformance Test Suite across every
+          supported integration tier. Modeled after Protocol Buffers' conformance harness, a
+          dedicated conformance test runner binary executes a small adapter binary provided by each
+          language implementation, feeding test requests and verifying responses to ensure:
+        </p>
+        <ul>
+          <li>
+            <strong>Wire Round-Trip &amp; Interoperability:</strong> Deterministic decoding and
+            re-encoding across all 16 wire types (<code>0..15</code>), single-byte and 2-byte field
+            tags, overlong 2-byte container length prefixes, optional <code>Field #0</code>{' '}
+            self-describing headers, raw concatenation merges, and schema-less inspection.
+          </li>
+          <li>
+            <strong>Tier Equivalence:</strong> Identical wire semantics whether a message is
+            processed via generated plugin code, standard Protobuf types without the plugin, or
+            annotated/mapped native classes and structs.
+          </li>
+          <li>
+            <strong>Malformed Input Rejection:</strong> Strict, panic-free rejection of all invalid
+            or adversarial wire packets defined in <a href="#sec-10">Section 10</a>.
+          </li>
+        </ul>
       </article>
     </div>
 
@@ -1799,6 +1886,9 @@ children[10] = &#123;
         </a>
         <a href="/benchmarks" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
           Benchmarks &amp; Comparisons &rarr;
+        </a>
+        <a href="/go" class="os-btn px-5 py-2.5 bg-[#FAF8F2] text-ink font-bold rounded-md">
+          OmniBuf for Go &rarr;
         </a>
       </div>
     </div>
