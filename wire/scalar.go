@@ -39,7 +39,8 @@ func (e *Encoder) WriteFixed32(fieldNum uint16, v uint32) {
 
 // WriteFloat32 writes a 4-byte IEEE-754 float32 field (WireFixed32).
 func (e *Encoder) WriteFloat32(fieldNum uint16, v float32) {
-	e.WriteFixed32(fieldNum, math.Float32bits(v))
+	e.writeTag(fieldNum, WireFloat32)
+	e.buf = binary.LittleEndian.AppendUint32(e.buf, math.Float32bits(v))
 }
 
 // WriteFixed64 writes an 8-byte little-endian uint64 field (WireFixed64).
@@ -53,7 +54,8 @@ func (e *Encoder) WriteFixed64(fieldNum uint16, v uint64) {
 
 // WriteFloat64 writes an 8-byte IEEE-754 float64 field (WireFixed64).
 func (e *Encoder) WriteFloat64(fieldNum uint16, v float64) {
-	e.WriteFixed64(fieldNum, math.Float64bits(v))
+	e.writeTag(fieldNum, WireFloat64)
+	e.buf = binary.LittleEndian.AppendUint64(e.buf, math.Float64bits(v))
 }
 
 // WriteString writes a UTF-8 string field (WireString).
@@ -116,7 +118,7 @@ func ReadBool(packet []byte, fieldNum uint16) (bool, bool) {
 // ReadFloat32 reads a float32 field with 0 heap allocations.
 func ReadFloat32(packet []byte, fieldNum uint16) (float32, bool) {
 	s, wt, ok := LocateField(packet, fieldNum)
-	if !ok || wt != WireFixed32 || len(s) < 4 {
+	if !ok || wt != WireFloat32 || len(s) < 4 {
 		return 0, false
 	}
 	return math.Float32frombits(binary.LittleEndian.Uint32(s[:4])), true
@@ -125,7 +127,7 @@ func ReadFloat32(packet []byte, fieldNum uint16) (float32, bool) {
 // ReadFloat64 reads a float64 field with 0 heap allocations.
 func ReadFloat64(packet []byte, fieldNum uint16) (float64, bool) {
 	s, wt, ok := LocateField(packet, fieldNum)
-	if !ok || wt != WireFixed64 || len(s) < 8 {
+	if !ok || wt != WireFloat64 || len(s) < 8 {
 		return 0, false
 	}
 	return math.Float64frombits(binary.LittleEndian.Uint64(s[:8])), true

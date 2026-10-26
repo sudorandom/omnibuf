@@ -22,7 +22,7 @@ Unlike FlatBuffers or Cap'n Proto (which require custom IDLs, arena builders, an
 
 Its core wire-format mechanisms are:
 - **trailing-zero Prefix-Varints (`TZCNT`):** The first byte reveals the exact byte width (`1`, `2`, `4`, or `9` bytes), enabling single-instruction little-endian loads and stores instead of byte-by-byte continuation-bit loops.
-- **16 self-describing wire types (4-bit nibble):** Every tag encodes the exact data type (`WireUint`, `WireTrue`, `WireFalse`, `WireString`, `WireBytes`, `WireSubMsg`, `WireStringArr`, `WireUintArr`, `WireSubMsgArr`, `WireMap`, `WireSint`, `WireSintArr`, `WireFixed32`, `WireFixed64`, `WireFixed32Arr`, `WireFixed64Arr`), allowing any payload to be inspected or converted to JSON without the `.proto` file.
+- **16 self-describing wire types (4-bit nibble):** Every tag encodes the exact data type (`WireUint`, `WireSint`, `WireBoolFalse`, `WireBoolTrue`, `WireFixed32`, `WireFixed64`, `WireSfixed32`, `WireSfixed64`, `WireFloat32`, `WireFloat64`, `WireString`, `WireBytes`, `WireSubMsg`, `WireArray`, `WireMap`, `WireExtended`), allowing any payload to be inspected or converted to JSON without the `.proto` file.
 - **Contiguous primitive arrays and length-prefixed containers:** Eliminates repeated per-element tags and varint loops on slices, allowing any container to be skipped in one jump (`pos += byteLen`).
 - **Single-pass forward encoding:** Fixed 2-byte length patch slots avoid Protobuf's two-pass `Size()` calculation.
 - **Opaque field lookup and splicing (`LocateField`, `SpliceFields`):** Jump over unrelated fields in `O(1)` per field using self-describing byte lengths to read, drop, or replace individual fields without decoding the message.

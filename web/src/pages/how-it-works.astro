@@ -1,15 +1,15 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
-import Capabilities from '../components/Capabilities.astro';
 import HowItWorks from '../components/HowItWorks.astro';
+import Capabilities from '../components/Capabilities.astro';
 import Comparisons from '../components/Comparisons.astro';
 import Footer from '../components/Footer.astro';
 ---
 
 <Layout
   title="How It Works | OmniBuf"
-  description="How OmniBuf achieves single-pass forward encoding, branchless Prefix-Varint decoding, raw message concatenation, schema-less inspection, and how it compares to other formats."
+  description="How the OmniBuf binary wire format is structured: flat [Tag][Value] streams, Prefix-Varints, 4-bit wire types, single-pass length prefixes, and how it compares to other formats."
 >
   <Navbar currentPage="how-it-works" />
 
@@ -24,19 +24,165 @@ import Footer from '../components/Footer.astro';
         </span>
       </h1>
       <p class="mt-6 max-w-3xl text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
-        New wire behaviors, schema-less inspection capabilities, the encoding changes that make them
-        possible, and how OmniBuf compares to other formats.
+        An OmniBuf packet is a flat stream of <code>[Tag][Value]</code> fields with no file header
+        or offset table.
       </p>
     </section>
 
-    <Capabilities />
+    <!-- Binary Format Anatomy -->
+    <section
+      id="wire-format"
+      class="pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8"
+    >
+      <div class="border-t-2 border-ink pt-8 sm:pt-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+        <div class="lg:col-span-5 space-y-3.5 min-w-0">
+          <h2 class="text-2xl sm:text-4xl font-bold uppercase tracking-tight leading-none">
+            Anatomy of a{' '}
+            <span class="font-serif italic font-normal normal-case text-[#FF4F18]">packet.</span>
+          </h2>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Fields are written one after another as <code>[Tag][Value]</code> pairs. An empty
+            message is 0 bytes. Each field starts with a Prefix-Varint tag that holds the field
+            number in the upper bits and a <strong>4-bit wire type (0..15)</strong> in the low 4
+            bits:
+          </p>
+          <div class="p-3.5 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono text-sm sm:text-base font-bold">
+            Tag = (FieldNumber &lt;&lt; 4) | WireType
+          </div>
+          <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
+            Because Protobuf only uses 3 bits for its wire type, strings, byte slices, nested
+            messages, and arrays all share the same wire type on the wire. Using 4 bits lets the tag
+            tell the decoder what kind of value follows:
+          </p>
+          <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
+            <li>
+              Unsigned integers (Type 0) and ZigZag-signed integers (Type 1) are encoded as 1, 2, 4,
+              or 9-byte Prefix-Varints.
+            </li>
+            <li>
+              Booleans (Types 2 &amp; 3) put <code>false</code> or <code>true</code> right in the
+              tag, so they take <strong>0 value bytes</strong>.
+            </li>
+            <li>
+              Unsigned fixed-width ints (Types 4 &amp; 5), signed fixed-width ints (Types 6 &amp;
+              7), and IEEE-754 floats (Types 8 &amp; 9) are written as 4 or 8 little-endian bytes.
+            </li>
+            <li>
+              Strings (Type 10) and raw byte slices (Type 11) write their byte length followed by
+              the bytes.
+            </li>
+            <li>
+              Sub-messages (Type 12), arrays (Type 13), and maps (Type 14) always start with their
+              total <code>ByteLen</code>. Arrays include a 1-byte element type and maps include a
+              2-byte key/value type header. If a decoder doesn't need a container field, it adds{' '}
+              <code>ByteLen</code> to its position and moves on to the next tag.
+            </li>
+          </ul>
+        </div>
+
+        <!-- Concrete Wire Breakdown Example -->
+        <div class="lg:col-span-7 min-w-0">
+          <div class="os-window overflow-hidden">
+            <div class="os-titlebar bg-[#E5E0D5]">
+              <span class="font-mono text-sm sm:text-base font-bold uppercase">
+                Example Packet on the Wire (8 Bytes)
+              </span>
+              <div class="os-stripes"></div>
+            </div>
+            <div class="p-4 sm:p-5 bg-ink text-paper font-mono text-xs sm:text-sm space-y-4">
+              <!-- Protoscope-style message + contiguous wire bytes -->
+              <div class="grid sm:grid-cols-2 gap-3">
+                <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+                  <div class="text-[11px] uppercase tracking-wider text-paper/60 font-bold mb-1.5">
+                    Message (Protoscope)
+                  </div>
+                  <pre class="text-xs sm:text-sm leading-relaxed text-paper overflow-x-auto"><code>1: 1       <span class="text-paper/50"># id (uint)</span>
+2: "FRA"   <span class="text-paper/50"># city (string)</span>
+3: true    <span class="text-paper/50"># active (bool)</span></code></pre>
+                </div>
+
+                <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15 flex flex-col justify-between">
+                  <div>
+                    <div class="text-[11px] uppercase tracking-wider text-paper/60 font-bold mb-1.5">
+                      Wire Stream (8 Bytes)
+                    </div>
+                    <div class="text-sm sm:text-base font-bold text-acid tracking-wide leading-relaxed">
+                      21 03 55 07 46 52 41 67
+                    </div>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-3 pt-2 mt-2 border-t border-paper/10 text-[11px] text-paper/75">
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="w-2.5 h-2.5 rounded-sm bg-acid inline-block"></span>
+                      Tag
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="w-2.5 h-2.5 rounded-sm bg-[#FF4F18] inline-block"></span>
+                      Length
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="w-2.5 h-2.5 rounded-sm bg-paper/25 border border-paper/40 inline-block"></span>
+                      Value
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Compact 3-row field breakdown: all hex grouped together, description on the right -->
+              <div class="bg-[#1F1F1F] rounded border border-paper/15 divide-y divide-paper/10">
+                <!-- Field 1 -->
+                <div class="grid sm:grid-cols-12 gap-2 items-center px-3 py-2.5">
+                  <div class="sm:col-span-3 font-bold text-paper">#1 id</div>
+                  <div class="sm:col-span-4 flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 bg-acid text-ink font-bold rounded">21</span>
+                    <span class="px-1.5 py-0.5 bg-paper/15 text-paper font-bold rounded border border-paper/30">
+                      03
+                    </span>
+                  </div>
+                  <div class="sm:col-span-5 text-paper/75 text-xs">
+                    WireUint (0) &middot; value = 1
+                  </div>
+                </div>
+
+                <!-- Field 2 -->
+                <div class="grid sm:grid-cols-12 gap-2 items-center px-3 py-2.5">
+                  <div class="sm:col-span-3 font-bold text-paper">#2 city</div>
+                  <div class="sm:col-span-4 flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 bg-acid text-ink font-bold rounded">55</span>
+                    <span class="px-1.5 py-0.5 bg-[#FF4F18] text-white font-bold rounded">07</span>
+                    <span class="px-1.5 py-0.5 bg-paper/15 text-paper font-bold rounded border border-paper/30">
+                      46 52 41
+                    </span>
+                  </div>
+                  <div class="sm:col-span-5 text-paper/75 text-xs">
+                    WireString (10) &middot; len = 3 &middot; "FRA"
+                  </div>
+                </div>
+
+                <!-- Field 3 -->
+                <div class="grid sm:grid-cols-12 gap-2 items-center px-3 py-2.5">
+                  <div class="sm:col-span-3 font-bold text-paper">#3 active</div>
+                  <div class="sm:col-span-4 flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 bg-acid text-ink font-bold rounded">67</span>
+                  </div>
+                  <div class="sm:col-span-5 text-paper/75 text-xs">
+                    WireBoolTrue (3) &middot; 0 value bytes
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <HowItWorks />
+    <Capabilities />
     <Comparisons />
 
     <section class="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink no-print">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
-          Next: Read the wire specification or try a language runtime
+          More about OmniBuf
         </div>
         <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
           <a href="/spec" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">

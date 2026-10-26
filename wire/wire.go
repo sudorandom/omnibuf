@@ -11,22 +11,22 @@ import (
 // Explicit 4-bit Wire Types (0..15) encoded in the low 4 bits of the field tag:
 // Tag = (FieldNumber << 4) | WireType
 const (
-	WireUint      uint8 = 0  // [Prefix-Varint] (unsigned int: uint32, uint64, enum)
-	WireBoolFalse uint8 = 1  // 0 value bytes (false encoded directly in tag)
-	WireBoolTrue  uint8 = 2  // 0 value bytes (true encoded directly in tag)
-	WireString    uint8 = 3  // [ByteLen (Prefix-Varint)][UTF-8 Bytes]
-	WireBytes     uint8 = 4  // [ByteLen (Prefix-Varint)][Raw Bytes]
-	WireSubMsg    uint8 = 5  // [ByteLen (Prefix-Varint)][Sub-Packet Bytes]
-	WireStringArr uint8 = 6  // [ByteLen (Prefix-Varint)][Count (Prefix-Varint)][Len + UTF-8 Bytes]...
-	WireUintArr   uint8 = 7  // [ByteLen (Prefix-Varint)][Count (Prefix-Varint)][Prefix-Varint]...
-	WireSubMsgArr uint8 = 8  // [ByteLen (Prefix-Varint)][ElemLen (Prefix-Varint) + Elem Bytes]...
-	WireMap       uint8 = 9  // [ByteLen (Prefix-Varint)][MapType (1B: KeyWT<<4|ValWT)][Count (Prefix-Varint)][Key + Value]...
-	WireFixed32   uint8 = 10 // [4 Bytes Little-Endian] (float32 / fixed32 / sfixed32)
-	WireFixed64   uint8 = 11 // [8 Bytes Little-Endian] (float64 / fixed64 / sfixed64)
-	WireSint      uint8 = 12 // [Prefix-Varint] (ZigZag signed int: int32, int64, sint32, sint64)
-	WireSintArr   uint8 = 13 // [ByteLen (Prefix-Varint)][Count (Prefix-Varint)][ZigZag Prefix-Varint]...
-	WireFixedArr  uint8 = 14 // [ByteLen (Prefix-Varint)][ElemType (1B: WireFixed32=10 or WireFixed64=11)][Fixed Elements...]
-	WireExtended  uint8 = 15 // [ByteLen (Prefix-Varint)][ExtType (1B: 0..255)][Extended Payload...] (Reserved escape hatch)
+	WireUint      uint8 = 0
+	WireSint      uint8 = 1
+	WireBoolFalse uint8 = 2
+	WireBoolTrue  uint8 = 3
+	WireFixed32   uint8 = 4
+	WireFixed64   uint8 = 5
+	WireSfixed32  uint8 = 6
+	WireSfixed64  uint8 = 7
+	WireFloat32   uint8 = 8
+	WireFloat64   uint8 = 9
+	WireString    uint8 = 10
+	WireBytes     uint8 = 11
+	WireSubMsg    uint8 = 12
+	WireArray     uint8 = 13
+	WireMap       uint8 = 14
+	WireExtended  uint8 = 15
 )
 
 const maxNestingDepth = 32
@@ -41,7 +41,7 @@ func DecodeZigZag(u uint64) int64 {
 	return int64(u>>1) ^ -int64(u&1)
 }
 
-// AppendVarint appends a branchless Prefix-Varint (TZCNT) to dst and returns the extended slice.
+// AppendVarint appends a Prefix-Varint to dst and returns the extended slice.
 // Fast-pathed for 1-byte values (0..127) so the Go compiler inlines it at every call site.
 func AppendVarint(dst []byte, v uint64) []byte {
 	if v <= 127 {
@@ -67,34 +67,26 @@ func appendVarintMulti(dst []byte, v uint64) []byte {
 	)
 }
 
-// DecodeVarint decodes a Prefix-Varint from b using hardware TZCNT
-// and returns (value, bytesRead). Fast-pathed for 1-byte values so it inlines at every call site.
-func DecodeVarint(b []byte) (uint64, int) {
-	if len(b) > 0 && (b[0]&1) != 0 {
+// DecodeVarint decodes a Prefix-Varint from b using first-byte bit tests
+// and returns (value, bytesRead).
+func DecodeVarint(b []byte) (v uint64, n int) {
+	if len(b) > 0 && b[0]&1 != 0 {
 		return uint64(b[0] >> 1), 1
 	}
-	return decodeVarintMulti(b)
+	if len(b) >= 2 && b[0]&2 != 0 {
+		return uint64(binary.LittleEndian.Uint16(b) >> 2), 2
+	}
+	if len(b) >= 4 && b[0]&4 != 0 {
+		return uint64(binary.LittleEndian.Uint32(b) >> 3), 4
+	}
+	if len(b) >= 9 {
+		return binary.LittleEndian.Uint64(b[1:]), 9
+	}
+	return
 }
 
-//go:noinline
 func decodeVarintMulti(b []byte) (uint64, int) {
-	if len(b) < 2 {
-		return 0, 0
-	}
-	b0 := b[0]
-	if (b0 & 2) != 0 {
-		return uint64(binary.LittleEndian.Uint16(b[:2]) >> 2), 2
-	}
-	if (b0 & 4) != 0 {
-		if len(b) < 4 {
-			return 0, 0
-		}
-		return uint64(binary.LittleEndian.Uint32(b[:4]) >> 3), 4
-	}
-	if len(b) < 9 {
-		return 0, 0
-	}
-	return binary.LittleEndian.Uint64(b[1:9]), 9
+	return DecodeVarint(b)
 }
 
 // ReadVarintAt decodes a Prefix-Varint from b[pos:] without constructing a sub-slice.
@@ -123,18 +115,16 @@ func PutOverlong2BVarint(dst []byte, v uint16) {
 // reserved 2-byte slot to a 4-byte Prefix-Varint (up to 512 MB) or 9-byte Prefix-Varint
 // by shifting the container body right in place.
 func BackpatchContainerLen(dst []byte, lenPos int) []byte {
-	subLen := len(dst) - (lenPos + 2)
-	if uint(subLen) <= 16383 {
-		u := uint16(subLen<<2) | 2
-		dst[lenPos] = byte(u)
-		dst[lenPos+1] = byte(u >> 8)
+	if b := dst[lenPos:]; len(b) <= 16385 {
+		binary.LittleEndian.PutUint16(b, uint16(len(b)<<2-6))
 		return dst
 	}
-	return backpatchLargeContainerLen(dst, lenPos, uint64(subLen))
+	return backpatchLargeContainerLen(dst, lenPos)
 }
 
 //go:noinline
-func backpatchLargeContainerLen(dst []byte, lenPos int, subLen uint64) []byte {
+func backpatchLargeContainerLen(dst []byte, lenPos int) []byte {
+	subLen := uint64(len(dst) - (lenPos + 2))
 	if subLen <= 536870911 {
 		dst = append(dst, 0, 0)
 		copy(dst[lenPos+4:], dst[lenPos+2:len(dst)-2])
@@ -169,7 +159,7 @@ func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
 		return pos, pos <= n
 	case WireBoolFalse, WireBoolTrue:
 		return pos, true
-	case WireString, WireBytes, WireSubMsg, WireStringArr, WireUintArr, WireSubMsgArr, WireMap, WireSintArr, WireFixedArr, WireExtended:
+	case WireString, WireBytes, WireSubMsg, WireArray, WireMap, WireExtended:
 		if pos >= n {
 			return 0, false
 		}
@@ -186,10 +176,10 @@ func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
 			return pos, pos <= n
 		}
 		return skipLargeContainer(packet, pos)
-	case WireFixed32:
+	case WireFixed32, WireFloat32, WireSfixed32:
 		pos += 4
 		return pos, pos <= n
-	case WireFixed64:
+	case WireFixed64, WireFloat64, WireSfixed64:
 		pos += 8
 		return pos, pos <= n
 	default:
@@ -213,28 +203,25 @@ func SkipValue(b []byte, pos int, wireType uint8) (int, error) {
 	if pos < 0 || pos > len(b) {
 		return 0, fmt.Errorf("omnibuf: position %d out of bounds", pos)
 	}
-	if wireType == WireFixedArr || wireType == WireExtended {
-		bLen, bn := DecodeVarint(b[pos:])
-		if bn == 0 || bLen < 1 || bLen > uint64(len(b)-(pos+bn)) {
-			return 0, fmt.Errorf("omnibuf: invalid container length at %d", pos)
+	if wireType == WireArray || wireType == WireMap || wireType == WireExtended {
+		length, ln := DecodeVarint(b[pos:])
+		if ln == 0 || length < 1 || length > uint64(len(b)-pos-ln) {
+			return 0, fmt.Errorf("omnibuf: invalid container length")
 		}
-		pos += bn
-		if wireType == WireFixedArr {
-			switch elemType := b[pos]; elemType {
-			case WireFixed32:
-				if (bLen-1)%4 != 0 {
-					return 0, fmt.Errorf("omnibuf: WireFixedArr(Fixed32) payload %d is not a multiple of 4 at %d", bLen-1, pos)
-				}
-			case WireFixed64:
-				if (bLen-1)%8 != 0 {
-					return 0, fmt.Errorf("omnibuf: WireFixedArr(Fixed64) payload %d is not a multiple of 8 at %d", bLen-1, pos)
-				}
-			default:
-				return 0, fmt.Errorf("omnibuf: invalid WireFixedArr ElemType %d at %d", elemType, pos)
+		end := pos + ln + int(length)
+		switch wireType {
+		case WireArray:
+			if _, _, _, ok := ParseArrayHeader(b[pos+ln : end]); !ok {
+				return 0, fmt.Errorf("omnibuf: invalid array header")
+			}
+		case WireMap:
+			if _, _, _, _, ok := ParseMapHeader(b[pos+ln : end]); !ok {
+				return 0, fmt.Errorf("omnibuf: invalid map header")
 			}
 		}
-		return pos + int(bLen), nil
+		return end, nil
 	}
+
 	nextPos, ok := fastSkipValue(b, pos, wireType)
 	if !ok {
 		return 0, fmt.Errorf("omnibuf: truncated or invalid wireType %d at %d", wireType, pos)
@@ -300,7 +287,7 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 				return nil, 0, false
 			}
 		case WireBoolFalse, WireBoolTrue:
-		case WireString, WireBytes, WireSubMsg, WireStringArr, WireUintArr, WireSubMsgArr, WireMap, WireSintArr, WireFixedArr, WireExtended:
+		case WireString, WireBytes, WireSubMsg, WireArray, WireMap, WireExtended:
 			if pos >= n {
 				return nil, 0, false
 			}
@@ -322,12 +309,12 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 			if pos > n {
 				return nil, 0, false
 			}
-		case WireFixed32:
+		case WireFixed32, WireFloat32, WireSfixed32:
 			pos += 4
 			if pos > n {
 				return nil, 0, false
 			}
-		case WireFixed64:
+		case WireFixed64, WireFloat64, WireSfixed64:
 			pos += 8
 			if pos > n {
 				return nil, 0, false
@@ -390,9 +377,10 @@ func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8,
 
 // Encoder encodes OmniBuf messages into a reusable contiguous byte buffer in a single forward pass.
 type Encoder struct {
-	buf      []byte
-	lenStack [maxNestingDepth * 2]int
-	depth    int
+	buf        []byte
+	lenStack   [maxNestingDepth * 2]int
+	depth      int
+	countStack [maxNestingDepth * 2]int
 }
 
 // NewEncoder creates an Encoder with the specified initial buffer capacity.
@@ -437,17 +425,17 @@ func (e *Encoder) writeTag(fieldNum uint16, wireType uint8) {
 	e.buf = appendVarintMulti(e.buf, uint64(tag))
 }
 
-// WriteField0Fields writes Field #0 (Tag = 0x0B, WireSubMsg = 5) mapping FieldNumber -> FieldName.
+// WriteField0Fields writes Field #0 (Tag = 0x19, WireSubMsg = 12) mapping FieldNumber -> FieldName.
 func (e *Encoder) WriteField0Fields(fields map[uint32]string) {
 	if len(fields) == 0 {
 		return
 	}
-	e.buf = append(e.buf, 0x0B)
+	e.buf = append(e.buf, byte(((0<<4)|WireSubMsg)<<1)|1)
 	lenPos := len(e.buf)
 	e.buf = append(e.buf, 0, 0)
-	e.buf = append(e.buf, 0x53)
+	e.buf = append(e.buf, byte(((2<<4)|WireMap)<<1)|1)
 	mLenPos := len(e.buf)
-	e.buf = append(e.buf, 0, 0, MapHeaderByte(WireUint, WireString))
+	e.buf = append(e.buf, 0, 0, WireUint, WireString)
 	e.buf = AppendVarint(e.buf, uint64(len(fields)))
 	for k, name := range fields {
 		e.buf = AppendVarint(e.buf, uint64(k))
@@ -458,7 +446,7 @@ func (e *Encoder) WriteField0Fields(fields map[uint32]string) {
 	e.buf = BackpatchContainerLen(e.buf, lenPos)
 }
 
-// WriteField0Schema writes Field #0 (Tag = 0x0B, WireSubMsg = 5) mapping field numbers 1..len(names)
+// WriteField0Schema writes Field #0 (Tag = 0x19, WireSubMsg = 12) mapping field numbers 1..len(names)
 // to names[0..len(names)-1].
 func (e *Encoder) WriteField0Schema(names []string) {
 	fields := make(map[uint32]string, len(names))
@@ -468,4 +456,31 @@ func (e *Encoder) WriteField0Schema(names []string) {
 		}
 	}
 	e.WriteField0Fields(fields)
+}
+
+// PatchReservedVarint fills a 1-byte reserved varint slot and expands it if value > 127.
+func PatchReservedVarint(dst []byte, pos int, value uint64) []byte {
+	if value <= 127 {
+		dst[pos] = byte(value<<1) | 1
+		return dst
+	}
+	width := 2
+	if value > 536870911 {
+		width = 9
+	} else if value > 16383 {
+		width = 4
+	}
+	oldLen := len(dst)
+	dst = append(dst, make([]byte, width-1)...)
+	copy(dst[pos+width:], dst[pos+1:oldLen])
+	switch width {
+	case 2:
+		binary.LittleEndian.PutUint16(dst[pos:pos+2], uint16(value<<2)|2)
+	case 4:
+		binary.LittleEndian.PutUint32(dst[pos:pos+4], uint32(value<<3)|4)
+	default:
+		dst[pos] = 0
+		binary.LittleEndian.PutUint64(dst[pos+1:pos+9], value)
+	}
+	return dst
 }

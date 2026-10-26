@@ -17,22 +17,22 @@ import (
 // Explicit 4-bit Wire Types (0..15) encoded in the low 4 bits of the field tag:
 // Tag = (FieldNumber << 4) | WireType
 const (
-	wireUint      uint8 = 0  // [Prefix-Varint] (unsigned int: uint32, uint64, enum)
-	wireBoolFalse uint8 = 1  // 0 value bytes (false encoded directly in tag)
-	wireBoolTrue  uint8 = 2  // 0 value bytes (true encoded directly in tag)
-	wireString    uint8 = 3  // [ByteLen (Prefix-Varint)][UTF-8 Bytes]
-	wireBytes     uint8 = 4  // [ByteLen (Prefix-Varint)][Raw Bytes]
-	wireSubMsg    uint8 = 5  // [ByteLen (Prefix-Varint)][Sub-Packet Bytes]
-	wireStringArr uint8 = 6  // [ByteLen (Prefix-Varint)][Count (Prefix-Varint)][Len + UTF-8 Bytes]...
-	wireUintArr   uint8 = 7  // [ByteLen (Prefix-Varint)][Count (Prefix-Varint)][Prefix-Varint]...
-	wireSubMsgArr uint8 = 8  // [ByteLen (Prefix-Varint)][ElemLen (Prefix-Varint) + Elem Bytes]...
-	wireMap       uint8 = 9  // [ByteLen (Prefix-Varint)][MapType (1B: KeyWT<<4|ValWT)][Count (Prefix-Varint)][Key + Value]...
-	wireFixed32   uint8 = 10 // [4 Bytes Little-Endian] (float32 / fixed32 / sfixed32)
-	wireFixed64   uint8 = 11 // [8 Bytes Little-Endian] (float64 / fixed64 / sfixed64)
-	wireSint      uint8 = 12 // [Prefix-Varint] (ZigZag signed int: int32, int64, sint32, sint64)
-	wireSintArr   uint8 = 13 // [ByteLen (Prefix-Varint)][Count (Prefix-Varint)][ZigZag Prefix-Varint]...
-	wireFixedArr  uint8 = 14 // [ByteLen (Prefix-Varint)][ElemType (1B: wireFixed32=10 or wireFixed64=11)][Fixed Elements...]
-	wireExtended  uint8 = 15 // [ByteLen (Prefix-Varint)][ExtType (1B: 0..255)][Extended Payload...] (Reserved escape hatch)
+	wireUint      uint8 = 0
+	wireSint      uint8 = 1
+	wireBoolFalse uint8 = 2
+	wireBoolTrue  uint8 = 3
+	wireFixed32   uint8 = 4
+	wireFixed64   uint8 = 5
+	wireSfixed32  uint8 = 6
+	wireSfixed64  uint8 = 7
+	wireFloat32   uint8 = 8
+	wireFloat64   uint8 = 9
+	wireString    uint8 = 10
+	wireBytes     uint8 = 11
+	wireSubMsg    uint8 = 12
+	wireArray     uint8 = 13
+	wireMap       uint8 = 14
+	wireExtended  uint8 = 15
 )
 
 // MaxNestingDepth is the maximum allowed sub-message / array nesting depth (prevents stack-overflow bombs).
@@ -70,32 +70,24 @@ func appendVarintMulti(dst []byte, v uint64) []byte {
 	)
 }
 
-func decodeVarint(b []byte) (uint64, int) {
-	if len(b) > 0 && (b[0]&1) != 0 {
+func decodeVarint(b []byte) (v uint64, n int) {
+	if len(b) > 0 && b[0]&1 != 0 {
 		return uint64(b[0] >> 1), 1
 	}
-	return decodeVarintMulti(b)
+	if len(b) >= 2 && b[0]&2 != 0 {
+		return uint64(binary.LittleEndian.Uint16(b) >> 2), 2
+	}
+	if len(b) >= 4 && b[0]&4 != 0 {
+		return uint64(binary.LittleEndian.Uint32(b) >> 3), 4
+	}
+	if len(b) >= 9 {
+		return binary.LittleEndian.Uint64(b[1:]), 9
+	}
+	return
 }
 
-//go:noinline
 func decodeVarintMulti(b []byte) (uint64, int) {
-	if len(b) < 2 {
-		return 0, 0
-	}
-	b0 := b[0]
-	if (b0 & 2) != 0 {
-		return uint64(binary.LittleEndian.Uint16(b[:2]) >> 2), 2
-	}
-	if (b0 & 4) != 0 {
-		if len(b) < 4 {
-			return 0, 0
-		}
-		return uint64(binary.LittleEndian.Uint32(b[:4]) >> 3), 4
-	}
-	if len(b) < 9 {
-		return 0, 0
-	}
-	return binary.LittleEndian.Uint64(b[1:9]), 9
+	return decodeVarint(b)
 }
 
 func backpatchContainerLen(dst []byte, lenPos int) []byte {
@@ -144,7 +136,7 @@ func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
 		return pos, pos <= n
 	case wireBoolFalse, wireBoolTrue:
 		return pos, true
-	case wireString, wireBytes, wireSubMsg, wireStringArr, wireUintArr, wireSubMsgArr, wireMap, wireSintArr, wireFixedArr, wireExtended:
+	case wireString, wireBytes, wireSubMsg, wireArray, wireMap, wireExtended:
 		if pos >= n {
 			return 0, false
 		}
@@ -161,10 +153,10 @@ func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
 			return pos, pos <= n
 		}
 		return skipLargeContainer(packet, pos)
-	case wireFixed32:
+	case wireFixed32, wireFloat32, wireSfixed32:
 		pos += 4
 		return pos, pos <= n
-	case wireFixed64:
+	case wireFixed64, wireFloat64, wireSfixed64:
 		pos += 8
 		return pos, pos <= n
 	default:
@@ -186,28 +178,25 @@ func skipValue(b []byte, pos int, wireType uint8) (int, error) {
 	if pos < 0 || pos > len(b) {
 		return 0, fmt.Errorf("omnibuf: position %d out of bounds", pos)
 	}
-	if wireType == wireFixedArr || wireType == wireExtended {
-		bLen, bn := decodeVarint(b[pos:])
-		if bn == 0 || bLen < 1 || bLen > uint64(len(b)-(pos+bn)) {
-			return 0, fmt.Errorf("omnibuf: invalid container length at %d", pos)
+	if wireType == wireArray || wireType == wireMap || wireType == wireExtended {
+		length, ln := decodeVarint(b[pos:])
+		if ln == 0 || length < 1 || length > uint64(len(b)-pos-ln) {
+			return 0, fmt.Errorf("omnibuf: invalid container length")
 		}
-		pos += bn
-		if wireType == wireFixedArr {
-			switch elemType := b[pos]; elemType {
-			case wireFixed32:
-				if (bLen-1)%4 != 0 {
-					return 0, fmt.Errorf("omnibuf: wireFixedArr(Fixed32) payload %d is not a multiple of 4 at %d", bLen-1, pos)
-				}
-			case wireFixed64:
-				if (bLen-1)%8 != 0 {
-					return 0, fmt.Errorf("omnibuf: wireFixedArr(Fixed64) payload %d is not a multiple of 8 at %d", bLen-1, pos)
-				}
-			default:
-				return 0, fmt.Errorf("omnibuf: invalid wireFixedArr ElemType %d at %d", elemType, pos)
+		end := pos + ln + int(length)
+		switch wireType {
+		case wireArray:
+			if _, _, _, ok := parseArrayHeader(b[pos+ln : end]); !ok {
+				return 0, fmt.Errorf("omnibuf: invalid array header")
+			}
+		case wireMap:
+			if _, _, _, _, ok := parseMapHeader(b[pos+ln : end]); !ok {
+				return 0, fmt.Errorf("omnibuf: invalid map header")
 			}
 		}
-		return pos + int(bLen), nil
+		return end, nil
 	}
+
 	nextPos, ok := fastSkipValue(b, pos, wireType)
 	if !ok {
 		return 0, fmt.Errorf("omnibuf: truncated or invalid wireType %d at %d", wireType, pos)
@@ -302,17 +291,17 @@ func readLenSlice(data []byte, pos int, minLen uint64) (body []byte, nextPos int
 	return data[pos : pos+int(bLen)], pos + int(bLen), nil
 }
 
-func countSubMsgArrElems(arrPayload []byte) (int, bool) {
-	pos := 0
-	n := len(arrPayload)
-	count := 0
-	for pos < n {
-		el, en := decodeVarint(arrPayload[pos:])
-		if en == 0 || el > uint64(n-(pos+en)) {
+func countSubMsgArrElems(body []byte) (int, bool) {
+	e, count, p, ok := parseArrayHeader(body)
+	if !ok || e != wireSubMsg {
+		return 0, false
+	}
+	for i := 0; i < count; i++ {
+		l, n := decodeVarint(body[p:])
+		if n == 0 || l > uint64(len(body)-p-n) {
 			return 0, false
 		}
-		pos += en + int(el)
-		count++
+		p += n + int(l)
 	}
-	return count, pos == n
+	return count, p == len(body)
 }

@@ -10,38 +10,34 @@ const faqItems: FAQItem[] = [
     id: 'status',
     question: 'What is the current stability status? Is the v1.0 wire format frozen?',
     paragraphs: [
-      'OmniBuf is currently <strong>experimental</strong>. Both the <a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JS</a> implementations pass a shared cross-language conformance and fuzzing suite, but the v1.0 wire specification and runtime APIs remain open to feedback before being permanently frozen.',
-      'It is ready for evaluation, benchmarking, and internal prototypes, and early adopter feedback on the wire layout or language ergonomics is actively welcome on <a href="https://github.com/sudorandom/omnibuf" target="_blank" rel="noopener noreferrer" class="doc-link">GitHub</a>.',
+      'OmniBuf is still <strong>experimental</strong>. The <a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JS</a> implementations both pass the same conformance test suite, so they produce identical bytes, but I haven\'t frozen the v1.0 wire specification yet.',
+      'If you try it out and find something in the wire format or library APIs that should be changed before v1.0 is locked down, please open an issue on <a href="https://github.com/sudorandom/omnibuf" target="_blank" rel="noopener noreferrer" class="doc-link">GitHub</a>.',
     ],
   },
   {
     question: 'Why is it named OmniBuf?',
     paragraphs: [
-      'The name reflects a more complete Protobuf that goes further than the original wire encoding. Standard Protobuf requires a schema just to make sense of raw bytes, and it will never compromise on carrying field metadata on the wire.',
-      'OmniBuf payloads can always be parsed into explicit types without a schema, and can optionally embed field names (Field #0) when you want full named JSON output straight from a binary packet.',
+      "The name comes from wanting a more complete version of Protobuf. When Protobuf encodes a message, it throws away enough type information that you can't reliably decode the binary without the original <code>.proto</code> file, and there is no option to include field names when you want them.",
+      'In OmniBuf, the wire types are specific enough that you can always decode the values in a packet without a schema. You can also opt into writing the field names into Field #0 at the start of the message when you want self-describing packets.',
     ],
   },
   {
     question: 'Why a new format?',
     paragraphs: [
-      "OmniBuf started with a simple question: what would a better Protobuf wire encoding look like today? Protobuf and JSON both work well enough for most jobs, yet both carry rough edges: Protobuf's 2001 wire format is slower than it <em>could be</em> for a binary format and is opaque without the schema, while JSON is bulky and breaks on 64-bit integers and raw binary data.",
-      "At the same time, a practical philosophy for an encoding format is to decouple the wire representation from how you author your types. Protobuf's schema-first IDL is great when you want a multi-language contract, so OmniBuf keeps existing <code>.proto</code> files, <code>.pb.go</code> structs, and <code>@bufbuild/protobuf</code> descriptors working as a drop-in.",
-      'However, using the Protobuf IDL does not have to be the only way to use the format. When a service just wants to serialize native structs or objects without maintaining <code>.proto</code> files or a codegen pipeline, you can define field numbers directly in code (via <a href="/go#struct-tags" class="doc-link">Go struct tags</a> or <a href="/es#define-message" class="doc-link">TypeScript schemas</a>) and produce the exact same binary wire format.',
+      "I spend a lot of time working with Protobuf and JSON, and I wanted to see how much faster a binary format could be if we fixed a few of Protobuf's 2001 design choices while keeping its good parts.",
+      'I also wanted a format that doesn\'t care how you define your types. If you like <code>.proto</code> files for sharing schemas across languages, you can use <code>.proto</code> files. If you just have a <a href="/go#struct-tags" class="doc-link">Go struct</a> or a <a href="/es#define-message" class="doc-link">TypeScript type</a> and want to serialize it without setting up a code generator, you can do that too, and both produce the same wire format.',
     ],
   },
   {
     question: 'Do I have to use or rewrite .proto files?',
     paragraphs: [
-      'Neither. If you already use <code>.proto</code> files, OmniBuf works directly with standard proto3 and Editions (2023, 2024) schemas without changes. If you prefer not to use an external IDL at all, you can serialize plain Go structs or TypeScript objects directly using field-number annotations and optionally embed Field #0 field names for JSON-like inspection.',
+      "No. If you already have proto3 or Editions (2023, 2024) <code>.proto</code> files, they work as-is. If you don't use <code>.proto</code> files, you can use struct tags in Go or <code>defineMessage()</code> in TypeScript.",
     ],
   },
   {
     question: 'What languages are supported?',
     paragraphs: [
-      '<a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JavaScript</a> are currently supported:',
-      '<strong><a href="/go" class="doc-link">Go</a></strong> supports plain Go structs with <code>omnibuf:"..."</code> struct tags, existing <code>.pb.go</code> structs, and <code>protoc-gen-omnibuf</code> code generation.',
-      '<strong><a href="/es" class="doc-link">TypeScript / JavaScript</a></strong> (<code>@omnibuf/core</code>, <code>@omnibuf/web</code>, <code>@omnibuf/node</code>) supports declarative <code>defineMessage</code> schemas, existing <code>@bufbuild/protobuf</code> descriptors, and <code>protoc-gen-omnibuf-es</code> code generation.',
-      'The wire specification is language-agnostic, with additional language implementations planned as the specification stabilizes.',
+      'Right now there are libraries for <a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JavaScript</a>. Both support all three usage modes (plain structs/objects, existing Protobuf types, and code generation). Once the v1.0 wire specification is finalized, I plan to add Rust, C++, and Python.',
     ],
   },
 ];

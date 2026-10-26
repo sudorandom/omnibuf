@@ -25,13 +25,18 @@
   <div class="mt-8 max-w-4xl space-y-5">
     <!-- prettier-ignore -->
     <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
-      Most systems have to choose between <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> (compact binary payloads, but unreadable without a schema and slowed down by byte-by-byte <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a>) and <strong>JSON</strong> (works on plain structs and is inspectable anywhere, but is over 2x larger and 10x to 30x slower).
+      I built OmniBuf because I wanted a binary format that fixes the parts of <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> that have aged poorly since 2001 (like <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a> and two-pass encoding), while also working as a fast, compact replacement for <strong>JSON</strong> on normal structs.
     </p>
     <p class="text-base sm:text-xl font-mono text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md">
-      <strong>OmniBuf</strong> replaces both. Use it with <code>.proto</code> files or directly on
-      plain structs and objects: it runs <strong>6x to 8x faster than Protobuf</strong> (and{' '}
-      <strong>10x to 30x faster than JSON</strong>) while remaining{' '}
-      <strong>inspectable without a schema</strong>.
+      You can use <strong>OmniBuf</strong> with your existing <code>.proto</code> files, or skip{' '}
+      <code>.proto</code> files altogether and use it directly on Go structs and TypeScript objects.
+      In Go benchmarks on our 11-field test message, it runs{' '}
+      <strong>
+        5.9x faster on encode and up to 7.3x faster on decode than standard Go Protobuf
+      </strong>{' '}
+      (or <strong>2.3x faster</strong> with fresh allocations and copied strings), runs{' '}
+      <strong>7x to 17x faster than JSON</strong>, and keeps explicit wire types on the wire so you
+      can inspect raw packets without the schema.
     </p>
 
     <div class="flex flex-wrap gap-3.5 pt-2 no-print">

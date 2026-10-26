@@ -13,8 +13,7 @@ const goBenchmarkCategories = benchmarkCategories.filter((cat) => cat.unit !== '
       Go <span class="font-serif italic font-normal normal-case text-[#FF4F18]">benchmarks.</span>
     </h2>
     <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-      Measured on an 11-field message with scalars, strings, packed arrays, and nested messages.{' '}
-      <strong>Shorter bars = Faster.</strong>
+      Here are the results for our 11-field test message. <strong>Shorter bars = Faster.</strong>
     </p>
   </div>
 
@@ -101,13 +100,14 @@ const goBenchmarkCategories = benchmarkCategories.filter((cat) => cat.unit !== '
     </div>
     <div class="md:col-span-8 md:pt-1 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
       <p>
-        All benchmarks serialize and deserialize an identical 11-field message containing unsigned
-        and ZigZag-signed integers, booleans, IEEE-754 floats, string lists, packed integer arrays,
-        a 6-field nested sub-message, and a 4-element repeated sub-message list.
+        I ran these benchmarks on an M1 Pro MacBook Pro with Go 1.27.1. Each test encodes and
+        decodes the same <code>PeerUpdate</code> message, which has 11 fields (a mix of numbers,
+        booleans, strings, a nested <code>Location</code> message, and a list of 4{' '}
+        <code>Neighbor</code> messages).
       </p>
       <!-- prettier-ignore -->
       <p class="text-sm sm:text-base text-ink/80">
-        Source code for the harnesses and codec implementations is in <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/jsonv2_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">jsonv2_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs_test.go</a>. Raw output from <code>GOEXPERIMENT=jsonv2 go test -bench=. -benchmem</code> is checked into <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
+        If you want to run them yourself or check how each library is set up, take a look at <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/jsonv2_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">jsonv2_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs_test.go</a> in the repo. I also committed the raw output from <code>GOEXPERIMENT=jsonv2 go test -bench=. -benchmem</code> to <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
       </p>
     </div>
   </div>

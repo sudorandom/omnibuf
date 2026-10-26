@@ -1,7 +1,10 @@
 ---
 ---
 
-<section id="capabilities" class="pt-6 pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+<section
+  id="capabilities"
+  class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
+>
   <div class="max-w-3xl mb-8">
     <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
       What OmniBuf does{' '}
@@ -17,9 +20,12 @@
           Every wire type is explicit
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          In Protobuf, strings, bytes, nested messages, maps, and arrays all share{' '}
-          <code>Wire Type 2</code>. OmniBuf's 4-bit tag identifies every type right on the wire so
-          tools can inspect packets without the original schema.
+          In Protobuf, strings, byte slices, sub-messages, maps, and packed arrays all share{' '}
+          <code>Wire Type 2</code>, while 32-bit and 64-bit wire types mix floats with signed and
+          unsigned fixed integers. OmniBuf's 4-bit tag and explicit collection headers give each of
+          those its own wire type so <code>DecodeBlind</code> recovers the exact wire type and value
+          of every present field without a schema (while enum label names, omitted defaults, and
+          inactive <code>oneof</code> fields still require a schema).
         </p>
       </div>
       <div class="lg:col-span-6 grid sm:grid-cols-2 gap-3.5 font-mono text-sm min-w-0">
@@ -46,10 +52,10 @@
           Optional inline field names (Field #0)
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Send only field numbers in production RPCs for compact binary packets, or enable{' '}
-          <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>) to embed the field-name table
-          once per message so <code>omnibuf decode</code> outputs full named JSON with no schema
-          file required.
+          By default, packets only carry field numbers to stay small. If you want field names on the
+          wire too, turn on <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>). That writes
+          the field-name table once at the top of the packet so <code>omnibuf decode</code> prints
+          named JSON without needing a schema file.
         </p>
       </div>
       <div class="lg:col-span-6 font-mono text-sm min-w-0">
@@ -70,10 +76,10 @@
           Merge messages by appending raw bytes
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Because packets are flat <code>[Tag][Value]</code> streams with last-wins scalar semantics
-          and additive repeated fields, concatenating two encoded buffers (
-          <code>append(msgA, msgB...)</code>) produces a valid merged message without decoding
-          either side.
+          Packets have no file header or footer. Later scalar fields overwrite earlier ones, and
+          repeated fields append. If you concatenate two encoded buffers (
+          <code>append(msgA, msgB...)</code>), the result is already a valid merged message. No
+          decode or re-encode step required.
         </p>
       </div>
       <div class="lg:col-span-6 font-mono text-sm min-w-0">
@@ -90,21 +96,22 @@
     <div class="py-8 sm:py-10 space-y-6">
       <div class="space-y-3 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Direct map encoding without synthetic MapEntry messages
+          Native map wire type
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[75ch]">
-          Protobuf has no native map wire type. The compiler rewrites{' '}
-          <code>map&lt;string, uint64&gt; counters = 1</code> into a synthetic{' '}
-          <code>repeated CountersEntry</code> sub-message, wrapping every key-value pair in 4 bytes
-          of redundant tags and sub-message lengths (<code>0a 05</code>, <code>0a</code>,{' '}
-          <code>10</code>) and forcing the parser through a nested sub-message loop on every entry.
+          Protobuf doesn't have a dedicated wire type for maps. When you write{' '}
+          <code>map&lt;string, uint64&gt; counters = 1</code>, the compiler turns it into a repeated
+          sub-message (<code>repeated CountersEntry</code>) behind the scenes. Every key-value pair
+          gets wrapped in 4 extra bytes of field tags and sub-message lengths (<code>0a 05</code>,{' '}
+          <code>0a</code>, <code>10</code>), and the decoder has to parse a sub-message for every
+          entry in the map.
         </p>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[75ch]">
-          OmniBuf encodes maps directly as <code>WireMap = 9</code>: one header for the whole map
-          followed by untagged <code>[Key][Value]</code> pairs. That makes maps{' '}
-          <strong>less wasteful</strong> (0 tags per entry), <strong>smaller on the wire</strong> (
-          <strong>3 bytes per entry instead of 7</strong>, or 35 B vs. 70 B for 10 entries), and{' '}
-          <strong>faster to parse or skip</strong> in a single tight loop.
+          OmniBuf has a native map wire type (<code>WireMap = 14</code>). It writes a 2-byte header
+          with the key and value wire types once (<code>0A 00</code> for{' '}
+          <code>WireString = 10</code> and <code>WireUint = 0</code>), followed by the entry count
+          and the raw <code>[Key][Value]</code> pairs. In this example, each entry takes{' '}
+          <strong>3 bytes instead of 7</strong> (36 B vs. 70 B for a 10-entry map).
         </p>
       </div>
 
@@ -124,7 +131,7 @@
               viewBox="0 0 900 332"
               class="w-full h-auto select-none"
               role="img"
-              aria-label="Diagram showing map<string, uint64> counters = 1 schema and {'a': 1, 'b': 2} input joined together, then branching to Protobuf (which lowers into a synthetic CountersEntry sub-message before 14-byte wire hex) and OmniBuf (which skips Step 2 directly to 11-byte WireMap hex)."
+              aria-label="Diagram showing map<string, uint64> counters = 1 schema and {'a': 1, 'b': 2} input joined together, then branching to Protobuf (which lowers into a synthetic CountersEntry sub-message before 14-byte wire hex) and OmniBuf (which skips Step 2 directly to 12-byte WireMap hex)."
             >
               <defs>
                 <marker
@@ -408,7 +415,7 @@
                 font-weight="700"
                 letter-spacing="0.5"
               >
-                91 12 00 30 05
+                3D 26 00 0A 00 05
               </text>
               <text
                 x="600"
@@ -441,7 +448,7 @@
                 font-weight="700"
                 text-anchor="end"
               >
-                11 bytes
+                12 bytes
               </text>
             </svg>
           </div>
@@ -479,11 +486,11 @@
             <div class="p-3 bg-ink text-paper border-2 border-ink rounded space-y-2">
               <div class="font-bold text-acid uppercase">OmniBuf</div>
               <div class="text-sm font-bold leading-relaxed">
-                <div class="text-acid">91 12 00 30 05</div>
+                <div class="text-acid">3D 26 00 0A 00 05</div>
                 <div>03 61 03</div>
                 <div>03 62 05</div>
               </div>
-              <div class="text-right font-bold text-acid">11 bytes</div>
+              <div class="text-right font-bold text-acid">12 bytes</div>
             </div>
           </div>
         </div>

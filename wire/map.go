@@ -6,14 +6,42 @@ import "unsafe"
 // Map Wire Type (WireMap)
 // ============================================================================
 
-// MapHeaderByte encodes the 1-byte WireMap type header: (KeyWireType << 4) | ValWireType.
-func MapHeaderByte(keyWT, valWT uint8) byte {
-	return ((keyWT & 0x0F) << 4) | (valWT & 0x0F)
+// IsValidMapKeyWireType reports whether wt is a valid 1-byte KeyType in a WireMap header.
+func IsValidMapKeyWireType(wt uint8) bool {
+	switch wt {
+	case WireUint, WireSint, WireBoolFalse, WireFixed32, WireFixed64, WireSfixed32, WireSfixed64, WireString:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsValidMapValWireType reports whether wt is a valid 1-byte ValueType in a WireMap header.
+func IsValidMapValWireType(wt uint8) bool {
+	return wt <= WireExtended && wt != WireBoolTrue
+}
+
+// ParseMapHeader parses and validates the [KeyType: 1B][ValueType: 1B][Count: Prefix-Varint] header
+// at the start of a WireMap payload body.
+func ParseMapHeader(body []byte) (keyWT, valWT uint8, count, pos int, ok bool) {
+	if len(body) < 3 {
+		return 0, 0, 0, 0, false
+	}
+	keyWT = body[0]
+	valWT = body[1]
+	if !IsValidMapKeyWireType(keyWT) || !IsValidMapValWireType(valWT) {
+		return 0, 0, 0, 0, false
+	}
+	c, n := DecodeVarint(body[2:])
+	if n == 0 || c > uint64(len(body)-(2+n))/2 {
+		return 0, 0, 0, 0, false
+	}
+	return keyWT, valWT, int(c), 2 + n, true
 }
 
 func encodeMapStringUint(dst []byte, m map[string]uint64, deterministic bool) []byte {
 	lenPos := len(dst)
-	dst = append(dst, 0, 0, MapHeaderByte(WireString, WireUint))
+	dst = append(dst, 0, 0, WireString, WireUint)
 	dst = AppendVarint(dst, uint64(len(m)))
 	if deterministic && len(m) > 1 {
 		keys := make([]string, 0, len(m))
@@ -58,7 +86,7 @@ func LookupMapStringUint(packet []byte, fieldNum uint16, targetKey string) (uint
 	var lastVal uint64
 	found := false
 	for pos := 0; ; {
-		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireMap, 2)
+		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireMap, 3)
 		if !valid {
 			return 0, false
 		}
@@ -66,14 +94,10 @@ func LookupMapStringUint(packet []byte, fieldNum uint16, targetKey string) (uint
 			return lastVal, found
 		}
 		pos = nextPos
-		if body[0] != MapHeaderByte(WireString, WireUint) {
+		keyWT, valWT, count, p, ok := ParseMapHeader(body)
+		if !ok || keyWT != WireString || valWT != WireUint {
 			return 0, false
 		}
-		count, cn := DecodeVarint(body[1:])
-		if cn == 0 || count > uint64(len(body)-(1+cn)) {
-			return 0, false
-		}
-		p := 1 + cn
 		for range count {
 			kLen, kn := DecodeVarint(body[p:])
 			if kn == 0 || kLen > uint64(len(body)-(p+kn)) {

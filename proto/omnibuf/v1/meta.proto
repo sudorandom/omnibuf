@@ -4,17 +4,17 @@ package omnibuf.v1;
 option go_package = "github.com/sudorandom/omnibuf/internal/pb;pb";
 
 // SchemaMeta is the optional inline schema header encoded as Field #0
-// (Tag = 0x0B, WireSubMsg = 5) at byte 0 of an OmniBuf message.
+// (Tag = 0x19, WireSubMsg = 12) at byte 0 of an OmniBuf message.
 message SchemaMeta {
   // Optional fully-qualified protobuf message name (e.g., "omnibuf.bench.PeerUpdate").
   string type_name = 1;
 
   // Maps FieldNumber -> FieldName (e.g., 1 -> "asn", 3 -> "active", 9 -> "location").
-  // Encoded as WireMap (9) with MapType = 0x03 (KeyWT = WireUint(0), ValWT = WireString(3)).
+  // Encoded as WireMap (14) with MapType = 0x0A (KeyWT = WireUint(0), ValWT = WireString(10)).
   map<uint32, string> fields = 2;
 
-  // Maps a parent FieldNumber (for a WireSubMsg, WireSubMsgArr, or WireMap sub-message value)
+  // Maps a parent FieldNumber (for a WireSubMsg, WireArray, or WireMap sub-message value)
   // to its nested SchemaMeta so repeated sub-messages only encode their schema ONCE.
-  // Encoded as WireMap (9) with MapType = 0x05 (KeyWT = WireUint(0), ValWT = WireSubMsg(5)).
+  // Encoded as WireMap (14) with MapType = 0x0C (KeyWT = WireUint(0), ValWT = WireSubMsg(12)).
   map<uint32, SchemaMeta> children = 3;
 }

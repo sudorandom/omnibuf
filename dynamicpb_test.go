@@ -295,9 +295,8 @@ func allDynamicFieldSpecs() []dynFieldSpec {
 				}
 			},
 			verify: func(t *testing.T, wire []byte, fnum uint16, m *dynamicpb.Message, fd protoreflect.FieldDescriptor) {
-				wantU := []uint32{1, 0, 1, 1, 0}
-				if got, ok := ReadUint32Arr(wire, fnum); !ok || !reflect.DeepEqual(got, wantU) {
-					t.Fatalf("ReadUint32Arr(%d) = %v, want %v", fnum, got, wantU)
+				if got := CountedArrLen(wire, fnum, WireBoolFalse); got != 5 {
+					t.Fatalf("CountedArrLen(%d, WireBoolFalse) = %d, want 5", fnum, got)
 				}
 				if m.Get(fd).List().Len() != 5 || !m.Get(fd).List().Get(0).Bool() || m.Get(fd).List().Get(1).Bool() {
 					t.Fatalf("rep_bool list mismatch")

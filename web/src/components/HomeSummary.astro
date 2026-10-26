@@ -15,7 +15,7 @@
         </span>
       </h2>
       <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-        Measured on an 11-field message with scalars, strings, packed arrays, and nested messages.
+        Here is how OmniBuf compares against other common formats on our 11-field test message.
       </p>
     </div>
     <div class="flex flex-wrap gap-3">
@@ -56,8 +56,8 @@
             <td class="p-3.5 sm:p-4 text-ink">
               <code>.proto</code> or Structs
             </td>
-            <td class="p-3.5 sm:p-4">Baseline (1x)</td>
-            <td class="p-3.5 sm:p-4">Yes (6x faster)</td>
+            <td class="p-3.5 sm:p-4">Baseline (366 B)</td>
+            <td class="p-3.5 sm:p-4">Yes (123 ns)</td>
             <td class="p-3.5 sm:p-4">Yes (+ opt Field #0)</td>
             <td class="p-3.5 sm:p-4">Yes</td>
           </tr>
@@ -66,7 +66,7 @@
             <td class="p-3.5 sm:p-4">
               <code>.proto</code> only
             </td>
-            <td class="p-3.5 sm:p-4">6% smaller</td>
+            <td class="p-3.5 sm:p-4">7% smaller (341 B)</td>
             <td class="p-3.5 sm:p-4 text-ink/70">No (2-pass Size)</td>
             <td class="p-3.5 sm:p-4 text-ink/70">No (Opaque Type 2)</td>
             <td class="p-3.5 sm:p-4">Yes</td>

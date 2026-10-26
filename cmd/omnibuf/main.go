@@ -431,7 +431,7 @@ func decodeHexBytes(raw []byte) ([]byte, error) {
 }
 
 // sanitizeForJSON recursively converts map[any]any (from non-string WireMap keys) into map[string]any
-// and ensures non-UTF-8 strings in WireStringArr (from repeated bytes) are base64-encoded so
+// and ensures non-UTF-8 strings in WireArray(WireString) are base64-encoded so
 // encoding/json.Marshal produces valid UTF-8 JSON for any blind-decoded packet.
 func sanitizeForJSON(v any) any {
 	switch val := v.(type) {

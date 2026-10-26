@@ -497,6 +497,23 @@ func BenchmarkVTProto_UnmarshalVTUnsafe_PoolReuse(b *testing.B) {
 	}
 }
 
+func BenchmarkVTProto_UnmarshalVTUnsafe_StructReuse(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pbMsg := SamplePBPeerUpdate(&orig)
+	pkt, _ := pbMsg.MarshalVT()
+	out := SamplePBPeerUpdate(&orig)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out.Tags = out.Tags[:0]
+		out.Prefixes = out.Prefixes[:0]
+		out.Neighbors = out.Neighbors[:0]
+		if err := out.UnmarshalVTUnsafe(pkt); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkVTProto_UnmarshalAndRead2Fields_PoolReuse(b *testing.B) {
 	orig := SamplePeerUpdate()
 	pbMsg := SamplePBPeerUpdate(&orig)

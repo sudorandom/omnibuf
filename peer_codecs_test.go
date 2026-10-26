@@ -238,17 +238,17 @@ func EncodePeerOmniBufDirect(dst []byte, p *PeerUpdate) []byte {
 	dst = append(dst, byte((FieldPeerRssiDbm<<4|uint16(WireSint))<<1)|1)
 	dst = AppendVarint(dst, EncodeZigZag(int64(p.RssiDbm)))
 
-	// Field 6: CPULoad (Fixed64)
-	dst = append(dst, byte((FieldPeerCPULoad<<4|uint16(WireFixed64))<<1)|1)
+	// Field 6: CPULoad (Float64)
+	dst = append(dst, byte((FieldPeerCPULoad<<4|uint16(WireFloat64))<<1)|1)
 	cpuBits := math.Float64bits(p.CPULoad)
 	dst = append(dst,
 		byte(cpuBits), byte(cpuBits>>8), byte(cpuBits>>16), byte(cpuBits>>24),
 		byte(cpuBits>>32), byte(cpuBits>>40), byte(cpuBits>>48), byte(cpuBits>>56),
 	)
 
-	// Field 7: Tags (WireStringArr, 1B tag since fieldNum=7, backpatched length)
-	dst = append(dst, byte((FieldPeerTags<<4|uint16(WireStringArr))<<1)|1, 0, 0)
-	tagsLenPos := len(dst) - 2
+	// Field 7: Tags (WireArray of WireString, 1B tag since fieldNum=7, backpatched length)
+	dst = append(dst, byte((FieldPeerTags<<4|uint16(WireArray))<<1)|1, 0, 0, WireString)
+	tagsLenPos := len(dst) - 3
 	dst = AppendVarint(dst, uint64(len(p.Tags)))
 	for i := range p.Tags {
 		s := p.Tags[i]
@@ -257,10 +257,10 @@ func EncodePeerOmniBufDirect(dst []byte, p *PeerUpdate) []byte {
 	}
 	dst = BackpatchContainerLen(dst, tagsLenPos)
 
-	// Field 8: Prefixes (WireUintArr, 2B tag since fieldNum=8, backpatched length)
-	tag8 := ((FieldPeerPrefixes<<4 | uint16(WireUintArr)) << 2) | 2
-	dst = append(dst, byte(tag8), byte(tag8>>8), 0, 0)
-	prefLenPos := len(dst) - 2
+	// Field 8: Prefixes (WireArray of WireUint, 2B tag since fieldNum=8, backpatched length)
+	tag8 := ((FieldPeerPrefixes<<4 | uint16(WireArray)) << 2) | 2
+	dst = append(dst, byte(tag8), byte(tag8>>8), 0, 0, WireUint)
+	prefLenPos := len(dst) - 3
 	dst = AppendVarint(dst, uint64(len(p.Prefixes)))
 	for i := range p.Prefixes {
 		dst = AppendVarint(dst, uint64(p.Prefixes[i]))
@@ -283,17 +283,18 @@ func EncodePeerOmniBufDirect(dst []byte, p *PeerUpdate) []byte {
 	dst = append(dst, byte((FieldLocRack<<4|uint16(WireUint))<<1)|1)
 	dst = AppendVarint(dst, uint64(p.Location.Rack))
 	latBits := math.Float32bits(p.Location.Latitude)
-	dst = append(dst, byte((FieldLocLatitude<<4|uint16(WireFixed32))<<1)|1,
+	dst = append(dst, byte((FieldLocLatitude<<4|uint16(WireFloat32))<<1)|1,
 		byte(latBits), byte(latBits>>8), byte(latBits>>16), byte(latBits>>24))
 	lonBits := math.Float32bits(p.Location.Longitude)
-	dst = append(dst, byte((FieldLocLongitude<<4|uint16(WireFixed32))<<1)|1,
+	dst = append(dst, byte((FieldLocLongitude<<4|uint16(WireFloat32))<<1)|1,
 		byte(lonBits), byte(lonBits>>8), byte(lonBits>>16), byte(lonBits>>24))
 	dst = BackpatchContainerLen(dst, locLenPos)
 
-	// Field 10: Neighbors (WireSubMsgArr, 1-pass backpatched)
-	tag10 := ((FieldPeerNeighbors<<4 | uint16(WireSubMsgArr)) << 2) | 2
-	dst = append(dst, byte(tag10), byte(tag10>>8), 0, 0)
-	arrLenPos := len(dst) - 2
+	// Field 10: Neighbors (WireArray of WireSubMsg, 1-pass backpatched)
+	tag10 := ((FieldPeerNeighbors<<4 | uint16(WireArray)) << 2) | 2
+	dst = append(dst, byte(tag10), byte(tag10>>8), 0, 0, WireSubMsg)
+	arrLenPos := len(dst) - 3
+	dst = AppendVarint(dst, uint64(len(p.Neighbors)))
 	for i := range p.Neighbors {
 		nb := &p.Neighbors[i]
 		eLenPos := len(dst)
@@ -371,7 +372,7 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 			byteLen64, pos = ReadVarintAt(packet, pos)
 			end := pos + int(byteLen64)
 			var c64 uint64
-			c64, p := ReadVarintAt(packet, pos)
+			c64, p := ReadVarintAt(packet, pos+1)
 			alreadySeen := (seenMask & (1 << FieldPeerTags)) != 0
 			seenMask |= (1 << FieldPeerTags)
 			var start int
@@ -390,7 +391,7 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 			byteLen64, pos = ReadVarintAt(packet, pos)
 			end := pos + int(byteLen64)
 			var c64 uint64
-			c64, p := ReadVarintAt(packet, pos)
+			c64, p := ReadVarintAt(packet, pos+1)
 			alreadySeen := (seenMask & (1 << FieldPeerPrefixes)) != 0
 			seenMask |= (1 << FieldPeerPrefixes)
 			var start int
@@ -413,13 +414,12 @@ func DecodePeerOmniBufInto(packet []byte, out *PeerUpdate, zeroCopyStrings bool)
 			arrLen64, pos = ReadVarintAt(packet, pos)
 			arrLen := int(arrLen64)
 			arrPayload := packet[pos : pos+arrLen]
-			elemCount, _ := CountSubMsgArrElems(arrPayload)
+			_, elemCount, p, _ := ParseArrayHeader(arrPayload)
 			alreadySeen := (seenMask & (1 << FieldPeerNeighbors)) != 0
 			seenMask |= (1 << FieldPeerNeighbors)
 			var start int
 			out.Neighbors, start = growSlice(sliceForDecode(&out.Neighbors, alreadySeen), elemCount)
 			neighs := out.Neighbors[start:]
-			p := 0
 			for i := range elemCount {
 				var elemLen64 uint64
 				elemLen64, p = ReadVarintAt(arrPayload, p)

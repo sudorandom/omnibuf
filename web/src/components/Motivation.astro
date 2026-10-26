@@ -8,9 +8,8 @@
       <span class="font-serif italic font-normal normal-case text-[#FF4F18]">and spliceable.</span>
     </h2>
     <p class="mt-4 text-lg sm:text-xl text-ink/80 font-medium">
-      Born as a faster, self-describing Protobuf wire encoding, OmniBuf works with existing{' '}
-      <code>.proto</code> schemas or directly on native structs and objects without requiring an
-      IDL.
+      I started this project to see how much faster Protobuf's wire format could be on modern CPUs,
+      and ended up making it work directly on Go structs and TypeScript objects too.
     </p>
   </div>
 
@@ -23,14 +22,14 @@
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Protobuf's <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128</a> varints check a continuation bit on every byte, and its length-prefixed sub-messages force encoders to walk the struct tree twice (once to compute sizes, once to write bytes). OmniBuf puts the integer byte width in the first byte (<a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a>) so the CPU reads the whole integer at once without looping over each byte, and reserves 2-byte length slots so messages encode in a single pass.
+          When Protobuf reads a <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128</a> varint, it has to check the top bit of every single byte in a loop until it finds the end of the number. And when it writes a nested message, it has to walk the whole struct tree twice: once to add up the byte sizes, and a second time to write the bytes out. OmniBuf changes the integer encoding so the first byte tells the CPU how many bytes to read (using a single <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a> instruction), and encoders reserve a 2-byte length slot for nested messages so they only have to walk the struct once.
         </p>
       </div>
       <div class="lg:col-span-4">
         <div class="p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
-          <div class="text-acid font-bold">6x faster encode</div>
-          <div class="text-white font-bold">8x faster decode</div>
-          <div class="text-paper/75 text-sm">Zero heap allocations on encode</div>
+          <div class="text-acid font-bold">5.9x faster encode vs Go Protobuf</div>
+          <div class="text-white font-bold">Up to 7.3x faster decode (2.3x fresh alloc)</div>
+          <div class="text-paper/75 text-sm">Single-pass forward encoding</div>
         </div>
       </div>
     </div>
@@ -43,7 +42,7 @@
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Protobuf lumps strings, byte slices, sub-messages, maps, and packed arrays into a single wire type (<code>Wire Type 2</code>). Without the <code>.proto</code> file, a decoder can only guess what a payload contains. OmniBuf uses a 4-bit wire type (~6% larger on the wire) so every type is explicit. Any CLI or log viewer can decode packets without a schema, and you still work with normal structs instead of <a href="https://flatbuffers.dev/" target="_blank" rel="noopener noreferrer" class="doc-link">FlatBuffers</a> builders.
+          Protobuf only has a handful of wire types, so strings, byte slices, nested messages, and packed arrays all get serialized as <code>Wire Type 2 (LEN)</code>. If you inspect a raw Protobuf packet without the <code>.proto</code> file, a tool like <code>protoscope</code> has to guess what each field actually is. OmniBuf uses a 4-bit wire type (16 types instead of 6) plus 1-byte collection headers, which adds about 7% to our 11-field test packet so a decoder can recover the exact wire type and value of every present field (though enum label names, omitted defaults, and inactive oneof branches still require a schema).
         </p>
       </div>
       <div class="lg:col-span-4">
@@ -63,11 +62,10 @@
           Read, drop, or replace individual fields on raw bytes
         </h3>
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Because every integer and container carries its exact byte width in its header, OmniBuf
-          can jump over unrelated fields in a single addition without parsing their contents.
-          Generated <code>Opaque</code> views let routers and storage engines read a single nested
-          field or splice updated scalar values directly into a serialized packet over 11x faster
-          than Protobuf with zero heap allocations.
+          Since every integer and container starts with its byte length, a decoder can skip over
+          fields it doesn't care about by adding the byte length and jumping to the next tag. If you
+          use the generated <code>Opaque</code> wrapper in a proxy or router, you can read one field
+          out of a packet or update a field in place without unpacking the rest of the message.
         </p>
       </div>
       <div class="lg:col-span-4">
@@ -88,7 +86,7 @@
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Many services use JSON simply because they want to serialize native <a href="/go#struct-tags" class="doc-link">Go structs</a> or <a href="/es#define-message" class="doc-link">TypeScript objects</a> without maintaining <code>.proto</code> files or running a code generator. OmniBuf works the same way via <code>omnibuf:"1"</code> struct tags in Go and <code>defineMessage()</code> in TypeScript &mdash; encoding <strong>5x to 11x faster than JSON</strong> at less than half the wire size, preserving 64-bit integers and raw <code>[]byte</code>/<code>Uint8Array</code> fields without base64, and optionally embedding <strong>Field #0</strong> field names once per packet when you want named JSON-like inspection.
+          A lot of services use JSON simply because defining a <a href="/go#struct-tags" class="doc-link">Go struct</a> or a <a href="/es#define-message" class="doc-link">TypeScript type</a> is easier than setting up <code>.proto</code> files and a code generator. OmniBuf lets you do the same thing with <code>omnibuf:"1"</code> struct tags in Go or <code>defineMessage()</code> in TypeScript. The encoded bytes are less than half the size of JSON and 5x to 11x faster to encode, 64-bit integers and byte slices don't need special string encoding, and you can enable <strong>Field #0</strong> if you still want field names included in the packet.
         </p>
       </div>
       <div class="lg:col-span-4">
@@ -109,10 +107,10 @@
           Keep your .proto files, schema evolution, and compact payloads
         </h3>
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          OmniBuf works directly with your existing <code>.proto</code> files and generated structs.
-          You keep field numbers, forward/backward compatibility, compact payloads (40% smaller than
-          FlatBuffers), and raw byte concatenation (<code>append(msgA, msgB...)</code>) for merging
-          messages without decoding them.
+          If you already have a Protobuf workflow, you can keep using your existing{' '}
+          <code>.proto</code> files and generated structs. Field numbers, adding and deprecating
+          fields over time, and merging two messages by concatenating their bytes (
+          <code>append(msgA, msgB...)</code>) all work the same way as Protobuf.
         </p>
       </div>
       <div class="lg:col-span-4">

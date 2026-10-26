@@ -1,12 +1,14 @@
 package omnibuf
 
-func mapHeaderByte(keyWT, valWT uint8) byte {
-	return ((keyWT & 0x0F) << 4) | (valWT & 0x0F)
+import "github.com/sudorandom/omnibuf/wire"
+
+func parseMapHeader(body []byte) (keyWT, valWT uint8, count, pos int, ok bool) {
+	return wire.ParseMapHeader(body)
 }
 
 func encodeMapStringUint(dst []byte, m map[string]uint64, deterministic bool) []byte {
 	lenPos := len(dst)
-	dst = append(dst, 0, 0, mapHeaderByte(wireString, wireUint))
+	dst = append(dst, 0, 0, wireString, wireUint)
 	dst = appendVarint(dst, uint64(len(m)))
 	if deterministic && len(m) > 1 {
 		keys := make([]string, 0, len(m))
@@ -34,18 +36,14 @@ func encodeMapStringUint(dst []byte, m map[string]uint64, deterministic bool) []
 }
 
 func decodeMapStringUintBody(dst map[string]uint64, body []byte, zeroCopy bool) (map[string]uint64, bool) {
-	if len(body) < 2 || body[0] != mapHeaderByte(wireString, wireUint) {
-		return nil, false
-	}
-	count, cn := decodeVarint(body[1:])
-	if cn == 0 || count > uint64(len(body)-(1+cn)) {
+	keyWT, valWT, count, p, ok := parseMapHeader(body)
+	if !ok || keyWT != wireString || valWT != wireUint {
 		return nil, false
 	}
 	if dst == nil {
-		dst = make(map[string]uint64, int(count))
+		dst = make(map[string]uint64, count)
 	}
-	p := 1 + cn
-	for range int(count) {
+	for range count {
 		kLen, kn := decodeVarint(body[p:])
 		if kn == 0 || kLen > uint64(len(body)-(p+kn)) {
 			return nil, false

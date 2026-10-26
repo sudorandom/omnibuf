@@ -33,43 +33,11 @@ func SpliceFields(dst, raw []byte, dirtyMask uint16, maxField uint16, appendDirt
 		}
 
 		// Fast-skip field value to find fieldEnd
-		switch wt {
-		case WireUint, WireSint:
-			if pos >= n {
-				break
-			}
-			vb := raw[pos]
-			if (vb & 1) != 0 {
-				pos++
-			} else if (vb & 2) != 0 {
-				pos += 2
-			} else if (vb & 4) != 0 {
-				pos += 4
-			} else {
-				pos += 9
-			}
-		case WireBoolFalse, WireBoolTrue:
-		case WireString, WireBytes, WireSubMsg, WireStringArr, WireUintArr, WireSubMsgArr, WireMap, WireSintArr, WireFixedArr, WireExtended:
-			if pos >= n {
-				break
-			}
-			lb := raw[pos]
-			if (lb & 1) != 0 {
-				pos += 1 + int(lb>>1)
-			} else if (lb&2) != 0 && pos+2 <= n {
-				pos += 2 + int(binary.LittleEndian.Uint16(raw[pos:pos+2])>>2)
-			} else {
-				bLen, bn := DecodeVarint(raw[pos:])
-				pos += bn + int(bLen)
-			}
-		case WireFixed32:
-			pos += 4
-		case WireFixed64:
-			pos += 8
-		}
-		if pos > n {
+		nextPos, ok := fastSkipValue(raw, pos, wt)
+		if !ok {
 			break
 		}
+		pos = nextPos
 		fieldEnd := pos
 
 		bit := uint16(1) << fnum

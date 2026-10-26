@@ -1,12 +1,11 @@
 package wire
 
 import (
-	"encoding/binary"
 	"unsafe"
 )
 
 // ============================================================================
-// Nested Sub-Message & Sub-Message Array Wire Types (WireSubMsg, WireSubMsgArr)
+// Nested Sub-Message & Sub-Message Array Wire Types (WireSubMsg, WireArray)
 // ============================================================================
 
 // BeginSubMsg starts a nested sub-message (WireSubMsg) in a single pass by reserving a 2-byte
@@ -25,32 +24,35 @@ func (e *Encoder) EndSubMsg() {
 	e.buf = BackpatchContainerLen(e.buf, lenPos)
 }
 
-// BeginSubMsgArr starts a repeated sub-message array (WireSubMsgArr) in a single pass.
+// BeginSubMsgArr starts a repeated sub-message array (WireArray) in a single pass.
 func (e *Encoder) BeginSubMsgArr(fieldNum uint16) {
-	e.writeTag(fieldNum, WireSubMsgArr)
+	e.writeTag(fieldNum, WireArray)
 	e.lenStack[e.depth] = len(e.buf)
 	e.depth++
-	e.buf = append(e.buf, 0, 0) // Reserve 2B TotalByteLen Prefix-Varint
+	e.countStack[e.depth-1] = 0
+	e.buf = append(e.buf, 0, 0, WireSubMsg, 0) // 2B Length, 1B element type, 1B count
 }
 
-// BeginSubMsgElem starts the next element inside an open WireSubMsgArr by reserving its 2-byte length prefix.
+// BeginSubMsgElem starts the next element inside an open WireArray by reserving its 2-byte length prefix.
 func (e *Encoder) BeginSubMsgElem() {
+	e.countStack[e.depth-1]++
 	e.lenStack[e.depth] = len(e.buf)
 	e.depth++
 	e.buf = append(e.buf, 0, 0) // Reserve 2B ElemByteLen Prefix-Varint
 }
 
-// EndSubMsgElem finishes the current element inside an open WireSubMsgArr and backpatches its length.
+// EndSubMsgElem finishes the current element inside an open WireArray and backpatches its length.
 func (e *Encoder) EndSubMsgElem() {
 	e.depth--
 	lenPos := e.lenStack[e.depth]
 	e.buf = BackpatchContainerLen(e.buf, lenPos)
 }
 
-// EndSubMsgArr backpatches the total byte length of the open WireSubMsgArr.
+// EndSubMsgArr backpatches the total byte length of the open WireArray.
 func (e *Encoder) EndSubMsgArr() {
 	e.depth--
 	lenPos := e.lenStack[e.depth]
+	e.buf = PatchReservedVarint(e.buf, lenPos+3, uint64(e.countStack[e.depth]))
 	e.buf = BackpatchContainerLen(e.buf, lenPos)
 }
 
@@ -67,63 +69,45 @@ func ReadSubMsg(packet []byte, fieldNum uint16) ([]byte, bool) {
 	return s[sn : sn+int(subLen)], true
 }
 
-// ReadElem slices the i-th sub-message element out of a WireSubMsgArr payload by hopping element length prefixes.
-func ReadElem(arrPayload []byte, index int) ([]byte, bool) {
-	if index < 0 {
+// ReadElem slices the i-th sub-message element out of a WireArray payload by hopping element length prefixes.
+func ReadElem(body []byte, index int) ([]byte, bool) {
+	e, count, p, ok := ParseArrayHeader(body)
+	if !ok || e != WireSubMsg || index < 0 || index >= count {
 		return nil, false
 	}
-	pos := 0
-	n := len(arrPayload)
-	for i := 0; pos < n; i++ {
-		var elemLen, en int
-		b0 := arrPayload[pos]
-		if (b0 & 2) != 0 {
-			if pos+2 > n {
-				return nil, false
-			}
-			elemLen = int(binary.LittleEndian.Uint16(arrPayload[pos:pos+2]) >> 2)
-			en = 2
-		} else {
-			l64, ln := DecodeVarint(arrPayload[pos:])
-			if ln == 0 || l64 > uint64(n-(pos+ln)) {
-				return nil, false
-			}
-			elemLen = int(l64)
-			en = ln
-		}
-		pos += en
-		if elemLen > n-pos {
+	for i := 0; i < count; i++ {
+		l, n := DecodeVarint(body[p:])
+		if n == 0 || l > uint64(len(body)-p-n) {
 			return nil, false
 		}
+		p += n
 		if i == index {
-			return arrPayload[pos : pos+elemLen], true
+			return body[p : p+int(l)], true
 		}
-		pos += elemLen
+		p += int(l)
 	}
 	return nil, false
 }
-
-// CountSubMsgArrElems counts and validates the length-prefixed elements inside a WireSubMsgArr payload.
-func CountSubMsgArrElems(arrPayload []byte) (int, bool) {
-	pos := 0
-	n := len(arrPayload)
-	count := 0
-	for pos < n {
-		el, en := DecodeVarint(arrPayload[pos:])
-		if en == 0 || el > uint64(n-(pos+en)) {
+func CountSubMsgArrElems(body []byte) (int, bool) {
+	e, count, p, ok := ParseArrayHeader(body)
+	if !ok || e != WireSubMsg {
+		return 0, false
+	}
+	for i := 0; i < count; i++ {
+		l, n := DecodeVarint(body[p:])
+		if n == 0 || l > uint64(len(body)-p-n) {
 			return 0, false
 		}
-		pos += en + int(el)
-		count++
+		p += n + int(l)
 	}
-	return count, pos == n
+	return count, p == len(body)
 }
 
-// SubMsgArrLen returns the total number of elements in a WireSubMsgArr field across any concatenated segments.
+// SubMsgArrLen returns the total number of elements in a WireArray field across any concatenated segments.
 func SubMsgArrLen(packet []byte, fieldNum uint16) int {
 	total := 0
 	for pos := 0; ; {
-		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireSubMsgArr, 0)
+		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireArray, 0)
 		if !valid {
 			return 0
 		}
@@ -139,15 +123,15 @@ func SubMsgArrLen(packet []byte, fieldNum uint16) int {
 	}
 }
 
-// ReadSubMsgArrElem locates a WireSubMsgArr field in packet and slices its i-th element
-// (supporting concatenated WireSubMsgArr fields across merged messages).
+// ReadSubMsgArrElem locates a WireArray field in packet and slices its i-th element
+// (supporting concatenated WireArray fields across merged messages).
 func ReadSubMsgArrElem(packet []byte, fieldNum uint16, index int) ([]byte, bool) {
 	if index < 0 {
 		return nil, false
 	}
 	remIdx := index
 	for pos := 0; ; {
-		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireSubMsgArr, 0)
+		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireArray, 0)
 		if !valid || !matched {
 			return nil, false
 		}

@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"reflect"
 )
 
 // SchemaMeta is the optional inline schema header encoded as Field #0
-// (Tag = 0x0B, wireSubMsg = 5) at byte 0 of an OmniBuf message (omnibuf.v1.SchemaMeta).
+// (Tag = 0x19, wireSubMsg = 12) at byte 0 of an OmniBuf message (omnibuf.v1.SchemaMeta).
 type SchemaMeta struct {
 	TypeName string                 `protobuf:"bytes,1,opt,name=type_name,proto3" json:"type_name,omitempty"`
 	Fields   map[uint32]string      `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
 	Children map[uint32]*SchemaMeta `protobuf:"bytes,3,rep,name=children,proto3" json:"children,omitempty"`
 }
 
-// AppendField0 appends Field #0 (Tag = 0x0B, wireSubMsg = 5) encoding meta to dst.
+// AppendField0 appends Field #0 (Tag = 0x19, wireSubMsg = 12) encoding meta to dst.
 // When deterministic is true, map keys in Fields and Children are sorted in ascending order.
 func (meta *SchemaMeta) AppendField0(dst []byte, deterministic bool) []byte {
 	return appendField0SchemaMetaDeterministic(dst, meta, deterministic)
@@ -25,7 +26,7 @@ func appendField0SchemaMetaDeterministic(dst []byte, meta *SchemaMeta, determini
 	if meta == nil {
 		return dst
 	}
-	dst = append(dst, 0x0B) // Tag = (0 << 4) | wireSubMsg(5) = 5 -> (5 << 1) | 1 = 0x0B
+	dst = append(dst, byte(((0<<4)|wireSubMsg)<<1)|1) // Tag = (0 << 4) | wireSubMsg(12) = 12 -> (12 << 1) | 1 = 0x19
 	lenPos := len(dst)
 	dst = append(dst, 0, 0)
 	dst = appendSchemaMetaBody(dst, meta, deterministic)
@@ -48,17 +49,17 @@ func appendSchemaMetaBody(dst []byte, meta *SchemaMeta, deterministic bool) []by
 	if meta == nil {
 		return dst
 	}
-	// Field #1: type_name (wireString = 3 -> Tag (1 << 4) | 3 = 19 -> 0x27)
+	// Field #1: type_name (wireString = 10 -> Tag (1 << 4) | 10 = 26 -> 0x35)
 	if meta.TypeName != "" {
-		dst = append(dst, 0x27)
+		dst = append(dst, byte(((1<<4)|wireString)<<1)|1)
 		dst = appendVarint(dst, uint64(len(meta.TypeName)))
 		dst = append(dst, meta.TypeName...)
 	}
-	// Field #2: fields map<uint32, string> (wireMap = 9 -> Tag (2 << 4) | 9 = 41 -> 0x53)
+	// Field #2: fields map<uint32, string> (wireMap = 14 -> Tag (2 << 4) | 14 = 46 -> 0x5D)
 	if len(meta.Fields) > 0 {
-		dst = append(dst, 0x53)
+		dst = append(dst, byte(((2<<4)|wireMap)<<1)|1)
 		lenPos := len(dst)
-		dst = append(dst, 0, 0, mapHeaderByte(wireUint, wireString))
+		dst = append(dst, 0, 0, wireUint, wireString)
 		dst = appendVarint(dst, uint64(len(meta.Fields)))
 		if deterministic {
 			var stackKeys [32]uint32
@@ -77,11 +78,11 @@ func appendSchemaMetaBody(dst []byte, meta *SchemaMeta, deterministic bool) []by
 		}
 		dst = backpatchContainerLen(dst, lenPos)
 	}
-	// Field #3: children map<uint32, SchemaMeta> (wireMap = 9 -> Tag (3 << 4) | 9 = 57 -> 0x73)
+	// Field #3: children map<uint32, SchemaMeta> (wireMap = 14 -> Tag (3 << 4) | 14 = 62 -> 0x7D)
 	if len(meta.Children) > 0 {
-		dst = append(dst, 0x73)
+		dst = append(dst, byte(((3<<4)|wireMap)<<1)|1)
 		lenPos := len(dst)
-		dst = append(dst, 0, 0, mapHeaderByte(wireUint, wireSubMsg))
+		dst = append(dst, 0, 0, wireUint, wireSubMsg)
 		dst = appendVarint(dst, uint64(len(meta.Children)))
 		if deterministic {
 			var stackKeys [32]uint32
@@ -153,27 +154,24 @@ func decodeSchemaMeta(data []byte, depth int) (*SchemaMeta, error) {
 			}
 			meta.TypeName = string(s)
 			pos = nextPos
-		case 2: // fields (map<uint32, string>)
+		case 2: // field names
 			if wt != wireMap {
 				return nil, fmt.Errorf("omnibuf: SchemaMeta field #2 (fields) must be wireMap, got %d", wt)
 			}
-			body, nextPos, err := readLenSlice(data, pos, 2)
+			body, nextPos, err := readLenSlice(data, pos, 3)
 			if err != nil {
 				return nil, err
 			}
 			pos = nextPos
-			if body[0] != mapHeaderByte(wireUint, wireString) {
-				return nil, fmt.Errorf("omnibuf: SchemaMeta fields map must have MapType 0x03, got 0x%02x", body[0])
-			}
-			count, cn := decodeVarint(body[1:])
-			if cn == 0 || count*2 > uint64(len(body)-(1+cn)) {
-				return nil, fmt.Errorf("omnibuf: SchemaMeta fields count %d exceeds body", count)
+			keyWT, valWT, count, p, ok := parseMapHeader(body)
+			if !ok || keyWT != wireUint || valWT != wireString {
+				return nil, fmt.Errorf("omnibuf: invalid SchemaMeta fields map header")
 			}
 			if meta.Fields == nil {
-				meta.Fields = make(map[uint32]string, int(count))
+				meta.Fields = make(map[uint32]string, count)
 			}
-			p := 1 + cn
-			for range int(count) {
+
+			for range count {
 				k64, kn := decodeVarint(body[p:])
 				if kn == 0 || k64 == 0 || k64 > math.MaxUint32 {
 					return nil, fmt.Errorf("omnibuf: invalid SchemaMeta field number %d at %d", k64, p)
@@ -193,23 +191,19 @@ func decodeSchemaMeta(data []byte, depth int) (*SchemaMeta, error) {
 			if wt != wireMap {
 				return nil, fmt.Errorf("omnibuf: SchemaMeta field #3 (children) must be wireMap, got %d", wt)
 			}
-			body, nextPos, err := readLenSlice(data, pos, 2)
+			body, nextPos, err := readLenSlice(data, pos, 3)
 			if err != nil {
 				return nil, err
 			}
 			pos = nextPos
-			if body[0] != mapHeaderByte(wireUint, wireSubMsg) {
-				return nil, fmt.Errorf("omnibuf: SchemaMeta children map must have MapType 0x05, got 0x%02x", body[0])
-			}
-			count, cn := decodeVarint(body[1:])
-			if cn == 0 || count*2 > uint64(len(body)-(1+cn)) {
-				return nil, fmt.Errorf("omnibuf: SchemaMeta children count %d exceeds body", count)
+			keyWT, valWT, count, p, ok := parseMapHeader(body)
+			if !ok || keyWT != wireUint || valWT != wireSubMsg {
+				return nil, fmt.Errorf("omnibuf: invalid SchemaMeta children map header")
 			}
 			if meta.Children == nil {
-				meta.Children = make(map[uint32]*SchemaMeta, int(count))
+				meta.Children = make(map[uint32]*SchemaMeta, count)
 			}
-			p := 1 + cn
-			for range int(count) {
+			for range count {
 				k64, kn := decodeVarint(body[p:])
 				if kn == 0 || k64 == 0 || k64 > math.MaxUint32 {
 					return nil, fmt.Errorf("omnibuf: invalid SchemaMeta child field number %d at %d", k64, p)
@@ -302,8 +296,42 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 	if inherited != nil {
 		activeSchema = mergeSchemaMeta(nil, inherited)
 	}
+
+	// Resolve metadata before values so late Field #0 blocks and concatenated
+	// schemas give every occurrence of a numeric field the same name and type.
+	for scan := 0; scan < n; {
+		tag, tn := decodeVarint(data[scan:])
+		if tn == 0 || tag>>4 > (1<<29)-1 {
+			return nil, fmt.Errorf("omnibuf: invalid tag at %d", scan)
+		}
+		scan += tn
+		wt := uint8(tag & 15)
+		if tag>>4 == 0 {
+			if wt != wireSubMsg {
+				return nil, fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
+			}
+			body, next, err := readLenSlice(data, scan, 0)
+			if err != nil {
+				return nil, err
+			}
+			meta, err := decodeSchemaMeta(body, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			activeSchema = mergeSchemaMeta(activeSchema, meta)
+			scan = next
+		} else {
+			next, err := skipValue(data, scan, wt)
+			if err != nil {
+				return nil, err
+			}
+			scan = next
+		}
+	}
 	pos := 0
 	out := make(map[string]any, 8)
+	subPackets := make(map[string][]byte)
+	subSchemas := make(map[string]*SchemaMeta)
 
 	for pos < n {
 		tag, tn := decodeVarint(data[pos:])
@@ -318,16 +346,12 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 			if wt != wireSubMsg {
 				return nil, fmt.Errorf("omnibuf: Field #0 must have wireSubMsg wire type (5), got %d", wt)
 			}
-			f0Body, nextPos, err := readLenSlice(data, pos, 0)
+			_, nextPos, err := readLenSlice(data, pos, 0)
 			if err != nil {
 				return nil, err
 			}
 			pos = nextPos
-			parsedMeta, err := decodeSchemaMeta(f0Body, depth+1)
-			if err != nil {
-				return nil, err
-			}
-			activeSchema = mergeSchemaMeta(activeSchema, parsedMeta)
+
 			continue
 		}
 
@@ -384,116 +408,39 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 			if err != nil {
 				return nil, err
 			}
-			subMap, err := decodeBlindWithSchema(subBytes, childSchema, depth+1)
-			if err != nil {
-				return nil, err
-			}
-			if prevMap, ok := out[name].(map[string]any); ok {
-				maps.Copy(prevMap, subMap)
-			} else {
-				out[name] = subMap
-			}
+			subPackets[name] = append(subPackets[name], subBytes...)
+			subSchemas[name] = childSchema
+
 			pos = nextPos
-		case wireStringArr:
-			body, nextPos, err := readLenSlice(data, pos, 1)
+		case wireArray:
+			body, next, err := readLenSlice(data, pos, 2)
 			if err != nil {
 				return nil, err
 			}
-			prev, _ := out[name].([]string)
-			arr, ok := appendStringArrBody(prev, body, false)
-			if !ok {
-				return nil, fmt.Errorf("omnibuf: invalid wireStringArr at %d", pos)
-			}
-			out[name] = arr
-			pos = nextPos
-		case wireUintArr:
-			body, nextPos, err := readLenSlice(data, pos, 1)
+			arr, err := decodeArrayBlind(body, childSchema, depth+1)
 			if err != nil {
 				return nil, err
 			}
-			prev, _ := out[name].([]uint64)
-			arr, ok := appendUintArrBody(prev, body)
-			if !ok {
-				return nil, fmt.Errorf("omnibuf: invalid wireUintArr at %d", pos)
-			}
-			out[name] = arr
-			pos = nextPos
-		case wireSintArr:
-			body, nextPos, err := readLenSlice(data, pos, 1)
-			if err != nil {
-				return nil, err
-			}
-			prev, _ := out[name].([]int64)
-			arr, ok := appendSintArrBody(prev, body)
-			if !ok {
-				return nil, fmt.Errorf("omnibuf: invalid wireSintArr at %d", pos)
-			}
-			out[name] = arr
-			pos = nextPos
-		case wireFixedArr:
-			body, nextPos, err := readLenSlice(data, pos, 1)
-			if err != nil {
-				return nil, err
-			}
-			switch elemType := body[0]; elemType {
-			case wireFixed32:
-				prev, _ := out[name].([]float32)
-				arr, ok := appendFloat32ArrBody(prev, body)
-				if !ok {
-					return nil, fmt.Errorf("omnibuf: invalid wireFixedArr(Fixed32) at %d", pos)
+			if prev, ok := out[name]; ok {
+				a, b := reflect.ValueOf(prev), reflect.ValueOf(arr)
+				if a.Type() != b.Type() {
+					return nil, fmt.Errorf("omnibuf: array element type changed")
 				}
-				out[name] = arr
-			case wireFixed64:
-				prev, _ := out[name].([]float64)
-				arr, ok := appendFloat64ArrBody(prev, body)
-				if !ok {
-					return nil, fmt.Errorf("omnibuf: invalid wireFixedArr(Fixed64) at %d", pos)
-				}
-				out[name] = arr
-			default:
-				return nil, fmt.Errorf("omnibuf: invalid wireFixedArr ElemType %d", elemType)
+				arr = reflect.AppendSlice(a, b).Interface()
 			}
-			pos = nextPos
+			out[name] = arr
+			pos = next
 		case wireExtended:
-			body, _, err := readLenSlice(data, pos, 1)
-			if err != nil {
-				return nil, err
-			}
-			return nil, fmt.Errorf("omnibuf: unrecognized wireExtended subtype 0x%02x", body[0])
-		case wireSubMsgArr:
-			arrPayload, nextPos, err := readLenSlice(data, pos, 0)
-			if err != nil {
-				return nil, err
-			}
-			elemCount, ok := countSubMsgArrElems(arrPayload)
-			if !ok {
-				return nil, fmt.Errorf("omnibuf: corrupt wireSubMsgArr element framing at %d", pos)
-			}
-			elems, _ := out[name].([]map[string]any)
-			if elems == nil {
-				elems = make([]map[string]any, 0, elemCount)
-			}
-			p := 0
-			for range elemCount {
-				el, en := decodeVarint(arrPayload[p:])
-				p += en
-				elemMap, err := decodeBlindWithSchema(arrPayload[p:p+int(el)], childSchema, depth+1)
-				if err != nil {
-					return nil, err
-				}
-				elems = append(elems, elemMap)
-				p += int(el)
-			}
-			out[name] = elems
-			pos = nextPos
+			return nil, fmt.Errorf("omnibuf: unknown extension")
 		case wireMap:
-			body, nextPos, err := readLenSlice(data, pos, 2)
+			body, nextPos, err := readLenSlice(data, pos, 3)
 			if err != nil {
 				return nil, err
 			}
-			mapType := body[0]
-			keyWT := mapType >> 4
-			valWT := mapType & 0x0F
+			keyWT, valWT, count, p, ok := parseMapHeader(body)
+			if !ok {
+				return nil, fmt.Errorf("omnibuf: invalid wireMap header at %d", pos)
+			}
 			if keyWT == wireString && valWT == wireUint {
 				prev, _ := out[name].(map[string]uint64)
 				m, ok := decodeMapStringUintBody(prev, body, false)
@@ -502,16 +449,11 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 				}
 				out[name] = m
 			} else {
-				count, cn := decodeVarint(body[1:])
-				if cn == 0 || count > uint64(len(body)-(1+cn)) {
-					return nil, fmt.Errorf("omnibuf: wireMap count %d exceeds body (%d B)", count, len(body))
-				}
 				m, ok := out[name].(map[string]any)
 				if !ok || m == nil {
-					m = make(map[string]any, int(count))
+					m = make(map[string]any, count)
 				}
-				p := 1 + cn
-				for range int(count) {
+				for range count {
 					k, nextP, err := decodeMapKeyBlind(body, p, keyWT)
 					if err != nil {
 						return nil, err
@@ -529,21 +471,45 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 				out[name] = m
 			}
 			pos = nextPos
-		case wireFixed32:
+		case wireFixed32, wireFloat32, wireSfixed32:
 			if n-pos < 4 {
 				return nil, fmt.Errorf("omnibuf: truncated wireFixed32 at %d", pos)
 			}
-			out[name] = math.Float32frombits(binary.LittleEndian.Uint32(data[pos : pos+4]))
+			bits := binary.LittleEndian.Uint32(data[pos : pos+4])
+			switch wt {
+			case wireFloat32:
+				out[name] = math.Float32frombits(bits)
+			case wireSfixed32:
+				out[name] = int32(bits)
+			default:
+				out[name] = bits
+			}
 			pos += 4
-		case wireFixed64:
+		case wireFixed64, wireFloat64, wireSfixed64:
 			if n-pos < 8 {
 				return nil, fmt.Errorf("omnibuf: truncated wireFixed64 at %d", pos)
 			}
-			out[name] = math.Float64frombits(binary.LittleEndian.Uint64(data[pos : pos+8]))
+			bits := binary.LittleEndian.Uint64(data[pos : pos+8])
+			switch wt {
+			case wireFloat64:
+				out[name] = math.Float64frombits(bits)
+			case wireSfixed64:
+				out[name] = int64(bits)
+			default:
+				out[name] = bits
+			}
 			pos += 8
 		default:
 			return nil, fmt.Errorf("omnibuf: unsupported wire type %d", wt)
 		}
+	}
+
+	for name, packet := range subPackets {
+		value, err := decodeBlindWithSchema(packet, subSchemas[name], depth+1)
+		if err != nil {
+			return nil, err
+		}
+		out[name] = value
 	}
 
 	return out, nil
@@ -569,17 +535,25 @@ func decodeMapKeyBlind(body []byte, p int, keyWT uint8) (string, int, error) {
 			return "", 0, fmt.Errorf("omnibuf: truncated wireMap sint key at %d", p)
 		}
 		return fmt.Sprintf("%d", decodeZigZag(v)), p + vn, nil
-	case wireFixed32:
+	case wireFixed32, wireSfixed32:
 		if len(body)-p < 4 {
 			return "", 0, fmt.Errorf("omnibuf: truncated wireMap fixed32 key at %d", p)
 		}
-		return fmt.Sprintf("%d", binary.LittleEndian.Uint32(body[p:p+4])), p + 4, nil
-	case wireFixed64:
+		bits := binary.LittleEndian.Uint32(body[p : p+4])
+		if keyWT == wireSfixed32 {
+			return fmt.Sprint(int32(bits)), p + 4, nil
+		}
+		return fmt.Sprint(bits), p + 4, nil
+	case wireFixed64, wireSfixed64:
 		if len(body)-p < 8 {
 			return "", 0, fmt.Errorf("omnibuf: truncated wireMap fixed64 key at %d", p)
 		}
-		return fmt.Sprintf("%d", binary.LittleEndian.Uint64(body[p:p+8])), p + 8, nil
-	case wireBoolTrue, wireBoolFalse:
+		bits := binary.LittleEndian.Uint64(body[p : p+8])
+		if keyWT == wireSfixed64 {
+			return fmt.Sprint(int64(bits)), p + 8, nil
+		}
+		return fmt.Sprint(bits), p + 8, nil
+	case wireBoolFalse:
 		if len(body)-p < 1 {
 			return "", 0, fmt.Errorf("omnibuf: truncated wireMap bool key at %d", p)
 		}
@@ -634,17 +608,53 @@ func decodeMapValBlind(body []byte, p int, valWT uint8, childSchema *SchemaMeta,
 			return nil, 0, err
 		}
 		return subMap, nextP, nil
-	case wireFixed32:
+	case wireArray:
+		nested, nextP, err := readLenSlice(body, p, 2)
+		if err != nil {
+			return nil, 0, err
+		}
+		arr, err := decodeArrayBlind(nested, childSchema, depth+1)
+		if err != nil {
+			return nil, 0, err
+		}
+		return arr, nextP, nil
+	case wireMap:
+		nested, nextP, err := readLenSlice(body, p, 3)
+		if err != nil {
+			return nil, 0, err
+		}
+		mp, err := decodeMapBodyBlind(nested, childSchema, depth+1)
+		if err != nil {
+			return nil, 0, err
+		}
+		return mp, nextP, nil
+	case wireFixed32, wireFloat32, wireSfixed32:
 		if len(body)-p < 4 {
 			return nil, 0, fmt.Errorf("omnibuf: truncated wireMap fixed32 value at %d", p)
 		}
-		return math.Float32frombits(binary.LittleEndian.Uint32(body[p : p+4])), p + 4, nil
-	case wireFixed64:
+		bits := binary.LittleEndian.Uint32(body[p : p+4])
+		switch valWT {
+		case wireFloat32:
+			return math.Float32frombits(bits), p + 4, nil
+		case wireSfixed32:
+			return int32(bits), p + 4, nil
+		default:
+			return bits, p + 4, nil
+		}
+	case wireFixed64, wireFloat64, wireSfixed64:
 		if len(body)-p < 8 {
 			return nil, 0, fmt.Errorf("omnibuf: truncated wireMap fixed64 value at %d", p)
 		}
-		return math.Float64frombits(binary.LittleEndian.Uint64(body[p : p+8])), p + 8, nil
-	case wireBoolTrue, wireBoolFalse:
+		bits := binary.LittleEndian.Uint64(body[p : p+8])
+		switch valWT {
+		case wireFloat64:
+			return math.Float64frombits(bits), p + 8, nil
+		case wireSfixed64:
+			return int64(bits), p + 8, nil
+		default:
+			return bits, p + 8, nil
+		}
+	case wireBoolFalse:
 		if len(body)-p < 1 {
 			return nil, 0, fmt.Errorf("omnibuf: truncated wireMap bool value at %d", p)
 		}
@@ -656,4 +666,118 @@ func decodeMapValBlind(body []byte, p int, valWT uint8, childSchema *SchemaMeta,
 	default:
 		return nil, 0, fmt.Errorf("omnibuf: invalid wireMap value wire type %d", valWT)
 	}
+}
+
+// validateField0 validates metadata even in schema-aware decoders.
+func validateField0(data []byte, pos int, wt uint8, depth int) (int, error) {
+	if wt != wireSubMsg {
+		return 0, fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
+	}
+	body, next, err := readLenSlice(data, pos, 0)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := decodeSchemaMeta(body, depth+1); err != nil {
+		return 0, err
+	}
+	return next, nil
+}
+
+func decodeArrayBlind(body []byte, schema *SchemaMeta, depth int) (any, error) {
+	if depth > MaxNestingDepth {
+		return nil, fmt.Errorf("omnibuf: array nesting limit exceeded")
+	}
+	elem, count, p, ok := parseArrayHeader(body)
+	if !ok {
+		return nil, fmt.Errorf("omnibuf: invalid array header")
+	}
+	var typ reflect.Type
+	switch elem {
+	case wireUint:
+		typ = reflect.TypeOf(uint64(0))
+	case wireSint:
+		typ = reflect.TypeOf(int64(0))
+	case wireBoolFalse:
+		typ = reflect.TypeOf(false)
+	case wireString:
+		typ = reflect.TypeOf("")
+	case wireBytes:
+		typ = reflect.TypeOf([]byte{})
+	case wireFixed32:
+		typ = reflect.TypeOf(uint32(0))
+	case wireFixed64:
+		typ = reflect.TypeOf(uint64(0))
+	case wireSfixed32:
+		typ = reflect.TypeOf(int32(0))
+	case wireSfixed64:
+		typ = reflect.TypeOf(int64(0))
+	case wireFloat32:
+		typ = reflect.TypeOf(float32(0))
+	case wireFloat64:
+		typ = reflect.TypeOf(float64(0))
+	case wireSubMsg, wireMap:
+		typ = reflect.TypeOf(map[string]any{})
+	case wireArray:
+		typ = reflect.TypeOf((*any)(nil)).Elem()
+	default:
+		return nil, fmt.Errorf("omnibuf: unsupported array element type %d", elem)
+	}
+	out := reflect.MakeSlice(reflect.SliceOf(typ), count, count)
+	for i := 0; i < count; i++ {
+		var value any
+		var next int
+		var err error
+		switch elem {
+		case wireArray:
+			var nested []byte
+			nested, next, err = readLenSlice(body, p, 2)
+			if err == nil {
+				value, err = decodeArrayBlind(nested, schema, depth+1)
+			}
+		case wireMap:
+			var nested []byte
+			nested, next, err = readLenSlice(body, p, 3)
+			if err == nil {
+				value, err = decodeMapBodyBlind(nested, schema, depth+1)
+			}
+		default:
+			value, next, err = decodeMapValBlind(body, p, elem, schema, depth)
+		}
+		if err != nil {
+			return nil, err
+		}
+		out.Index(i).Set(reflect.ValueOf(value))
+		p = next
+	}
+	if p != len(body) {
+		return nil, fmt.Errorf("omnibuf: array count/length mismatch")
+	}
+	return out.Interface(), nil
+}
+
+func decodeMapBodyBlind(body []byte, schema *SchemaMeta, depth int) (map[string]any, error) {
+	if depth > MaxNestingDepth {
+		return nil, fmt.Errorf("omnibuf: invalid map")
+	}
+	keyWT, valWT, count, p, ok := parseMapHeader(body)
+	if !ok {
+		return nil, fmt.Errorf("omnibuf: invalid map")
+	}
+	out := make(map[string]any, count)
+	for range count {
+		k, next, err := decodeMapKeyBlind(body, p, keyWT)
+		if err != nil {
+			return nil, err
+		}
+		v, next2, err := decodeMapValBlind(body, next, valWT, schema, depth)
+		if err != nil {
+			return nil, err
+		}
+		out[k] = v
+		p = next2
+	}
+	if p != len(body) {
+		return nil, fmt.Errorf("omnibuf: map count/length mismatch")
+	}
+	return out, nil
 }

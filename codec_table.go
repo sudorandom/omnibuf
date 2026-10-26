@@ -13,6 +13,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -106,24 +107,25 @@ const (
 )
 
 type fieldCodec struct {
-	fieldNum  uint16
-	wireType  uint8
-	tag1B     byte   // Precomputed 1-byte Prefix-Varint tag if fieldNum <= 7
-	tag2B     uint16 // Precomputed 2-byte Prefix-Varint tag if 8 <= fieldNum <= 1023
-	tag4B     uint32 // Precomputed 4-byte Prefix-Varint tag if fieldNum >= 1024
-	is1BTag   bool
-	is4BTag   bool
-	omitEmpty bool
-	kind      fieldKind
-	name      string
-	offset    uintptr
-	subCodec  *structCodec
-	elemCodec *fieldCodec
-	elemSize  uintptr
-	sliceType reflect.Type
-	elemType  reflect.Type
-	mapKeyWT  uint8
-	mapValWT  uint8
+	elemWireType uint8
+	fieldNum     uint16
+	wireType     uint8
+	tag1B        byte   // Precomputed 1-byte Prefix-Varint tag if fieldNum <= 7
+	tag2B        uint16 // Precomputed 2-byte Prefix-Varint tag if 8 <= fieldNum <= 1023
+	tag4B        uint32 // Precomputed 4-byte Prefix-Varint tag if fieldNum >= 1024
+	is1BTag      bool
+	is4BTag      bool
+	omitEmpty    bool
+	kind         fieldKind
+	name         string
+	offset       uintptr
+	subCodec     *structCodec
+	elemCodec    *fieldCodec
+	elemSize     uintptr
+	sliceType    reflect.Type
+	elemType     reflect.Type
+	mapKeyWT     uint8
+	mapValWT     uint8
 }
 
 type structCodec struct {
@@ -237,6 +239,7 @@ func compileStructCodec(t reflect.Type, building map[reflect.Type]*structCodec) 
 		if prevName, exists := seenNums[fc.fieldNum]; exists {
 			return nil, fmt.Errorf("omnibuf: duplicate field number %d on %s (already used by %s)", fc.fieldNum, sf.Name, prevName)
 		}
+
 		seenNums[fc.fieldNum] = sf.Name
 		sc.fields = append(sc.fields, fc)
 	}
@@ -368,7 +371,14 @@ func precomputeFieldTag(fc *fieldCodec) {
 	}
 }
 
-func configureFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect.Type, wireOpt string, building map[reflect.Type]*structCodec) error {
+func configureFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect.Type, wireOpt string, building map[reflect.Type]*structCodec) (err error) {
+	defer func() {
+		if err == nil {
+			finalizeWireType(fc, ft, wireOpt)
+			precomputeFieldTag(fc)
+		}
+	}()
+
 	switch ft.Kind() {
 	case reflect.Uint8:
 		switch wireOpt {
@@ -597,16 +607,16 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 			fc.wireType = wireString
 		case "uint":
 			fc.kind = kindUint8Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "sint":
 			fc.kind = kindUint8SintSlice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindUint8Fixed32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindUint8Fixed64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -615,14 +625,14 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
 		fc.kind = kindStringSlice
-		fc.wireType = wireStringArr
+		fc.wireType = wireArray
 	case reflect.Slice:
 		if elem.Elem().Kind() == reflect.Uint8 {
 			if wireOpt != "" && wireOpt != "bytes" && wireOpt != "string" {
 				return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 			}
 			fc.kind = kindBytesSlice
-			fc.wireType = wireStringArr
+			fc.wireType = wireArray
 			return nil
 		}
 		return fmt.Errorf("omnibuf: unsupported slice type %v on %s", ft, sf.Name)
@@ -631,21 +641,21 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
 		fc.kind = kindBoolSlice
-		fc.wireType = wireUintArr
+		fc.wireType = wireArray
 	case reflect.Uint16:
 		switch wireOpt {
 		case "", "uint":
 			fc.kind = kindUint16Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "sint":
 			fc.kind = kindUint16SintSlice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindUint16Fixed32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindUint16Fixed64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -653,16 +663,16 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 		switch wireOpt {
 		case "", "uint":
 			fc.kind = kindUint32Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "sint":
 			fc.kind = kindInt32Slice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindFloat32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindUint32Fixed64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -670,16 +680,16 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 		switch wireOpt {
 		case "", "uint":
 			fc.kind = kindUint64Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "sint":
 			fc.kind = kindInt64Slice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindUint64Fixed32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindFloat64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -687,16 +697,16 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 		switch wireOpt {
 		case "", "sint":
 			fc.kind = kindInt8Slice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "uint":
 			fc.kind = kindUint8Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindInt8Fixed32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindInt8Fixed64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -704,16 +714,16 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 		switch wireOpt {
 		case "", "sint":
 			fc.kind = kindInt16Slice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "uint":
 			fc.kind = kindUint16Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindInt16Fixed32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindInt16Fixed64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -721,16 +731,16 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 		switch wireOpt {
 		case "", "sint":
 			fc.kind = kindInt32Slice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "uint":
 			fc.kind = kindUint32Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindFloat32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindInt32Fixed64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -738,16 +748,16 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 		switch wireOpt {
 		case "", "sint":
 			fc.kind = kindInt64Slice
-			fc.wireType = wireSintArr
+			fc.wireType = wireArray
 		case "uint":
 			fc.kind = kindUint64Slice
-			fc.wireType = wireUintArr
+			fc.wireType = wireArray
 		case "fixed32":
 			fc.kind = kindInt64Fixed32Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		case "fixed64":
 			fc.kind = kindFloat64Slice
-			fc.wireType = wireFixedArr
+			fc.wireType = wireArray
 		default:
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
@@ -756,13 +766,13 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
 		fc.kind = kindFloat32Slice
-		fc.wireType = wireFixedArr
+		fc.wireType = wireArray
 	case reflect.Float64:
 		if wireOpt != "" && wireOpt != "fixed64" {
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
 		}
 		fc.kind = kindFloat64Slice
-		fc.wireType = wireFixedArr
+		fc.wireType = wireArray
 	case reflect.Struct:
 		if wireOpt != "" && wireOpt != "submsg" {
 			return fmt.Errorf("omnibuf: unsupported wire type %q for %v on %s", wireOpt, ft, sf.Name)
@@ -772,7 +782,7 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 			return err
 		}
 		fc.kind = kindStructValSlice
-		fc.wireType = wireSubMsgArr
+		fc.wireType = wireArray
 		fc.subCodec = sub
 		fc.elemSize = elem.Size()
 		fc.sliceType = ft
@@ -789,7 +799,7 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 			return err
 		}
 		fc.kind = kindStructPtrSlice
-		fc.wireType = wireSubMsgArr
+		fc.wireType = wireArray
 		fc.subCodec = sub
 		fc.elemSize = elem.Elem().Size()
 		fc.sliceType = ft
@@ -996,6 +1006,9 @@ func MarshalAppend(dst []byte, v any) ([]byte, error) {
 }
 
 func marshalTableAppend(dst []byte, v any, opts MarshalOptions) ([]byte, error) {
+	if pm, ok := v.(proto.Message); ok && (reflect.ValueOf(pm).IsNil() || needsProtoReflection(pm)) {
+		return opts.marshalProtoReflectAppend(dst, pm.ProtoReflect())
+	}
 	if pr, ok := v.(protoreflect.Message); ok {
 		return opts.marshalProtoReflectAppend(dst, pr)
 	}
@@ -1241,31 +1254,31 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 		case kindInt64Slice:
 			dst = encodeSintArr(dst, *(*[]int64)(fPtr))
 		case kindFloat32Slice:
-			dst = encodeFixed32Arr(dst, *(*[]uint32)(fPtr))
+			dst = encodeFixed32Arr(dst, *(*[]uint32)(fPtr), fc.elemWireType)
 		case kindFloat64Slice:
-			dst = encodeFixed64Arr(dst, *(*[]uint64)(fPtr))
+			dst = encodeFixed64Arr(dst, *(*[]uint64)(fPtr), fc.elemWireType)
 		case kindUint8Fixed32Slice:
-			dst = encodeFixed32CastArr(dst, *(*[]uint8)(fPtr))
+			dst = encodeFixed32CastArr(dst, *(*[]uint8)(fPtr), fc.elemWireType)
 		case kindUint16Fixed32Slice:
-			dst = encodeFixed32CastArr(dst, *(*[]uint16)(fPtr))
+			dst = encodeFixed32CastArr(dst, *(*[]uint16)(fPtr), fc.elemWireType)
 		case kindUint64Fixed32Slice, kindInt64Fixed32Slice:
-			dst = encodeFixed32CastArr(dst, *(*[]uint64)(fPtr))
+			dst = encodeFixed32CastArr(dst, *(*[]uint64)(fPtr), fc.elemWireType)
 		case kindInt8Fixed32Slice:
-			dst = encodeFixed32CastArr(dst, *(*[]int8)(fPtr))
+			dst = encodeFixed32CastArr(dst, *(*[]int8)(fPtr), fc.elemWireType)
 		case kindInt16Fixed32Slice:
-			dst = encodeFixed32CastArr(dst, *(*[]int16)(fPtr))
+			dst = encodeFixed32CastArr(dst, *(*[]int16)(fPtr), fc.elemWireType)
 		case kindUint8Fixed64Slice:
-			dst = encodeFixed64CastArr(dst, *(*[]uint8)(fPtr))
+			dst = encodeFixed64CastArr(dst, *(*[]uint8)(fPtr), fc.elemWireType)
 		case kindUint16Fixed64Slice:
-			dst = encodeFixed64CastArr(dst, *(*[]uint16)(fPtr))
+			dst = encodeFixed64CastArr(dst, *(*[]uint16)(fPtr), fc.elemWireType)
 		case kindUint32Fixed64Slice:
-			dst = encodeFixed64CastArr(dst, *(*[]uint32)(fPtr))
+			dst = encodeFixed64CastArr(dst, *(*[]uint32)(fPtr), fc.elemWireType)
 		case kindInt8Fixed64Slice:
-			dst = encodeFixed64CastArr(dst, *(*[]int8)(fPtr))
+			dst = encodeFixed64CastArr(dst, *(*[]int8)(fPtr), fc.elemWireType)
 		case kindInt16Fixed64Slice:
-			dst = encodeFixed64CastArr(dst, *(*[]int16)(fPtr))
+			dst = encodeFixed64CastArr(dst, *(*[]int16)(fPtr), fc.elemWireType)
 		case kindInt32Fixed64Slice:
-			dst = encodeFixed64CastArr(dst, *(*[]int32)(fPtr))
+			dst = encodeFixed64CastArr(dst, *(*[]int32)(fPtr), fc.elemWireType)
 		case kindStructVal:
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
@@ -1279,7 +1292,8 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 		case kindStructValSlice:
 			sh := (*unsafeSliceHeader)(fPtr)
 			lenPos := len(dst)
-			dst = append(dst, 0, 0)
+			dst = append(dst, 0, 0, wireSubMsg)
+			dst = appendVarint(dst, uint64(sh.Len))
 			for j := range sh.Len {
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
@@ -1291,7 +1305,8 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 		case kindStructPtrSlice:
 			ptrs := *(*[]unsafe.Pointer)(fPtr)
 			lenPos := len(dst)
-			dst = append(dst, 0, 0)
+			dst = append(dst, 0, 0, wireSubMsg)
+			dst = appendVarint(dst, uint64(len(ptrs)))
 			for j := range ptrs {
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
@@ -1363,7 +1378,7 @@ func appendReflectMapEntryPayload(dst []byte, rv reflect.Value, wt uint8, subCod
 		default:
 			return appendVarint(dst, encodeZigZag(rv.Int()))
 		}
-	case wireFixed32:
+	case wireFixed32, wireFloat32, wireSfixed32:
 		var bits uint32
 		switch rv.Kind() {
 		case reflect.Float32:
@@ -1374,7 +1389,7 @@ func appendReflectMapEntryPayload(dst []byte, rv reflect.Value, wt uint8, subCod
 			bits = uint32(rv.Uint())
 		}
 		return append(dst, byte(bits), byte(bits>>8), byte(bits>>16), byte(bits>>24))
-	case wireFixed64:
+	case wireFixed64, wireFloat64, wireSfixed64:
 		var bits uint64
 		switch rv.Kind() {
 		case reflect.Float64:
@@ -1414,7 +1429,7 @@ func appendReflectMapEntryPayload(dst []byte, rv reflect.Value, wt uint8, subCod
 func encodeGenericMap(dst []byte, fc *fieldCodec, fPtr unsafe.Pointer, deterministic bool) []byte {
 	rv := reflect.NewAt(fc.sliceType, fPtr).Elem()
 	lenPos := len(dst)
-	dst = append(dst, 0, 0, mapHeaderByte(fc.mapKeyWT, fc.mapValWT))
+	dst = append(dst, 0, 0, fc.mapKeyWT, fc.mapValWT)
 	dst = appendVarint(dst, uint64(rv.Len()))
 	if deterministic && rv.Len() > 1 {
 		keys := rv.MapKeys()
@@ -1452,6 +1467,9 @@ func UnmarshalZeroCopy(packet []byte, v any) error {
 }
 
 func unmarshalTable(packet []byte, v any, zeroCopy bool) error {
+	if pm, ok := v.(proto.Message); ok && (reflect.ValueOf(pm).IsNil() || needsProtoReflection(pm)) {
+		return unmarshalProtoReflect(packet, pm.ProtoReflect())
+	}
 	if pr, ok := v.(protoreflect.Message); ok {
 		return unmarshalProtoReflect(packet, pr)
 	}
@@ -1485,7 +1503,7 @@ func isBoolField(fc *fieldCodec) bool {
 	return false
 }
 
-func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy bool, depth int) error {
+func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy bool, depth int, merge ...bool) error {
 	if depth > MaxNestingDepth {
 		return fmt.Errorf("omnibuf: nesting depth %d exceeds MaxNestingDepth (%d)", depth, MaxNestingDepth)
 	}
@@ -1518,10 +1536,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 		wt := uint8(tag & 0x0F)
 
 		if fieldNum == 0 {
-			if wt != wireSubMsg {
-				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
-			}
-			nextPos, err := skipValue(data, pos, wt)
+			nextPos, err := validateField0(data, pos, wt, depth)
 			if err != nil {
 				return err
 			}
@@ -1557,6 +1572,7 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 		}
 		fPtr := unsafe.Add(base, fc.offset)
 
+		alreadySeen = alreadySeen || (len(merge) > 0 && merge[0])
 		nextPos, err := decodeFieldValue(data, pos, wt, fc, fPtr, alreadySeen, zeroCopy, depth)
 		if err != nil {
 			return err
@@ -1874,7 +1890,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint32)(fPtr)
 		sl, ok := appendFixed32ArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed32 array at %d", pos)
 		}
 		*p = sl
@@ -1886,7 +1902,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint64)(fPtr)
 		sl, ok := appendFixed64ArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed64 array at %d", pos)
 		}
 		*p = sl
@@ -1898,7 +1914,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint8)(fPtr)
 		sl, ok := appendFixed32CastArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed32 array at %d", pos)
 		}
 		*p = sl
@@ -1910,7 +1926,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint16)(fPtr)
 		sl, ok := appendFixed32CastArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed32 array at %d", pos)
 		}
 		*p = sl
@@ -1922,7 +1938,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint64)(fPtr)
 		sl, ok := appendFixed32CastArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed32 array at %d", pos)
 		}
 		*p = sl
@@ -1934,7 +1950,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]int64)(fPtr)
 		sl, ok := appendSfixed32CastArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed32 array at %d", pos)
 		}
 		*p = sl
@@ -1946,7 +1962,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint8)(fPtr)
 		sl, ok := appendFixed64CastArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed64 array at %d", pos)
 		}
 		*p = sl
@@ -1958,7 +1974,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint16)(fPtr)
 		sl, ok := appendFixed64CastArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed64 array at %d", pos)
 		}
 		*p = sl
@@ -1970,7 +1986,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		p := (*[]uint32)(fPtr)
 		sl, ok := appendFixed64CastArrBody(sliceForDecode(p, alreadySeen), body)
-		if !ok {
+		if !ok || body[0] != fc.elemWireType {
 			return 0, fmt.Errorf("omnibuf: invalid fixed64 array at %d", pos)
 		}
 		*p = sl
@@ -1980,7 +1996,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		if err != nil {
 			return 0, err
 		}
-		if err := fc.subCodec.decodeStruct(subBytes, fPtr, zeroCopy, depth+1); err != nil {
+		if err := fc.subCodec.decodeStruct(subBytes, fPtr, zeroCopy, depth+1, alreadySeen); err != nil {
 			return 0, err
 		}
 		return nextPos, nil
@@ -1994,7 +2010,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			subPtr = reflect.New(fc.elemType).UnsafePointer()
 			*(*unsafe.Pointer)(fPtr) = subPtr
 		}
-		if err := fc.subCodec.decodeStruct(subBytes, subPtr, zeroCopy, depth+1); err != nil {
+		if err := fc.subCodec.decodeStruct(subBytes, subPtr, zeroCopy, depth+1, alreadySeen); err != nil {
 			return 0, err
 		}
 		return nextPos, nil
@@ -2003,8 +2019,8 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		if err != nil {
 			return 0, err
 		}
-		elemCount, ok := countSubMsgArrElems(arrPayload)
-		if !ok {
+		elem, elemCount, p, ok := parseArrayHeader(arrPayload)
+		if !ok || elem != wireSubMsg {
 			return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
 		}
 		sh := (*unsafeSliceHeader)(fPtr)
@@ -2014,6 +2030,9 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		total := start + elemCount
 		if sh.Cap < total {
+			if _, ok := countSubMsgArrElems(arrPayload); !ok {
+				return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
+			}
 			newSlice := reflect.MakeSlice(fc.sliceType, total, total)
 			newPtr := newSlice.UnsafePointer()
 			if start > 0 && sh.Data != nil {
@@ -2025,9 +2044,11 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		} else {
 			sh.Len = total
 		}
-		p := 0
 		for j := range elemCount {
 			el, en := decodeVarint(arrPayload[p:])
+			if en == 0 || el > uint64(len(arrPayload)-(p+en)) {
+				return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
+			}
 			p += en
 			elemPtr := unsafe.Add(sh.Data, uintptr(start+j)*fc.elemSize)
 			if err := fc.subCodec.decodeStruct(arrPayload[p:p+int(el)], elemPtr, zeroCopy, depth+1); err != nil {
@@ -2035,14 +2056,17 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			}
 			p += int(el)
 		}
+		if p != len(arrPayload) {
+			return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
+		}
 		return nextPos, nil
 	case kindStructPtrSlice:
 		arrPayload, nextPos, err := readLenSlice(data, pos, 0)
 		if err != nil {
 			return 0, err
 		}
-		elemCount, ok := countSubMsgArrElems(arrPayload)
-		if !ok {
+		elem, elemCount, p, ok := parseArrayHeader(arrPayload)
+		if !ok || elem != wireSubMsg {
 			return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
 		}
 		ptrs := *(*[]unsafe.Pointer)(fPtr)
@@ -2052,6 +2076,9 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		}
 		total := start + elemCount
 		if cap(ptrs) < total {
+			if _, ok := countSubMsgArrElems(arrPayload); !ok {
+				return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
+			}
 			slab := reflect.MakeSlice(reflect.SliceOf(fc.elemType), elemCount, elemCount)
 			slabPtr := slab.UnsafePointer()
 			next := make([]unsafe.Pointer, total)
@@ -2065,9 +2092,11 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			ptrs = ptrs[:total]
 			*(*[]unsafe.Pointer)(fPtr) = ptrs
 		}
-		p := 0
 		for j := range elemCount {
 			el, en := decodeVarint(arrPayload[p:])
+			if en == 0 || el > uint64(len(arrPayload)-(p+en)) {
+				return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
+			}
 			p += en
 			if ptrs[start+j] == nil {
 				ptrs[start+j] = reflect.New(fc.elemType).UnsafePointer()
@@ -2077,9 +2106,12 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			}
 			p += int(el)
 		}
+		if p != len(arrPayload) {
+			return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
+		}
 		return nextPos, nil
 	case kindMapStringUint:
-		body, nextPos, err := readLenSlice(data, pos, 2)
+		body, nextPos, err := readLenSlice(data, pos, 3)
 		if err != nil {
 			return 0, err
 		}
@@ -2094,7 +2126,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		*(*map[string]uint64)(fPtr) = m
 		return nextPos, nil
 	case kindMap:
-		body, nextPos, err := readLenSlice(data, pos, 2)
+		body, nextPos, err := readLenSlice(data, pos, 3)
 		if err != nil {
 			return 0, err
 		}
@@ -2152,7 +2184,7 @@ func decodeReflectMapEntryPayload(body []byte, p int, targetType reflect.Type, w
 			rv.SetInt(sv)
 		}
 		return rv, p + vn, nil
-	case wireFixed32:
+	case wireFixed32, wireFloat32, wireSfixed32:
 		if len(body)-p < 4 {
 			return reflect.Value{}, 0, fmt.Errorf("omnibuf: truncated wireMap fixed32 at %d", p)
 		}
@@ -2166,7 +2198,7 @@ func decodeReflectMapEntryPayload(body []byte, p int, targetType reflect.Type, w
 			rv.SetUint(uint64(bits))
 		}
 		return rv, p + 4, nil
-	case wireFixed64:
+	case wireFixed64, wireFloat64, wireSfixed64:
 		if len(body)-p < 8 {
 			return reflect.Value{}, 0, fmt.Errorf("omnibuf: truncated wireMap fixed64 at %d", p)
 		}
@@ -2213,21 +2245,17 @@ func decodeReflectMapEntryPayload(body []byte, p int, targetType reflect.Type, w
 }
 
 func decodeGenericMapBody(fc *fieldCodec, fPtr unsafe.Pointer, body []byte, alreadySeen, zeroCopy bool, depth int) error {
-	if len(body) < 2 || body[0] != mapHeaderByte(fc.mapKeyWT, fc.mapValWT) {
-		return fmt.Errorf("omnibuf: wireMap header mismatch (got 0x%02x, want 0x%02x)", body[0], mapHeaderByte(fc.mapKeyWT, fc.mapValWT))
-	}
-	count, cn := decodeVarint(body[1:])
-	if cn == 0 || count*2 > uint64(len(body)-(1+cn)) {
-		return fmt.Errorf("omnibuf: invalid wireMap count %d", count)
+	keyWT, valWT, count, p, ok := parseMapHeader(body)
+	if !ok || keyWT != fc.mapKeyWT || valWT != fc.mapValWT {
+		return fmt.Errorf("omnibuf: invalid wireMap header")
 	}
 	mapVal := reflect.NewAt(fc.sliceType, fPtr).Elem()
 	if !alreadySeen || mapVal.IsNil() {
-		mapVal.Set(reflect.MakeMapWithSize(fc.sliceType, int(count)))
+		mapVal.Set(reflect.MakeMapWithSize(fc.sliceType, count))
 	}
 	keyType := fc.sliceType.Key()
 	valType := fc.sliceType.Elem()
-	p := 1 + cn
-	for range int(count) {
+	for range count {
 		kv, nextP, err := decodeReflectMapEntryPayload(body, p, keyType, fc.mapKeyWT, nil, zeroCopy, depth)
 		if err != nil {
 			return err

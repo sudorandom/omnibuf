@@ -28,7 +28,14 @@ const nodeSchemaCode = `message Node {
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Instead of checking continuation bits on every byte in a loop, the trailing zeros in Byte 0 tell the CPU the exact byte width (1, 2, 4, or 9 bytes) right away via <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a>, reading the whole integer at once (<strong>2x to 4x faster</strong> on single integers and <strong>~35% faster</strong> on mixed integer streams than Go's <code>protowire</code> and <code>vtprotobuf</code>). Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener noreferrer" class="doc-link">ZigZag encoding</a>.
+          When Protobuf reads a varint, it has to check bit 7 of every byte in a loop until it finds a byte that starts with <code>0</code>. OmniBuf moves those length bits into the low bits of the first byte. A single <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a> (trailing zero count) instruction tells the CPU whether the integer is 1, 2, 4, or 9 bytes long, so it can load the whole number at once. Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener noreferrer" class="doc-link">ZigZag encoding</a> just like Protobuf's <code>sint32</code> and <code>sint64</code>.
+        </p>
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+          The tradeoff is byte density for medium-large integers. Because Prefix-Varints only use 1,
+          2, 4, or 9 bytes, any unsigned integer at or above <code>2^29</code> (
+          <code>536,870,912</code>) jumps straight from 4 bytes to 9 bytes, whereas Protobuf's
+          LEB128 uses 5 to 8 bytes in that range. For fields that usually hold Unix timestamps or
+          large 64-bit counters, <code>WireFixed64</code> (8 bytes) is a better fit.
         </p>
       </div>
       <div class="lg:col-span-6 min-w-0">
@@ -78,20 +85,21 @@ const nodeSchemaCode = `message Node {
           Reserve 2 bytes &amp; patch after
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Protobuf requires shortest-length varints (1 byte for <code>0..127</code>, 2 bytes for{' '}
-          <code>128..16,383</code>), so an encoder cannot know how many bytes a parent length prefix
-          needs until it measures every child field first. OmniBuf explicitly permits an{' '}
-          <strong>overlong 2-byte Prefix-Varint</strong> (<code>TZCNT=1</code>) for any container
-          length from <code>0</code> to <code>16,383</code> bytes (16 KB): the encoder reserves a
-          2-byte slot, writes child fields forward in one pass, and patches the 2-byte length in{' '}
-          <code>O(1)</code> at the end.
+          In Protobuf, varints must use the fewest bytes possible (1 byte for lengths under 128, 2
+          bytes for lengths up to 16,383). Because of that, an encoder doesn't know how many bytes
+          to leave for a nested message's length header until it walks all of the child fields first
+          to add up their sizes. OmniBuf allows a 2-byte Prefix-Varint (<code>TZCNT=1</code>) for
+          any container up to 16 KB, even if the final length ends up being under 128 bytes. That
+          lets the encoder reserve 2 bytes, write the child fields, and fill in the 2-byte length
+          when it finishes.
         </p>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          <strong>The common-case trade-off:</strong> On small sub-messages under 128 bytes, a
-          2-byte slot costs 1 extra byte compared to a 1-byte varint (and saves 2 bytes compared to
-          a fixed 4-byte length) to eliminate the entire pre-computation pass. If a container ever
-          exceeds 16 KB when it closes, the encoder shifts that container's contiguous payload right
-          by 2 bytes in place (<code>memmove</code>) and writes a 4-byte length.
+          Reserving 2 bytes adds 1 extra byte to tiny containers under 128 bytes. In exchange, the
+          encoder only walks your struct once for normal messages under 16 KB. If a container grows
+          past 16,383 bytes, the encoder shifts that container's payload right by 2 bytes in the
+          buffer (<code>memmove</code>) and writes a 4-byte length instead. Note that if you have
+          nested containers that each exceed 16 KB, those inner bytes will be shifted more than
+          once.
         </p>
       </div>
       <div class="lg:col-span-6 min-w-0 space-y-3">
@@ -101,20 +109,20 @@ const nodeSchemaCode = `message Node {
               1. Reserve 2B slot &amp; write payload forward
             </div>
             <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
-              <span class="text-paper/70">93</span>
+              <span class="text-paper/70">99</span>
               <span class="px-2 py-0.5 border border-dashed border-acid text-acid rounded">
                 00 00
               </span>
-              <span class="text-paper">31 07 46 52 41 40 55</span>
+              <span class="text-paper">35 07 46 52 41 41 55</span>
             </div>
           </div>
 
           <div class="space-y-1.5">
             <div class="text-acid text-xs uppercase font-bold">2. Patch 2B length at end</div>
             <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
-              <span class="text-paper/70">93</span>
+              <span class="text-paper/70">99</span>
               <span class="px-2 py-0.5 bg-acid text-ink rounded">1E 00</span>
-              <span class="text-paper">31 07 46 52 41 40 55</span>
+              <span class="text-paper">35 07 46 52 41 41 55</span>
             </div>
           </div>
         </div>
@@ -125,11 +133,11 @@ const nodeSchemaCode = `message Node {
               1. Payload exceeds 16 KB (2B slot too small)
             </div>
             <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
-              <span class="text-paper/70">93</span>
+              <span class="text-paper/70">99</span>
               <span class="px-2 py-0.5 border border-dashed border-[#FF4F18] text-[#FF4F18] rounded">
                 00 00
               </span>
-              <span class="text-paper">31 07 46 52 41 &hellip;</span>
+              <span class="text-paper">35 07 46 52 41 &hellip;</span>
             </div>
           </div>
 
@@ -138,10 +146,10 @@ const nodeSchemaCode = `message Node {
               2. Shift payload +2B (memmove) &amp; patch 4B length
             </div>
             <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
-              <span class="text-paper/70">93</span>
+              <span class="text-paper/70">99</span>
               <span class="px-2 py-0.5 bg-acid text-ink rounded">04 00 02 00</span>
               <span class="text-[#FF4F18]">&rarr;</span>
-              <span class="text-paper">31 07 46 52 41 &hellip;</span>
+              <span class="text-paper">35 07 46 52 41 &hellip;</span>
             </div>
           </div>
         </div>
@@ -156,12 +164,18 @@ const nodeSchemaCode = `message Node {
             0-byte bools, explicit types &amp; 1-step skipping
           </h3>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-            Widening wire types from 3 bits to 4 bits (<code>0..15</code>) puts booleans directly
-            inside the tag byte (<strong>0 value bytes</strong>), distinguishes unsigned (
-            <code>WireUint</code>, <code>WireUintArr</code>) from ZigZag-signed (
-            <code>WireSint</code>, <code>WireSintArr</code>) integers on the wire, and wraps all
-            arrays, maps, and sub-messages in length-prefixed containers so readers can skip any
-            field or container in a single step (<code>pos += byteLen</code>).
+            Widening the wire type from 3 bits to 4 bits (<code>0..15</code>) means 1-byte tags
+            cover fields <code>1..7</code> (compared to <code>1..15</code> in Protobuf), while
+            giving each value category its own wire type. Booleans are stored right in the tag byte
+            (<strong>0 value bytes</strong>). Unsigned ints (<code>WireUint</code>), ZigZag-signed
+            ints (<code>WireSint</code>), floats (<code>WireFloat32</code>, <code>WireFloat64</code>
+            ), and fixed-width ints get separate wire types, while arrays (<code>WireArray</code>)
+            carry a 1-byte element type header and maps (<code>WireMap</code>) carry a 2-byte
+            key/value type header. Every array, map, and sub-message starts with its total byte
+            length, so a reader can skip over any field in one addition (<code>pos += byteLen</code>
+            ). Lookup still walks linearly through preceding field headers in the message, so
+            skipping is constant time per field examined rather than an <code>O(1)</code> offset
+            table lookup.
           </p>
         </div>
         <div class="lg:col-span-6 min-w-0">
@@ -175,7 +189,7 @@ const nodeSchemaCode = `message Node {
             </div>
             <div class="flex flex-wrap justify-between gap-2 text-xs sm:text-sm text-paper/90">
               <span>
-                <code>Type 1, 2</code> (Bool): <strong class="text-acid">0 Value Bytes</strong>
+                <code>Type 2, 3</code> (Bool): <strong class="text-acid">0 Value Bytes</strong>
               </span>
               <span>
                 Skip Container: <strong class="text-acid">pos += byteLen</strong>

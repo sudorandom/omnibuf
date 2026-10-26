@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	. "github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/internal/conformance"
 	"github.com/sudorandom/omnibuf/internal/pb"
@@ -1357,7 +1359,7 @@ func TestSchemaEvolutionUnknownFieldsConformance(t *testing.T) {
 	if err := v1Plugin.UnmarshalOmniBuf(wireV2, false); err != nil {
 		t.Fatalf("Plugin UnmarshalOmniBuf(V2 -> V1) failed: %v", err)
 	}
-	if !reflect.DeepEqual(&v1Plugin, &v1Table) {
+	if !proto.Equal(&v1Plugin, &v1Table) {
 		t.Fatalf("Plugin vs Table V2->V1 mismatch:\nplugin: %+v\ntable:  %+v", &v1Plugin, &v1Table)
 	}
 
@@ -1407,17 +1409,17 @@ func buildInvalidWireCases() []InvalidWireCase {
 	// Programmatically construct complex malicious / adversarial byte streams
 	// so their exact hex is exported into testdata/conformance_corpus.json:
 
-	// 1. WireUintArr outer byteLen mismatch (outer byteLen=3 cuts off a 2-byte varint)
+	// 1. WireArray(WireUint) outer byteLen mismatch (outer byteLen=4 cuts off a 2-byte varint)
 	var uintArrSizeMismatch []byte
-	uintArrSizeMismatch = appendTag(uintArrSizeMismatch, 8, WireUintArr) // Field #8 (Prefixes in PeerUpdate)
-	uintArrSizeMismatch = AppendVarint(uintArrSizeMismatch, 3)           // claims 3 bytes
-	uintArrSizeMismatch = append(uintArrSizeMismatch, 0x02, 0x00, 0x02)  // first varint is 2B (0x02 0x00), second is truncated 2B varint (0x02)!
+	uintArrSizeMismatch = appendTag(uintArrSizeMismatch, 8, WireArray)            // Field #8 (Prefixes in PeerUpdate)
+	uintArrSizeMismatch = AppendVarint(uintArrSizeMismatch, 4)                    // claims 4 bytes
+	uintArrSizeMismatch = append(uintArrSizeMismatch, WireUint, 0x05, 0x02, 0x00) // count=2 (0x05), first varint is 2B (0x02 0x00), second element is missing!
 
-	// 3. WireStringArr inner string length exceeds outer byteLen
+	// 3. WireArray(WireString) inner string length exceeds outer byteLen
 	var strArrInnerExceedsOuter []byte
-	strArrInnerExceedsOuter = appendTag(strArrInnerExceedsOuter, 9, WireStringArr)
-	strArrInnerExceedsOuter = AppendVarint(strArrInnerExceedsOuter, 3)         // outer byteLen = 3
-	strArrInnerExceedsOuter = append(strArrInnerExceedsOuter, 0x03, 0x15, 'a') // count=1 (0x03), inner string claims len 10 (0x15), only 1 byte follows!
+	strArrInnerExceedsOuter = appendTag(strArrInnerExceedsOuter, 9, WireArray)
+	strArrInnerExceedsOuter = AppendVarint(strArrInnerExceedsOuter, 4)                     // outer byteLen = 4
+	strArrInnerExceedsOuter = append(strArrInnerExceedsOuter, WireString, 0x03, 0x15, 'a') // count=1 (0x03), inner string claims len 10 (0x15), only 1 byte follows!
 
 	// 4. WireSubMsg outer byteLen exceeds packet
 	var subMsgOuterExceedsPkt []byte
@@ -1431,72 +1433,74 @@ func buildInvalidWireCases() []InvalidWireCase {
 	subMsgInnerTruncated = AppendVarint(subMsgInnerTruncated, 2)    // 2-byte inner sub-message
 	subMsgInnerTruncated = append(subMsgInnerTruncated, 0x21, 0x02) // Field #1 WireUint followed by 1B of a 2B varint!
 
-	// 9. WireSubMsgArr element length exceeds array byteLen
+	// 9. WireArray(WireSubMsg) element length exceeds array byteLen
 	var subMsgArrElemExceeds []byte
-	subMsgArrElemExceeds = appendTag(subMsgArrElemExceeds, 10, WireSubMsgArr)
-	subMsgArrElemExceeds = AppendVarint(subMsgArrElemExceeds, 3)  // 3-byte array body
-	subMsgArrElemExceeds = AppendVarint(subMsgArrElemExceeds, 20) // Element 0 claims 20 bytes inside a 3-byte array!
+	subMsgArrElemExceeds = appendTag(subMsgArrElemExceeds, 10, WireArray)
+	subMsgArrElemExceeds = AppendVarint(subMsgArrElemExceeds, 5) // 5-byte array body
+	subMsgArrElemExceeds = append(subMsgArrElemExceeds, WireSubMsg, 0x03)
+	subMsgArrElemExceeds = AppendVarint(subMsgArrElemExceeds, 20) // Element 0 claims 20 bytes inside a 5-byte array!
 	subMsgArrElemExceeds = append(subMsgArrElemExceeds, 0x21, 0x03)
 
-	// 10. WireSubMsgArr element with truncated varint length
+	// 10. WireArray(WireSubMsg) element with truncated varint length
 	var subMsgArrTruncatedElemLen []byte
-	subMsgArrTruncatedElemLen = appendTag(subMsgArrTruncatedElemLen, 11, WireSubMsgArr)
-	subMsgArrTruncatedElemLen = AppendVarint(subMsgArrTruncatedElemLen, 1) // 1-byte array body
-	subMsgArrTruncatedElemLen = append(subMsgArrTruncatedElemLen, 0x02)    // 1 byte of a 2-byte element length varint!
+	subMsgArrTruncatedElemLen = appendTag(subMsgArrTruncatedElemLen, 11, WireArray)
+	subMsgArrTruncatedElemLen = AppendVarint(subMsgArrTruncatedElemLen, 3)                // 3-byte array body
+	subMsgArrTruncatedElemLen = append(subMsgArrTruncatedElemLen, WireSubMsg, 0x03, 0x02) // count=1, 1 byte of a 2-byte element length varint!
 
-	// 11. WireSubMsgArr element with corrupt inner sub-message (truncated varint inside element)
+	// 11. WireArray(WireSubMsg) element with corrupt inner sub-message (truncated varint inside element)
 	var subMsgArrCorruptElem []byte
-	subMsgArrCorruptElem = appendTag(subMsgArrCorruptElem, 11, WireSubMsgArr)
-	subMsgArrCorruptElem = AppendVarint(subMsgArrCorruptElem, 3)    // 3-byte array body
+	subMsgArrCorruptElem = appendTag(subMsgArrCorruptElem, 11, WireArray)
+	subMsgArrCorruptElem = AppendVarint(subMsgArrCorruptElem, 5) // 5-byte array body
+	subMsgArrCorruptElem = append(subMsgArrCorruptElem, WireSubMsg, 0x03)
 	subMsgArrCorruptElem = AppendVarint(subMsgArrCorruptElem, 2)    // 2-byte element 0
 	subMsgArrCorruptElem = append(subMsgArrCorruptElem, 0x21, 0x02) // Field #1 WireUint with truncated 2B varint!
 
 	// 12. WireMap with entry count exceeding remaining bytes (OOM bomb protection)
 	var mapOOMBomb []byte
 	mapOOMBomb = appendTag(mapOOMBomb, 12, WireMap)
-	mapOOMBomb = AppendVarint(mapOOMBomb, 3) // 3-byte map body
-	mapOOMBomb = append(mapOOMBomb, MapHeaderByte(WireString, WireUint))
+	mapOOMBomb = AppendVarint(mapOOMBomb, 4) // 4-byte map body
+	mapOOMBomb = append(mapOOMBomb, WireString, WireUint)
 	mapOOMBomb = AppendVarint(mapOOMBomb, 10000) // claims 10,000 entries in 2 bytes!
 
 	// 13. WireMap with trailing garbage bytes after `count` entries
 	var mapTrailingBytes []byte
 	mapTrailingBytes = appendTag(mapTrailingBytes, 12, WireMap)
-	// header(1B) + count=1 (1B) + entry 0 ("a": 1 -> 3B) + 2 trailing garbage bytes = 7 bytes
-	mapTrailingBytes = AppendVarint(mapTrailingBytes, 7)
-	mapTrailingBytes = append(mapTrailingBytes, MapHeaderByte(WireString, WireUint))
+	// header(2B) + count=1 (1B) + entry 0 ("a": 1 -> 3B) + 2 trailing garbage bytes = 8 bytes
+	mapTrailingBytes = AppendVarint(mapTrailingBytes, 8)
+	mapTrailingBytes = append(mapTrailingBytes, WireString, WireUint)
 	mapTrailingBytes = AppendVarint(mapTrailingBytes, 1)
 	mapTrailingBytes = append(mapTrailingBytes, 0x03, 'a', 0x03, 0xFF, 0xFF)
 
-	// 14. WireFixedArr (ElemType=WireFixed32) with (byteLen-1) not divisible by 4
+	// 14. WireArray (ElemType=WireFixed32) with remaining bytes not divisible by 4
 	var fixed32ArrUnaligned []byte
-	fixed32ArrUnaligned = appendTag(fixed32ArrUnaligned, 1, WireFixedArr)
-	fixed32ArrUnaligned = AppendVarint(fixed32ArrUnaligned, 4) // 1B ElemType + 3B (not divisible by 4)
-	fixed32ArrUnaligned = append(fixed32ArrUnaligned, WireFixed32, 0x01, 0x02, 0x03)
+	fixed32ArrUnaligned = appendTag(fixed32ArrUnaligned, 1, WireArray)
+	fixed32ArrUnaligned = AppendVarint(fixed32ArrUnaligned, 5) // 1B ElemType + 1B Count + 3B (not divisible by 4)
+	fixed32ArrUnaligned = append(fixed32ArrUnaligned, WireFixed32, 0x03, 0x01, 0x02, 0x03)
 
-	// 15. WireFixedArr (ElemType=WireFixed64) with (byteLen-1) not divisible by 8
+	// 15. WireArray (ElemType=WireFixed64) with remaining bytes not divisible by 8
 	var fixed64ArrUnaligned []byte
-	fixed64ArrUnaligned = appendTag(fixed64ArrUnaligned, 1, WireFixedArr)
-	fixed64ArrUnaligned = AppendVarint(fixed64ArrUnaligned, 6) // 1B ElemType + 5B (not divisible by 8)
-	fixed64ArrUnaligned = append(fixed64ArrUnaligned, WireFixed64, 0x01, 0x02, 0x03, 0x04, 0x05)
+	fixed64ArrUnaligned = appendTag(fixed64ArrUnaligned, 1, WireArray)
+	fixed64ArrUnaligned = AppendVarint(fixed64ArrUnaligned, 7) // 1B ElemType + 1B Count + 5B (not divisible by 8)
+	fixed64ArrUnaligned = append(fixed64ArrUnaligned, WireFixed64, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05)
 
 	// 15b. WireExtended (15) with byteLen == 0 (missing 1B ExtType header)
 	var extendedEmpty []byte
 	extendedEmpty = appendTag(extendedEmpty, 1, WireExtended)
 	extendedEmpty = AppendVarint(extendedEmpty, 0)
 
-	// 16. Self-describing Field #0 (0x0B) with corrupt fields map (wrong MapType 0x00 instead of 0x03)
+	// 16. Self-describing Field #0 (0x19) with corrupt fields map (wrong ValueType 0x00 instead of 0x0A)
 	field0CorruptFieldsMap := []byte{
-		0x0b, 0x09, // Field #0 (WireSubMsg), len = 4
-		0x53, 0x05, 0x00, 0x01, // SchemaMeta Field #2 (WireMap), len=2, invalid MapType=0x00, count=0
+		byte(((0<<4)|WireSubMsg)<<1) | 1, 0x0B, // Field #0 (WireSubMsg), len = 5
+		byte(((2<<4)|WireMap)<<1) | 1, 0x07, 0x00, 0x00, 0x01, // SchemaMeta Field #2 (WireMap), len=3, invalid (0x00, 0x00), count=0
 	}
 
-	// 17. Self-describing Field #0 (0x0B) with truncated string inside children map
+	// 17. Self-describing Field #0 (0x19) with truncated string inside children map
 	field0CorruptChildrenMap := []byte{
-		0x0b, 0x13, // Field #0 (WireSubMsg), len = 9
-		0x73, 0x0f, 0x05, 0x03, // SchemaMeta Field #3 (WireMap), len=7, MapType=0x05 (uint->submsg), count=1
-		0x13,            // child key = 9
-		0x07,            // child submsg len = 3
-		0x27, 0x15, 'A', // child type_name claims len 10 (0x15), only 1 byte follows!
+		byte(((0<<4)|WireSubMsg)<<1) | 1, 0x15, // Field #0 (WireSubMsg), len = 10
+		byte(((3<<4)|WireMap)<<1) | 1, 0x11, WireUint, WireSubMsg, 0x03, // SchemaMeta Field #3 (WireMap), len=8, (uint->submsg), count=1
+		0x13,                                        // child key = 9
+		0x07,                                        // child submsg len = 3
+		byte(((1<<4)|WireString)<<1) | 1, 0x15, 'A', // child type_name claims len 10 (0x15), only 1 byte follows!
 	}
 
 	// 18. 40-Level Deeply Nested WireSubMsg Bomb (exceeds MaxNestingDepth = 32)
@@ -1555,13 +1559,13 @@ func buildInvalidWireCases() []InvalidWireCase {
 		{
 			Name:        "malicious_uint_arr_inner_varint_size_mismatch",
 			Category:    "SizeMismatch",
-			Description: "WireUintArr outer byteLen=3 cuts off in the middle of a 2-byte element varint",
+			Description: "WireArray(WireUint) outer byteLen=4 cuts off in the middle of a 2-byte element varint",
 			WireHex:     hex.EncodeToString(uintArrSizeMismatch),
 		},
 		{
 			Name:        "malicious_string_arr_inner_len_exceeds_outer",
 			Category:    "SizeMismatch",
-			Description: "WireStringArr outer byteLen=2 contains an element claiming 10 bytes",
+			Description: "WireArray(WireString) outer byteLen=4 contains an element claiming 10 bytes",
 			WireHex:     hex.EncodeToString(strArrInnerExceedsOuter),
 		},
 		{
@@ -1579,19 +1583,19 @@ func buildInvalidWireCases() []InvalidWireCase {
 		{
 			Name:        "malicious_submsg_arr_elem_len_exceeds_array",
 			Category:    "CorruptSubMsgArr",
-			Description: "WireSubMsgArr element length claims 20 bytes inside a 3-byte array container",
+			Description: "WireArray(WireSubMsg) element length claims 20 bytes inside a 5-byte array container",
 			WireHex:     hex.EncodeToString(subMsgArrElemExceeds),
 		},
 		{
 			Name:        "malicious_submsg_arr_truncated_elem_len",
 			Category:    "CorruptSubMsgArr",
-			Description: "WireSubMsgArr body ends in the middle of an element's 2-byte length prefix",
+			Description: "WireArray(WireSubMsg) body ends in the middle of an element's 2-byte length prefix",
 			WireHex:     hex.EncodeToString(subMsgArrTruncatedElemLen),
 		},
 		{
 			Name:        "malicious_submsg_arr_corrupt_inner_element",
 			Category:    "CorruptSubMsgArr",
-			Description: "WireSubMsgArr element contains an invalid 4-bit wire type (15)",
+			Description: "WireArray(WireSubMsg) element contains a truncated inner varint",
 			WireHex:     hex.EncodeToString(subMsgArrCorruptElem),
 		},
 		{
@@ -1609,13 +1613,13 @@ func buildInvalidWireCases() []InvalidWireCase {
 		{
 			Name:        "malformed_fixed32_arr_unaligned_byte_len",
 			Category:    "TruncatedFixed",
-			Description: "Field #1 WireFixedArr(WireFixed32) with (byteLen-1)=3 (not divisible by 4)",
+			Description: "Field #1 WireArray(WireFixed32) with remaining bytes=3 (not divisible by 4)",
 			WireHex:     hex.EncodeToString(fixed32ArrUnaligned),
 		},
 		{
 			Name:        "malformed_fixed64_arr_unaligned_byte_len",
 			Category:    "TruncatedFixed",
-			Description: "Field #1 WireFixedArr(WireFixed64) with (byteLen-1)=5 (not divisible by 8)",
+			Description: "Field #1 WireArray(WireFixed64) with remaining bytes=5 (not divisible by 8)",
 			WireHex:     hex.EncodeToString(fixed64ArrUnaligned),
 		},
 		{

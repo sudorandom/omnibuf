@@ -2,91 +2,125 @@ goos: darwin
 goarch: arm64
 pkg: github.com/sudorandom/omnibuf
 cpu: Apple M1 Pro
-BenchmarkMarshal_OmniBuf_Direct_ReuseBuf-8                     	 3191584	        93.87 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMarshal_OmniBuf_ReuseBuf-8                            	 1389328	       218.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMarshal_OmniBuf_FreshAlloc-8                          	  953894	       298.0 ns/op	     384 B/op	       1 allocs/op
-BenchmarkMarshal_OmniBuf_SelfDescribing_ReuseBuf-8             	 1359957	       220.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMarshal_Protobuf_ProtoWire_ReuseBuf-8                 	 1512882	       197.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMarshal_Protobuf_Official_MarshalAppend-8             	  523225	       561.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMarshal_Protobuf_Official_FreshAlloc-8                	  454993	       634.6 ns/op	     352 B/op	       1 allocs/op
-BenchmarkMarshal_FlatBuffers_ReuseBuilder-8                    	  530218	       561.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMarshal_CapnProto-8                                   	  290907	      1016 ns/op	     720 B/op	       3 allocs/op
-BenchmarkMarshal_Msgpack-8                                     	  193058	      1552 ns/op	    2056 B/op	       7 allocs/op
-BenchmarkMarshal_JSON-8                                        	  176238	      1720 ns/op	     896 B/op	       1 allocs/op
-BenchmarkUnmarshal_OmniBuf_ZeroCopy-8                          	 2540932	       119.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkUnmarshal_OmniBuf_SafeAlloc-8                         	  840100	       347.5 ns/op	     472 B/op	      15 allocs/op
-BenchmarkUnmarshal_Protobuf_ProtoWire_ZeroCopy-8               	 1000000	       280.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkUnmarshal_Protobuf_ProtoWire_SafeAlloc-8              	  450698	       675.0 ns/op	     656 B/op	      21 allocs/op
-BenchmarkUnmarshal_Protobuf_Official-8                         	  302872	       959.9 ns/op	    1072 B/op	      25 allocs/op
-BenchmarkUnmarshal_FlatBuffers_ZeroCopy-8                      	 1743842	       169.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkUnmarshal_FlatBuffers_SafeAlloc-8                     	  823929	       350.2 ns/op	     472 B/op	      15 allocs/op
-BenchmarkUnmarshal_CapnProto_ZeroCopy-8                        	  400716	       771.8 ns/op	     240 B/op	       4 allocs/op
-BenchmarkUnmarshal_CapnProto_SafeAlloc-8                       	  298519	       993.1 ns/op	     712 B/op	      19 allocs/op
-BenchmarkUnmarshal_Msgpack-8                                   	  118644	      2496 ns/op	    1024 B/op	      25 allocs/op
-BenchmarkUnmarshal_JSON-8                                      	   76162	      3850 ns/op	     600 B/op	      10 allocs/op
-BenchmarkLookup_LocationCity_OmniBuf_ZeroCopy-8                	 3926146	        76.37 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_LocationCity_OmniBuf_SafeAlloc-8               	 3912783	        76.44 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_LocationCity_FlatBuffers_ZeroCopy-8            	23600366	        12.55 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_LocationCity_CapnProto_InPlace_ZeroCopy-8      	62666457	         4.724 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_LocationCity_CapnProto_ZeroCopy-8              	 1337767	       220.7 ns/op	     240 B/op	       4 allocs/op
-BenchmarkLookup_LocationCity_Protobuf_WireScan_ZeroCopy-8      	 3371484	        90.18 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_LocationCity_Protobuf_Official_Unmarshal-8     	  291051	       982.9 ns/op	    1072 B/op	      25 allocs/op
-BenchmarkLookup_LocationCity_Msgpack_SkipScan-8                	  520587	       589.9 ns/op	     160 B/op	      14 allocs/op
-BenchmarkLookup_LocationCity_JSON_Unmarshal-8                  	   76123	      3867 ns/op	     600 B/op	      10 allocs/op
-BenchmarkLookup_Neighbor2Router_OmniBuf_ZeroCopy-8             	 4613810	        66.17 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_Neighbor2Router_FlatBuffers_ZeroCopy-8         	16338718	        18.15 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_Neighbor2Router_CapnProto_InPlace_ZeroCopy-8   	48005122	         6.094 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLookup_Neighbor2Router_CapnProto_ZeroCopy-8           	 1248948	       241.8 ns/op	     240 B/op	       4 allocs/op
-BenchmarkLookup_Neighbor2Router_Protobuf_WireScan_ZeroCopy-8   	 2656760	       113.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeBlind_OmniBuf_Field0-8                          	   56228	      5402 ns/op	    8208 B/op	     126 allocs/op
-BenchmarkVarint_Decode_1B_OmniBuf_TZCNT-8                      	846597684	         0.3528 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_1B_Protobuf_Protowire-8                 	236399090	         1.272 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_1B_VTProtobuf_Loop-8                    	378688267	         0.7852 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_2B_OmniBuf_TZCNT-8                      	379131150	         0.7841 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_2B_Protobuf_Protowire-8                 	236764065	         1.308 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_2B_VTProtobuf_Loop-8                    	234767731	         1.251 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_4B_OmniBuf_TZCNT-8                      	317010380	         0.9430 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_4B_Protobuf_Protowire-8                 	165473722	         1.810 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_4B_VTProtobuf_Loop-8                    	131488212	         2.283 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_64b_OmniBuf_TZCNT-8                     	234367827	         1.536 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_64b_Protobuf_Protowire-8                	74427060	         4.831 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_64b_VTProtobuf_Loop-8                   	56288260	         5.035 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_16Mixed_OmniBuf_TZCNT-8                 	11966076	        25.16 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_16Mixed_Protobuf_Protowire-8            	 7827753	        38.12 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Decode_16Mixed_VTProtobuf_InlinedLoop-8        	 7479618	        39.74 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Encode_16Mixed_OmniBuf_TZCNT-8                 	 7951284	        37.64 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Encode_16Mixed_Protobuf_Protowire-8            	 4999443	        60.38 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Skip_16Mixed_OmniBuf_TZCNT-8                   	12048897	        24.73 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVarint_Skip_16Mixed_Protobuf_Protowire-8              	 7774848	        38.28 ns/op	       0 B/op	       0 allocs/op
-BenchmarkPlugin_Marshal_PBStruct_ReuseBuf-8                    	 2987631	       102.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkPlugin_Unmarshal_PBStruct_ZeroCopyReuse-8             	 1492554	       198.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkPlugin_Unmarshal_PBStruct_FreshAlloc-8                	  574720	       511.3 ns/op	     776 B/op	      17 allocs/op
-BenchmarkPlugin_Opaque_UnmarshalAndRead2Fields-8               	 2374804	       125.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkPlugin_Opaque_UnmarshalAndReadALLFields-8             	  283737	      1036 ns/op	       0 B/op	       0 allocs/op
-BenchmarkProtobufOfficial_UnmarshalAndReadALLFields-8          	  305041	       995.1 ns/op	    1072 B/op	      25 allocs/op
-BenchmarkPlugin_Opaque_ReadModifyWrite_Splice-8                	 2101629	       143.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTable_Marshal_ExistingPBStruct_ReuseBuf-8             	 1485631	       201.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTable_Marshal_ValueStruct_ReuseBuf-8                  	 1472253	       200.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTable_Unmarshal_ExistingPBStruct_ZeroCopyReuse-8      	  962643	       309.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTable_Unmarshal_ExistingPBStruct_FreshAlloc-8         	  418633	       735.0 ns/op	     992 B/op	      19 allocs/op
-BenchmarkTable_Unmarshal_ValueStruct_ZeroCopyReuse-8           	  944211	       307.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTable_Unmarshal_ValueStruct_SafeAlloc-8               	  442668	       627.9 ns/op	     704 B/op	      17 allocs/op
-BenchmarkOpaque_UnmarshalAndRead2Fields-8                      	 2339698	       126.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkProtobufOfficial_UnmarshalAndRead2Fields-8            	  305995	       992.0 ns/op	    1072 B/op	      25 allocs/op
-BenchmarkOpaque_ReadModifyWrite_Splice-8                       	 2101768	       142.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkProtobufOfficial_ReadModifyWrite-8                    	  188912	      1612 ns/op	    1072 B/op	      25 allocs/op
-BenchmarkProtobufProtoWire_ReadModifyWrite-8                   	  623166	       474.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVTProto_MarshalToVT_ReuseBuf-8                        	 2325664	       163.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVTProto_MarshalToSizedBufferVT_ReuseBuf-8             	 2867402	       111.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVTProto_MarshalVT_FreshAlloc-8                        	 1339009	       220.9 ns/op	     352 B/op	       1 allocs/op
-BenchmarkVTProto_UnmarshalVT_FreshAlloc-8                      	  517802	       604.7 ns/op	     880 B/op	      24 allocs/op
-BenchmarkVTProto_UnmarshalVTUnsafe_FreshAlloc-8                	  654170	       437.6 ns/op	     624 B/op	      12 allocs/op
-BenchmarkVTProto_UnmarshalVTUnsafe_PoolReuse-8                 	 1416217	       225.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVTProto_UnmarshalAndRead2Fields_PoolReuse-8           	 1335368	       219.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkVTProto_ReadModifyWrite_PoolReuse-8                   	  840325	       359.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_JSONv2-8                                      	  516195	      2177 ns/op	     896 B/op	       1 allocs/op
+BenchmarkUnmarshal_JSONv2_SafeAlloc-8                          	  303997	      3935 ns/op	     600 B/op	      10 allocs/op
+BenchmarkUnmarshal_JSONv2_Reuse-8                              	  340764	      3519 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_OmniBuf_Direct_ReuseBuf-8                     	 9764366	       123.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_OmniBuf_ReuseBuf-8                            	 4303402	       278.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_OmniBuf_FreshAlloc-8                          	 3004825	       397.7 ns/op	     384 B/op	       1 allocs/op
+BenchmarkMarshal_OmniBuf_SelfDescribing_ReuseBuf-8             	 4208395	       285.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_Protobuf_ProtoWire_ReuseBuf-8                 	 4655053	       257.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_Protobuf_Official_MarshalAppend-8             	 1655964	       725.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_Protobuf_Official_FreshAlloc-8                	 1495222	       800.2 ns/op	     352 B/op	       1 allocs/op
+BenchmarkMarshal_FlatBuffers_ReuseBuilder-8                    	 1666958	       721.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMarshal_CapnProto-8                                   	  910219	      1308 ns/op	     720 B/op	       3 allocs/op
+BenchmarkMarshal_Msgpack-8                                     	  585147	      2025 ns/op	    2056 B/op	       7 allocs/op
+BenchmarkMarshal_JSON-8                                        	  553510	      2167 ns/op	     896 B/op	       1 allocs/op
+BenchmarkUnmarshal_OmniBuf_ZeroCopy-8                          	 8351391	       144.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkUnmarshal_OmniBuf_SafeAlloc-8                         	 2783662	       427.2 ns/op	     472 B/op	      15 allocs/op
+BenchmarkUnmarshal_Protobuf_ProtoWire_ZeroCopy-8               	 3397346	       353.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkUnmarshal_Protobuf_ProtoWire_SafeAlloc-8              	 1497693	       793.0 ns/op	     656 B/op	      21 allocs/op
+BenchmarkUnmarshal_Protobuf_Official-8                         	  910449	      1280 ns/op	    1072 B/op	      25 allocs/op
+BenchmarkUnmarshal_FlatBuffers_ZeroCopy-8                      	 5410399	       221.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkUnmarshal_FlatBuffers_SafeAlloc-8                     	 2698896	       446.3 ns/op	     472 B/op	      15 allocs/op
+BenchmarkUnmarshal_CapnProto_ZeroCopy-8                        	 1230978	       972.4 ns/op	     240 B/op	       4 allocs/op
+BenchmarkUnmarshal_CapnProto_SafeAlloc-8                       	  958086	      1265 ns/op	     712 B/op	      19 allocs/op
+BenchmarkUnmarshal_Msgpack-8                                   	  378391	      3156 ns/op	    1024 B/op	      25 allocs/op
+BenchmarkUnmarshal_Msgpack_Reuse-8                             	  436129	      2743 ns/op	     352 B/op	      15 allocs/op
+BenchmarkUnmarshal_JSON-8                                      	  242443	      4938 ns/op	     600 B/op	      10 allocs/op
+BenchmarkUnmarshal_JSON_Reuse-8                                	  269743	      4456 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_LocationCity_OmniBuf_ZeroCopy-8                	11607262	       103.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_LocationCity_OmniBuf_SafeAlloc-8               	11328159	       105.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_LocationCity_FlatBuffers_ZeroCopy-8            	73761044	        16.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_LocationCity_CapnProto_InPlace_ZeroCopy-8      	194941326	         6.148 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_LocationCity_CapnProto_ZeroCopy-8              	 4232365	       287.9 ns/op	     240 B/op	       4 allocs/op
+BenchmarkLookup_LocationCity_Protobuf_WireScan_ZeroCopy-8      	10334455	       116.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_LocationCity_Protobuf_Official_Unmarshal-8     	  948640	      1270 ns/op	    1072 B/op	      25 allocs/op
+BenchmarkLookup_LocationCity_Msgpack_SkipScan-8                	 1558292	       766.4 ns/op	     160 B/op	      14 allocs/op
+BenchmarkLookup_LocationCity_JSON_Unmarshal-8                  	  242948	      4954 ns/op	     600 B/op	      10 allocs/op
+BenchmarkLookup_Neighbor2Router_OmniBuf_ZeroCopy-8             	12398732	        96.85 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_Neighbor2Router_FlatBuffers_ZeroCopy-8         	50593152	        23.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_Neighbor2Router_CapnProto_InPlace_ZeroCopy-8   	151121478	         7.938 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup_Neighbor2Router_CapnProto_ZeroCopy-8           	 3850428	       311.4 ns/op	     240 B/op	       4 allocs/op
+BenchmarkLookup_Neighbor2Router_Protobuf_WireScan_ZeroCopy-8   	 8115585	       147.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDecodeBlind_OmniBuf_Field0-8                          	  156090	      7751 ns/op	    8368 B/op	     137 allocs/op
+BenchmarkVarint_Decode_1B_OmniBuf_TZCNT-8                      	1000000000	         0.4620 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_1B_Protobuf_Protowire-8                 	730173133	         1.641 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_1B_VTProtobuf_Loop-8                    	1000000000	         1.027 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_2B_OmniBuf_TZCNT-8                      	1000000000	         1.026 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_2B_Protobuf_Protowire-8                 	730483165	         1.641 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_2B_VTProtobuf_Loop-8                    	730608432	         1.641 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_4B_OmniBuf_TZCNT-8                      	975378139	         1.232 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_4B_Protobuf_Protowire-8                 	509060841	         2.359 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_4B_VTProtobuf_Loop-8                    	364910556	         3.281 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_64b_OmniBuf_TZCNT-8                     	731383621	         1.641 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_64b_Protobuf_Protowire-8                	240573526	         4.976 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_64b_VTProtobuf_Loop-8                   	186913412	         6.415 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_16Mixed_OmniBuf_TZCNT-8                 	37558195	        32.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_16Mixed_Protobuf_Protowire-8            	24339165	        49.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Decode_16Mixed_VTProtobuf_InlinedLoop-8        	23349331	        51.50 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Encode_16Mixed_OmniBuf_TZCNT-8                 	24522534	        48.80 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Encode_16Mixed_Protobuf_Protowire-8            	15814720	        75.96 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Skip_16Mixed_OmniBuf_TZCNT-8                   	37498291	        32.02 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVarint_Skip_16Mixed_Protobuf_Protowire-8              	24117693	        49.74 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlugin_Marshal_PBStruct_ReuseBuf-8                    	 9806324	       122.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlugin_Unmarshal_PBStruct_ZeroCopyReuse-8             	 6838453	       176.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlugin_Unmarshal_PBStruct_FreshAlloc-8                	 2167101	       555.7 ns/op	     776 B/op	      17 allocs/op
+BenchmarkPlugin_Opaque_UnmarshalAndRead2Fields-8               	 6931395	       173.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPlugin_Opaque_UnmarshalAndReadALLFields-8             	  816078	      1455 ns/op	       0 B/op	       0 allocs/op
+BenchmarkProtobufOfficial_UnmarshalAndReadALLFields-8          	  945489	      1275 ns/op	    1072 B/op	      25 allocs/op
+BenchmarkPlugin_Opaque_ReadModifyWrite_Splice-8                	 6060889	       198.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTable_Marshal_ExistingPBStruct_ReuseBuf-8             	 3821257	       314.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTable_Marshal_ValueStruct_ReuseBuf-8                  	 3998307	       300.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTable_Marshal_ValueStruct_SelfDescribing_ReuseBuf-8   	 3747051	       318.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTable_Marshal_ValueStruct_FreshAlloc-8                	 3038139	       392.5 ns/op	     512 B/op	       1 allocs/op
+BenchmarkTable_Unmarshal_ExistingPBStruct_ZeroCopyReuse-8      	 2873841	       417.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTable_Unmarshal_ExistingPBStruct_FreshAlloc-8         	 1245286	       976.8 ns/op	     992 B/op	      19 allocs/op
+BenchmarkTable_Unmarshal_ValueStruct_ZeroCopyReuse-8           	 2983286	       402.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTable_Unmarshal_ValueStruct_SafeAlloc-8               	 1491315	       804.2 ns/op	     704 B/op	      17 allocs/op
+BenchmarkOpaque_UnmarshalAndRead2Fields-8                      	 6891427	       173.3 ns/op	       0 B/op	       0 allocs/op
+BenchmarkProtobufOfficial_UnmarshalAndRead2Fields-8            	  955860	      1271 ns/op	    1072 B/op	      25 allocs/op
+BenchmarkOpaque_ReadModifyWrite_Splice-8                       	 6039433	       198.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkProtobufOfficial_ReadModifyWrite-8                    	  587158	      2027 ns/op	    1072 B/op	      25 allocs/op
+BenchmarkProtobufProtoWire_ReadModifyWrite-8                   	 1959654	       611.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVTProto_MarshalToVT_ReuseBuf-8                        	 7201358	       166.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVTProto_MarshalToSizedBufferVT_ReuseBuf-8             	 9238435	       130.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVTProto_MarshalVT_FreshAlloc-8                        	 4717332	       254.9 ns/op	     352 B/op	       1 allocs/op
+BenchmarkVTProto_UnmarshalVT_FreshAlloc-8                      	 1669641	       712.3 ns/op	     880 B/op	      24 allocs/op
+BenchmarkVTProto_UnmarshalVTUnsafe_FreshAlloc-8                	 2343865	       506.3 ns/op	     624 B/op	      12 allocs/op
+BenchmarkVTProto_UnmarshalVTUnsafe_PoolReuse-8                 	 4571698	       262.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVTProto_UnmarshalVTUnsafe_StructReuse-8               	 5728238	       209.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVTProto_UnmarshalAndRead2Fields_PoolReuse-8           	 4523752	       265.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVTProto_ReadModifyWrite_PoolReuse-8                   	 2790920	       431.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/small/encode_omnibuf_reuse-8         	12217854	        99.16 ns/op	       324.0 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/small/encode_vtprotobuf_reuse-8      	 8360122	       143.6 ns/op	       312.0 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/small/decode_omnibuf_owned_fresh-8   	 2169679	       552.9 ns/op	     768 B/op	      17 allocs/op
+BenchmarkRepresentativeWorkloads/small/decode_omnibuf_table_owned_fresh-8         	 1241985	       972.3 ns/op	     984 B/op	      19 allocs/op
+BenchmarkRepresentativeWorkloads/small/decode_vtprotobuf_owned_fresh-8            	 1717210	       702.5 ns/op	     872 B/op	      24 allocs/op
+BenchmarkRepresentativeWorkloads/sparse/encode_omnibuf_reuse-8                    	33994935	        35.61 ns/op	        74.00 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/sparse/encode_vtprotobuf_reuse-8                 	49329427	        24.38 ns/op	        21.00 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/sparse/decode_omnibuf_owned_fresh-8              	 8912959	       136.7 ns/op	     128 B/op	       2 allocs/op
+BenchmarkRepresentativeWorkloads/sparse/decode_omnibuf_table_owned_fresh-8        	 3400341	       353.7 ns/op	     320 B/op	       3 allocs/op
+BenchmarkRepresentativeWorkloads/sparse/decode_vtprotobuf_owned_fresh-8           	11702620	       100.5 ns/op	     128 B/op	       2 allocs/op
+BenchmarkRepresentativeWorkloads/counter_29bit_boundary/encode_omnibuf_reuse-8    	10360162	       116.1 ns/op	       354.0 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/counter_29bit_boundary/encode_vtprotobuf_reuse-8 	 7787772	       156.2 ns/op	       332.0 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/counter_29bit_boundary/decode_omnibuf_owned_fresh-8         	 2142752	       560.1 ns/op	     768 B/op	      17 allocs/op
+BenchmarkRepresentativeWorkloads/counter_29bit_boundary/decode_omnibuf_table_owned_fresh-8   	 1256550	       956.0 ns/op	     984 B/op	      19 allocs/op
+BenchmarkRepresentativeWorkloads/counter_29bit_boundary/decode_vtprotobuf_owned_fresh-8      	 1696798	       706.3 ns/op	     872 B/op	      24 allocs/op
+BenchmarkRepresentativeWorkloads/timestamps/encode_omnibuf_reuse-8                           	 9692602	       123.7 ns/op	       371.0 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/timestamps/encode_vtprotobuf_reuse-8                        	 7151384	       168.1 ns/op	       344.0 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/timestamps/decode_omnibuf_owned_fresh-8                     	 2181700	       553.7 ns/op	     776 B/op	      17 allocs/op
+BenchmarkRepresentativeWorkloads/timestamps/decode_omnibuf_table_owned_fresh-8               	 1253587	       960.4 ns/op	     992 B/op	      19 allocs/op
+BenchmarkRepresentativeWorkloads/timestamps/decode_vtprotobuf_owned_fresh-8                  	 1671564	       721.4 ns/op	     880 B/op	      24 allocs/op
+BenchmarkRepresentativeWorkloads/nested_over_16KiB/encode_omnibuf_reuse-8                    	 1422698	       845.2 ns/op	     20842 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/nested_over_16KiB/encode_vtprotobuf_reuse-8                 	 2288032	       559.8 ns/op	     20816 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/nested_over_16KiB/decode_omnibuf_owned_fresh-8              	  295029	      4076 ns/op	   21240 B/op	      17 allocs/op
+BenchmarkRepresentativeWorkloads/nested_over_16KiB/decode_omnibuf_table_owned_fresh-8        	  253129	      4671 ns/op	   21456 B/op	      19 allocs/op
+BenchmarkRepresentativeWorkloads/nested_over_16KiB/decode_vtprotobuf_owned_fresh-8           	  276390	      4303 ns/op	   21354 B/op	      24 allocs/op
+BenchmarkRepresentativeWorkloads/large_repeated/encode_omnibuf_reuse-8                       	   40326	     29779 ns/op	     63487 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/large_repeated/encode_vtprotobuf_reuse-8                    	   20859	     57520 ns/op	     47609 wire-B/op	       0 B/op	       0 allocs/op
+BenchmarkRepresentativeWorkloads/large_repeated/decode_omnibuf_owned_fresh-8                 	   43825	     27323 ns/op	   41712 B/op	      17 allocs/op
+BenchmarkRepresentativeWorkloads/large_repeated/decode_omnibuf_table_owned_fresh-8           	   42888	     28223 ns/op	   41928 B/op	      19 allocs/op
+BenchmarkRepresentativeWorkloads/large_repeated/decode_vtprotobuf_owned_fresh-8              	   15636	     76863 ns/op	   41833 B/op	      24 allocs/op
 PASS
-ok  	github.com/sudorandom/omnibuf	31.207s
-PASS
-ok  	github.com/sudorandom/omnibuf/cmd/omnibuf	0.400s
-?   	github.com/sudorandom/omnibuf/cmd/protoc-gen-omnibuf	[no test files]
-?   	github.com/sudorandom/omnibuf/pb	[no test files]
+ok  	github.com/sudorandom/omnibuf	165.120s

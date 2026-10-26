@@ -180,7 +180,7 @@ func TestCLIHexAndBlindDecodeNonStringMapKeys(t *testing.T) {
 	wire = obwire.AppendVarint(wire, (1<<4)|uint64(obwire.WireMap))
 	lenPos := len(wire)
 	wire = append(wire, 0, 0)
-	wire = append(wire, obwire.MapHeaderByte(obwire.WireUint, obwire.WireString))
+	wire = append(wire, obwire.WireUint, obwire.WireString)
 	wire = obwire.AppendVarint(wire, 1)
 	wire = obwire.AppendVarint(wire, 42)
 	wire = obwire.AppendVarint(wire, 2)

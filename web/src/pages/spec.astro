@@ -10,22 +10,10 @@ u := uint64((n << 1) ^ (n >> 63))
 // Decode unsigned uint64 -> signed int64:
 n := int64(u >> 1) ^ -int64(u & 1)`;
 
-const locateFieldGoCode = `// Jump from field to field in O(1) time without parsing inside containers:
-for pos < len(packet) {
-    tag, tn := DecodeVarint(packet[pos:])
-    pos += tn
-    fnum, wtype := uint16(tag>>4), uint8(tag&0x0F)
-
-    if fnum == targetField {
-        valSlice, wireType, found = packet[pos:], wtype, true
-    }
-    pos = SkipValue(packet, pos, wtype) // pos += scalarWidth or container ByteLen
-}`;
-
 const sec8MetaProtoCode = `syntax = "proto3";
 package omnibuf.v1;
 
-// Written at Field #0 (Tag = 0x0B, WireSubMsg = 5) when self-describing mode is enabled.
+// Written at Field #0 (Tag = 0x19, WireSubMsg = 12) when self-describing mode is enabled.
 message SchemaMeta {
   string type_name = 1;               // Optional message name (e.g. "Location")
   map<uint32, string> fields = 2;     // FieldNumber -> FieldName (e.g. 3 -> "city")
@@ -43,82 +31,124 @@ message Node {
   Location location = 9; // { city: "FRA", rack: 42 }
 }`;
 
-const tocSections = [
-  {
-    id: 'sec-1',
-    label: '1. Design Goals & Overview',
-    children: [
-      { id: 'sec-1-1', label: '1.1 Design Goals' },
-      { id: 'sec-1-2', label: '1.2 Core Wire Primitives' },
-    ],
-  },
-  { id: 'sec-2', label: '2. Packet Layout & Concatenation', children: [] },
-  {
-    id: 'sec-3',
-    label: '3. Prefix-Varint Encoding (TZCNT)',
-    children: [
-      { id: 'sec-3-1', label: '3.1 Bit-Level Layout' },
-      { id: 'sec-3-2', label: '3.2 Binary & Hex Examples' },
-      { id: 'sec-3-3', label: '3.3 Overlong 2B Varints' },
-    ],
-  },
-  {
-    id: 'sec-4',
-    label: '4. Signed Integers (ZigZag)',
-    children: [
-      { id: 'sec-4-1', label: '4.1 ZigZag Formulas' },
-      { id: 'sec-4-2', label: '4.2 Binary & Hex Examples' },
-    ],
-  },
-  {
-    id: 'sec-5',
-    label: '5. Field Tags & 4-Bit Wire Types',
-    children: [{ id: 'sec-5-1', label: '5.1 Tag Width (0..7 vs 8..1023)' }],
-  },
-  {
-    id: 'sec-6',
-    label: '6. Wire Type Specifications (0..15)',
-    children: [
-      { id: 'sec-6-1', label: '6.1 WireUint (0) & WireSint (12)' },
-      { id: 'sec-6-2', label: '6.2 WireBool (1, 2)' },
-      { id: 'sec-6-3', label: '6.3 WireString & Bytes (3, 4)' },
-      { id: 'sec-6-4', label: '6.4 WireSubMsg (5)' },
-      { id: 'sec-6-5', label: '6.5 WireStringArr (6)' },
-      { id: 'sec-6-6', label: '6.6 WireUintArr (7) & WireSintArr (13)' },
-      { id: 'sec-6-7', label: '6.7 WireSubMsgArr (8)' },
-      { id: 'sec-6-8', label: '6.8 WireMap (9)' },
-      { id: 'sec-6-9', label: '6.9 WireFixed32 & 64 (10, 11)' },
-      { id: 'sec-6-10', label: '6.10 WireFixedArr (14)' },
-      { id: 'sec-6-11', label: '6.11 WireExtended (15)' },
-    ],
-  },
-  { id: 'sec-7', label: '7. Header-Hop Field Lookup', children: [] },
-  {
-    id: 'sec-8',
-    label: '8. Optional Inline Schema (Field #0)',
-    children: [
-      { id: 'sec-8-1', label: '8.1 SchemaMeta Definition' },
-      { id: 'sec-8-2', label: '8.2 Single Message Wire Example' },
-      { id: 'sec-8-3', label: '8.3 Zero-Duplication Arrays' },
-      { id: 'sec-8-4', label: '8.4 Recursive Concat Merge' },
-    ],
-  },
-  { id: 'sec-9', label: '9. End-to-End Annotated Example', children: [] },
-  { id: 'sec-10', label: '10. Wire Validity & Rejection Rules', children: [] },
-  {
-    id: 'sec-11',
-    label: '11. Language Implementations & Conformance',
-    children: [
-      { id: 'sec-11-1', label: '11.1 Required Usage Modes' },
-      { id: 'sec-11-2', label: '11.2 Conformance Test Suite' },
-    ],
-  },
+const wireTypes = [
+  [0, 'WireUint', 'Unsigned Prefix-Varint'],
+  [1, 'WireSint', 'ZigZag Prefix-Varint'],
+  [2, 'WireBoolFalse', 'No payload (false in the tag)'],
+  [3, 'WireBoolTrue', 'No payload (true in the tag)'],
+  [4, 'WireFixed32', '4 little-endian unsigned integer bytes'],
+  [5, 'WireFixed64', '8 little-endian unsigned integer bytes'],
+  [6, 'WireSfixed32', "4 little-endian two's-complement bytes"],
+  [7, 'WireSfixed64', "8 little-endian two's-complement bytes"],
+  [8, 'WireFloat32', '4 little-endian IEEE-754 bytes'],
+  [9, 'WireFloat64', '8 little-endian IEEE-754 bytes'],
+  [10, 'WireString', 'ByteLen + UTF-8 bytes'],
+  [11, 'WireBytes', 'ByteLen + arbitrary bytes'],
+  [12, 'WireSubMsg', 'ByteLen + message fields'],
+  [13, 'WireArray', 'ByteLen + ElementType + Count + values'],
+  [14, 'WireMap', 'ByteLen + KeyType + ValueType + Count + key/value pairs'],
+  [15, 'WireExtended', 'ByteLen + ExtType + extension payload'],
 ];
+
+const arrayExamples = `// Field #7: array<string> ["a", "bc"]
+fb 1e 00 0a 05 03 61 05 62 63
+// tag | len=7 | string | count=2 | "a" | "bc"
+
+// Field #8: array<uint> [10, 300]
+36 02 16 00 00 05 15 b2 04
+// tag   | len=5 | uint | count=2 | 10 | 300
+
+// Field #1: array<bool> [false, true]
+3b 12 00 02 05 00 01
+// tag | len=4 | bool | count=2 | false | true
+
+// Field #1: empty array<bytes>
+3b 0a 00 0b 01
+// tag | len=2 | bytes | count=0`;
+
+const nestedArrayExample = `// Field #1: array<array> [[1, 2], [300]]
+3b          // field #1, WireArray
+32 00       // outer ByteLen = 12
+0d 05       // ElementType = WireArray, Count = 2
+09 00 05 03 05 // inner ByteLen=4, uint, Count=2, 1, 2
+09 00 03 b2 04 // inner ByteLen=4, uint, Count=1, 300`;
+
+const mapExample = `// Field #2: map<string, uint> {"a": 7, "b": 300}
+5d 2a 00 0a 00 05 03 61 0f 03 62 b2 04
+// tag | len=10 | key=string | val=uint | count=2 | "a":7 | "b":300`;
+
+const fixedExamples = `// Field #1: fixed32 integer 42
+29 2a 00 00 00
+
+// Field #1: sfixed32 integer -42
+2d d6 ff ff ff
+
+// Field #1: float32 number 42.0
+31 00 00 28 42`;
+
+const nodeExample = `21 b2 04                  // #1 uint: id = 300
+67                        // #3 bool: active = true
+72 02 1e 00               // #9 message: location, ByteLen = 7
+  75 07 46 52 41          // #3 string: city = "FRA"
+  81 55                   // #4 uint: rack = 42`;
+
+const sectionTitles = [
+  'Design Goals & Overview',
+  'Message Layout & Concatenation',
+  'Prefix-Varint Encoding',
+  'Signed Integers',
+  'Field Tags & Value Types',
+  'Wire Type Specifications',
+  'Field Lookup & Validation',
+  'Optional Naming Metadata',
+  'Complete Message Example',
+  'Validity & Rejection Rules',
+  'Schema Mapping & Conformance',
+];
+const subsectionTitles: Record<number, string[]> = {
+  1: ['Design Goals', 'Core Wire Primitives'],
+  3: ['Bit-Level Layout', 'Examples & Size Tradeoffs', 'Non-Minimal Encodings & Backpatching'],
+  4: ['ZigZag Mapping', 'Examples'],
+  5: ['Tag Width'],
+  6: [
+    'WireUint (0)',
+    'WireSint (1)',
+    'WireBoolFalse (2)',
+    'WireBoolTrue (3)',
+    'WireFixed32 (4)',
+    'WireFixed64 (5)',
+    'WireSfixed32 (6)',
+    'WireSfixed64 (7)',
+    'WireFloat32 (8)',
+    'WireFloat64 (9)',
+    'WireString (10)',
+    'WireBytes (11)',
+    'WireSubMsg (12)',
+    'WireArray (13)',
+    'WireMap (14)',
+    'WireExtended (15)',
+  ],
+  8: [
+    'SchemaMeta Definition',
+    'Placement & Interpretation',
+    'Names for Collection Contents',
+    'Metadata Merge',
+  ],
+  11: ['Schema Mapping', 'Conformance Requirements'],
+};
+const tocSections = sectionTitles.map((title, index) => ({
+  id: `sec-${index + 1}`,
+  label: `${index + 1}. ${title}`,
+  children: (subsectionTitles[index + 1] ?? []).map((subtitle, childIndex) => ({
+    id: `sec-${index + 1}-${childIndex + 1}`,
+    label: `${index + 1}.${childIndex + 1} ${subtitle}`,
+  })),
+}));
 ---
 
 <Layout
   title="Wire Format Specification | OmniBuf"
-  description="Complete binary wire format specification for OmniBuf: Prefix-Varints (TZCNT), 4-bit explicit wire types, single-pass overlong length backpatching, raw message concatenation, and bit/hex examples."
+  description="OmniBuf wire-format draft: precise scalar types, composable arrays and maps, prefix-varints, recursive merge rules, validation, and annotated byte examples."
 >
   <Navbar currentPage="spec" />
 
@@ -133,7 +163,7 @@ const tocSections = [
         </span>
       </h1>
       <p class="mt-6 max-w-3xl text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
-        Complete binary encoding specification for OmniBuf (Version 1.0).
+        Current unreleased wire-format draft: precise value types and composable arrays and maps.
       </p>
     </div>
 
@@ -235,1641 +265,905 @@ const tocSections = [
 
       <!-- Main Specification Document Sheet -->
       <article class="lg:col-span-9 min-w-0 os-window-lg bg-[#FAF8F2] p-6 sm:p-10 lg:p-12 spec-prose">
-        <!-- SECTION 1 -->
         <h2 id="sec-1">1. Design Goals &amp; Overview</h2>
-
         <h3 id="sec-1-1">1.1 Design Goals</h3>
-        <p>OmniBuf is designed around four core goals:</p>
-        <ol>
+        <p>
+          OmniBuf is a binary encoding for numbered fields. This document describes the current,
+          unreleased design and replaces the earlier draft. There are no legacy array encodings or
+          compatibility modes in this specification. MUST, SHOULD, and MAY describe requirements for
+          implementations of this draft, not a claim that every implementation already meets them.
+        </p>
+        <ul>
+          <li>Keep explicit field numbers and support existing protobuf schema concepts.</li>
           <li>
-            <strong>
-              Stay Compatible with <code>.proto</code> File Semantics and Types:
-            </strong>
-            OmniBuf uses existing <code>.proto</code> definitions, field numbers (<code>1..N</code>
-            ), scalar types, nested messages, repeated lists, and maps without requiring a new IDL,
-            custom memory layouts, or manual alignment rules. Existing Protocol Buffers schemas and
-            generated struct types can target the OmniBuf wire format directly.
+            Make values interpretable without an external schema by distinguishing strings from
+            bytes, signed from unsigned integers, and floating-point from fixed-width integer
+            values.
           </li>
           <li>
-            <strong>Faster Encoding and Decoding on Modern Hardware:</strong>
-            Protocol Buffers (designed in 2001) relies on 7-bit LEB128 continuation loops (
-            <code>0x80</code> branch per byte), two-pass <code>Size()</code> calculations for nested
-            sub-messages, and byte-by-byte varint parsing when skipping fields. OmniBuf aligns the
-            wire format with modern 64-bit little-endian CPUs:
-            <ul>
-              <li>
-                Single-instruction trailing-zero count (<code>TZCNT</code> / <code>CTZ</code>)
-                varints load 1, 2, 4, or 8 bytes in a single unaligned little-endian memory access.
-              </li>
-              <li>
-                Single-pass forward encoding reserves and backpatches 2-byte length prefixes in
-                place without a pre-pass.
-              </li>
-              <li>
-                Explicit 4-bit wire types and outer container byte-length prefixes allow decoders to
-                skip entire fields or nested containers in a single branchless <code>TZCNT</code>{' '}
-                header hop without parsing inside strings, sub-messages, or arrays.
-              </li>
-            </ul>
+            Compose collections from the same value types using one array type plus an element type,
+            and one map type plus key and value types.
           </li>
           <li>
-            <strong>Schema-Less Value Decoding (with Optional Inline Field Names):</strong>
-            In Protocol Buffers, Wire Type 2 (<code>LEN</code>) is overloaded for strings, raw
-            bytes, nested messages, and packed repeated scalars, making it impossible to decode a
-            packet without the <code>.proto</code> schema. OmniBuf uses explicit 4-bit wire types (
-            <code>0..15</code>) so any decoder can losslessly inspect and decode every field's exact
-            type and structure (<code>DecodeBlind</code>), including unsigned vs. ZigZag signed
-            integers, fixed-width float arrays, and typed maps, with zero schema knowledge. When
-            human-readable keys are desired on the wire, an optional inline schema sub-message (
-            <code>Field #0</code>, <code>omnibuf.v1.SchemaMeta</code>) embeds field-number-keyed
-            field names and nested child schemas at byte 0 of the root message or any nested
-            sub-message.
+            Use a flat field stream with length-prefixed containers, forward encoding, and defined
+            concatenation semantics.
           </li>
-          <li>
-            <strong>Advanced Wire Techniques with a Flat Stream Layout:</strong>
-            Rather than requiring vtables, footer offset tables, relative pointer graphs, or arena
-            allocators, OmniBuf achieves single-pass encoding, fast zero-copy unmarshaling, raw byte
-            concatenation (<code>append(msgA, msgB...)</code>), and rapid header-hop field/array/map
-            traversal using a single contiguous stream of <code>[Tag][Value]</code> fields with 4
-            integer widths and 16 explicit wire types.
-          </li>
-        </ol>
-
+        </ul>
         <h3 id="sec-1-2">1.2 Core Wire Primitives</h3>
         <p>
-          To achieve these goals, OmniBuf replaces Protobuf's Tag-Length-Value (TLV) + LEB128 with
-          four wire primitives:
+          Each field is <code>[Tag][Value]</code>. Tags, unsigned variable-width integers, byte
+          lengths, and collection counts use Prefix-Varints. A tag combines a field number with a
+          four-bit wire type. Every variable-length value begins with its byte length. All
+          multi-byte fixed-width values are little-endian.
         </p>
-        <ol>
-          <li>
-            <strong>
-              Branchless Prefix-Varints (<code>TZCNT</code>):
-            </strong>{' '}
-            The trailing zero bit count (<code>TZCNT</code>) of the first byte determines the total
-            byte width (1, 2, 4, or 9 bytes) in little-endian order, eliminating byte-by-byte
-            continuation-bit loops.
-          </li>
-          <li>
-            <strong>
-              Explicit 4-Bit Wire Types (<code>0..15</code>):
-            </strong>{' '}
-            Every field tag encodes <code>(FieldNumber &lt;&lt; 4) | WireType</code>, unambiguously
-            distinguishing unsigned integers (<code>WireUint</code>, <code>WireUintArr</code>),
-            ZigZag-encoded signed integers (<code>WireSint</code>, <code>WireSintArr</code>),
-            strings, bytes, sub-messages, string arrays, length-prefixed sub-message arrays, typed
-            maps, fixed-width floats/ints (and packed arrays <code>WireFixedArr</code>), zero-byte
-            booleans (<code>true</code>/<code>false</code> encoded directly in the tag), and a
-            length-prefixed extension escape hatch (<code>WireExtended = 15</code>).
-          </li>
-          <li>
-            <strong>Single-Pass Overlong Length Backpatching:</strong> Variable-length containers (
-            <code>WireSubMsg</code>, <code>WireStringArr</code>, <code>WireUintArr</code>,{' '}
-            <code>WireSintArr</code>, <code>WireSubMsgArr</code>, <code>WireMap</code>) reserve a
-            2-byte Prefix-Varint length slot (<code>TZCNT = 1</code>) before writing their body in a
-            single forward pass and backpatch the 14-bit length upon completion, eliminating
-            two-pass <code>Size()</code> pre-computation.
-          </li>
-          <li>
-            <strong>Concat-Compatible Field Stream with Outer Container Lengths:</strong> Because
-            every scalar width is encoded in <code>b[0]</code> via <code>TZCNT</code> and every
-            container begins with its total <code>ByteLen</code>, a decoder can skip any field in a
-            single <code>O(1)</code> arithmetic jump without parsing inside sub-messages or arrays,
-            and concatenating two encoded OmniBuf messages (<code>append(msgA, msgB...)</code>)
-            produces a valid merged OmniBuf message.
-          </li>
-        </ol>
-
-        <!-- SECTION 2 -->
-        <h2 id="sec-2">2. Message Packet Layout &amp; Concatenation Semantics</h2>
         <p>
-          Every OmniBuf root message (and every nested sub-message in <code>WireSubMsg</code> or{' '}
-          <code>WireSubMsgArr</code>) is a flat sequence of encoded <code>[Tag][Value]</code> fields
-          with no header table or trailing footer:
+          Wire types identify the encoded value, not every detail of a source schema. For example, a
+          signed enum number and an ordinary signed integer share an encoding. Field names, enum
+          labels, declared integer ranges, defaults, and oneof membership cannot all be inferred
+          from the value bytes. Optional Field #0 supplies message and field names.
         </p>
 
-        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm">
-          <div class="text-paper/75 text-xs uppercase font-bold mb-2">
-            Contiguous Packet Stream (0 .. N bytes)
-          </div>
-          <div class="grid sm:grid-cols-4 gap-2">
-            <div class="p-2.5 bg-[#1F1F1F] border border-dashed border-acid/60 rounded">
-              <div class="text-acid font-bold">Field #0 (opt)</div>
-              <div class="text-paper/80 text-xs mt-0.5">[0x0B][SchemaMeta]</div>
-            </div>
-            <div class="p-2.5 bg-[#1F1F1F] border border-paper/20 rounded">
-              <div class="text-white font-bold">Field #f₁</div>
-              <div class="text-paper/80 text-xs mt-0.5">[Tag][Value]</div>
-            </div>
-            <div class="p-2.5 bg-[#1F1F1F] border border-paper/20 rounded">
-              <div class="text-white font-bold">Field #f₂</div>
-              <div class="text-paper/80 text-xs mt-0.5">[Tag][Value]</div>
-            </div>
-            <div class="p-2.5 bg-[#1F1F1F] border border-paper/20 rounded">
-              <div class="text-white font-bold">... Field #fₖ</div>
-              <div class="text-paper/80 text-xs mt-0.5">[Tag][Value]</div>
-            </div>
-          </div>
-        </div>
-
-        <ol>
-          <li>
-            <strong>
-              Field Ordering &amp; Raw Message Concatenation (<code>append(msgA, msgB...)</code>):
-            </strong>
-            <ul>
-              <li>
-                Encoders SHOULD emit fields in ascending order of <code>FieldNumber</code> for
-                deterministic output.
-              </li>
-              <li>
-                Decoders MUST accept fields in any order and support duplicate field numbers so
-                concatenating two encoded messages (<code>append(msgA, msgB...)</code>) or appending
-                an updated <code>[Tag][Value]</code> to the end of an existing packet follows
-                Protocol Buffers merge semantics:
-                <ul>
-                  <li>
-                    <strong>Singular Scalars:</strong> Last occurrence wins (
-                    <strong>"last write wins"</strong>).
-                  </li>
-                  <li>
-                    <strong>Repeated Fields:</strong> Elements from later occurrences are appended
-                    in order to earlier elements.
-                  </li>
-                  <li>
-                    <strong>
-                      Nested Sub-Messages (<code>WireSubMsg</code>):
-                    </strong>{' '}
-                    Later occurrences merge recursively into the existing sub-message.
-                  </li>
-                  <li>
-                    <strong>
-                      Maps (<code>WireMap</code>):
-                    </strong>{' '}
-                    Entries from later occurrences merge into the map, with later keys overriding
-                    earlier keys.
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Zero-Byte Empty Message:</strong> An empty message with no present fields is 0
-            bytes.
-          </li>
-          <li>
-            <strong>No Trailing Footer or Padding:</strong> The message ends immediately after the
-            final byte of the last field.
-          </li>
-        </ol>
-
-        <!-- SECTION 3 -->
-        <h2 id="sec-3">
-          3. Prefix-Varint Encoding (<code>TZCNT</code>)
-        </h2>
+        <h2 id="sec-2">2. Message Layout &amp; Concatenation</h2>
+        <pre><code>[Tag][Value] [Tag][Value] ... [Tag][Value]</code></pre>
         <p>
-          All variable-length unsigned integers (field tags, <code>WireUint</code> values, container
-          byte lengths, and element counts) use <strong>Prefix-Varints</strong>.
+          A root message has no mandatory header, footer, alignment padding, or length prefix. Its
+          containing file or transport MUST provide its byte boundary. An empty message is zero
+          bytes. Concatenation merges messages rather than framing separate messages.
+        </p>
+        <p>
+          Encoders SHOULD emit fields in ascending field-number order. Decoders MUST accept any
+          order and repeated occurrences of a field. For compatible schemas, concatenating two
+          packets has these semantics:
+        </p>
+        <ul>
+          <li>For singular scalars, the last occurrence wins.</li>
+          <li>
+            For arrays, elements concatenate in occurrence order. Empty arrays add no elements and
+            do not clear an earlier array.
+          </li>
+          <li>For messages, fields merge recursively, including nested arrays and maps.</li>
+          <li>
+            For maps, entries merge in order and the last entry for a key replaces its entire value,
+            including when that value is a message, array, or map.
+          </li>
+        </ul>
+        <p>
+          A schema-aware decoder also applies presence and oneof rules from its schema. A blind
+          decoder cannot infer oneof membership. Concatenation does not provide a delete operation.
+          Changing a field's value type or an array's element type is not a compatible schema
+          change.
         </p>
 
+        <h2 id="sec-3">3. Prefix-Varint Encoding</h2>
         <h3 id="sec-3-1">3.1 Bit-Level Layout</h3>
         <p>
-          The number of trailing zero bits (<code>TZCNT</code>) in Byte 0 (<code>b[0]</code>) tells
-          the CPU the exact byte length of the integer (1, 2, 4, or 9 bytes) up front. The remaining
-          high bits of the little-endian word store the unsigned value:
+          The first byte determines the encoded width. An implementation can dispatch with bit tests
+          or a trailing-zero-count instruction, and the format does not require a particular
+          instruction or a branchless implementation.
         </p>
-
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>TZCNT</th>
-                <th>Byte 0</th>
-                <th>Width</th>
-                <th>Value Range</th>
-                <th>Little-Endian Encode / Decode</th>
+                <th>First byte</th>
+                <th>Total width</th>
+                <th>Value capacity</th>
+                <th>Encoding</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="whitespace-nowrap font-bold">0</td>
-                <td class="whitespace-nowrap">vvvvvvv1</td>
-                <td class="whitespace-nowrap font-bold">1 B (7b)</td>
-                <td class="whitespace-nowrap">0 .. 127</td>
-                <td class="whitespace-nowrap">
-                  <div>
-                    <strong>Enc:</strong> uint8(v &lt;&lt; 1) | 0x01
-                  </div>
-                  <div>
-                    <strong>Dec:</strong> uint64(b[0] &gt;&gt; 1)
-                  </div>
+                <td>
+                  <code>xxxxxxx1</code>
+                </td>
+                <td>1 byte</td>
+                <td>7 bits</td>
+                <td>
+                  <code>(v &lt;&lt; 1) | 1</code>
                 </td>
               </tr>
               <tr>
-                <td class="whitespace-nowrap font-bold">1</td>
-                <td class="whitespace-nowrap">vvvvvv10</td>
-                <td class="whitespace-nowrap font-bold">2 B (14b)</td>
-                <td class="whitespace-nowrap">0 .. 16,383</td>
-                <td class="whitespace-nowrap">
-                  <div>
-                    <strong>Enc:</strong> uint16(v &lt;&lt; 2) | 0x02
-                  </div>
-                  <div>
-                    <strong>Dec:</strong> uint64(LE16(b[0:2]) &gt;&gt; 2)
-                  </div>
+                <td>
+                  <code>xxxxxx10</code>
+                </td>
+                <td>2 bytes</td>
+                <td>14 bits</td>
+                <td>
+                  <code>LE16((v &lt;&lt; 2) | 2)</code>
                 </td>
               </tr>
               <tr>
-                <td class="whitespace-nowrap font-bold">2</td>
-                <td class="whitespace-nowrap">vvvvv100</td>
-                <td class="whitespace-nowrap font-bold">4 B (29b)</td>
-                <td class="whitespace-nowrap">0 .. 536,870,911</td>
-                <td class="whitespace-nowrap">
-                  <div>
-                    <strong>Enc:</strong> uint32(v &lt;&lt; 3) | 0x04
-                  </div>
-                  <div>
-                    <strong>Dec:</strong> uint64(LE32(b[0:4]) &gt;&gt; 3)
-                  </div>
+                <td>
+                  <code>xxxxx100</code>
+                </td>
+                <td>4 bytes</td>
+                <td>29 bits</td>
+                <td>
+                  <code>LE32((v &lt;&lt; 3) | 4)</code>
                 </td>
               </tr>
               <tr>
-                <td class="whitespace-nowrap font-bold">&gt;= 3</td>
-                <td class="whitespace-nowrap">00000000</td>
-                <td class="whitespace-nowrap font-bold">9 B (64b)</td>
-                <td class="whitespace-nowrap">
-                  0 .. 2<sup>64</sup> - 1
+                <td>
+                  <code>00000000</code>
                 </td>
-                <td class="whitespace-nowrap">
-                  <div>
-                    <strong>Enc:</strong> b[0] = 0x00, LE64(b[1:9]) = v
-                  </div>
-                  <div>
-                    <strong>Dec:</strong> LE64(b[1:9])
-                  </div>
+                <td>9 bytes</td>
+                <td>64 bits</td>
+                <td>
+                  <code>00 + LE64(v)</code>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-
-        <h3 id="sec-3-2">3.2 Prefix-Varint Binary &amp; Hex Examples</h3>
+        <p>
+          Decode the first three forms by loading the indicated little-endian word and shifting
+          right by 1, 2, or 3 bits. The nine-byte form stores its value in bytes 1 through 8. Other
+          first-byte patterns with their low three bits zero are reserved and MUST be rejected. A
+          decoder MUST check the available width before loading.
+        </p>
+        <h3 id="sec-3-2">3.2 Examples &amp; Size Tradeoffs</h3>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Value (v)</th>
-                <th>TZCNT</th>
-                <th>Width</th>
-                <th>Formula</th>
-                <th>Wire Binary (LE)</th>
+                <th>Unsigned value</th>
+                <th>OmniBuf hex</th>
+                <th>OmniBuf bytes</th>
+                <th>LEB128 bytes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>0</td>
+                <td>
+                  <code>01</code>
+                </td>
+                <td>1</td>
+                <td>1</td>
+              </tr>
+              <tr>
+                <td>127</td>
+                <td>
+                  <code>ff</code>
+                </td>
+                <td>1</td>
+                <td>1</td>
+              </tr>
+              <tr>
+                <td>128</td>
+                <td>
+                  <code>02 02</code>
+                </td>
+                <td>2</td>
+                <td>2</td>
+              </tr>
+              <tr>
+                <td>300</td>
+                <td>
+                  <code>b2 04</code>
+                </td>
+                <td>2</td>
+                <td>2</td>
+              </tr>
+              <tr>
+                <td>16,384</td>
+                <td>
+                  <code>04 00 02 00</code>
+                </td>
+                <td>4</td>
+                <td>3</td>
+              </tr>
+              <tr>
+                <td>536,870,912</td>
+                <td>
+                  <code>00 00 00 00 20 00 00 00 00</code>
+                </td>
+                <td>9</td>
+                <td>5</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The missing three-, five-, six-, seven-, and eight-byte forms simplify dispatch but can
+          increase payload size. Values at or above 2<sup>29</sup> use nine bytes. Payload-size and
+          speed comparisons therefore depend on the workload and implementation.
+        </p>
+        <h3 id="sec-3-3">3.3 Non-Minimal Encodings &amp; Backpatching</h3>
+        <p>
+          Decoders MUST accept a value in any of these four widths that can represent it, even when
+          a shorter encoding exists. Encoders SHOULD use the shortest width except when reserving a
+          wider slot for backpatching. For example, 42 can be <code>55</code> or
+          <code>aa 00</code>.
+        </p>
+        <p>
+          A forward encoder can reserve two bytes for a container length, write its contents, and
+          patch <code>LE16((byteLen &lt;&lt; 2) | 2)</code>. This slot holds up to 16,383 bytes.
+          Larger bodies require expanding the slot to four or nine bytes, moving the already written
+          body unless the encoder chose another buffering strategy. Nested large containers may move
+          the same bytes more than once. Counts may also use reserved slots.
+        </p>
+        <p>
+          This flexibility means the wire format is not canonical. Sorted fields alone do not
+          produce a unique encoding because map order, duplicate fields, and integer widths also
+          matter.
+        </p>
+
+        <h2 id="sec-4">4. Signed Integers</h2>
+        <h3 id="sec-4-1">4.1 ZigZag Mapping</h3>
+        <p>
+          <code>WireSint</code> stores a ZigZag-mapped signed integer as a Prefix-Varint. Protobuf
+          <code>int32</code>, <code>int64</code>, <code>sint32</code>, <code>sint64</code>, and enum
+          numbers use this type. Negative enum values retain their sign.
+        </p>
+        <Code code={zigZagGoCode} lang="go" />
+        <h3 id="sec-4-2">4.2 Examples</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Signed value</th>
+                <th>ZigZag value</th>
                 <th>Hex</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="whitespace-nowrap font-bold">0</td>
-                <td class="whitespace-nowrap">0</td>
-                <td class="whitespace-nowrap">1 B</td>
-                <td class="whitespace-nowrap">(0 &lt;&lt; 1) | 1 = 1</td>
-                <td class="whitespace-nowrap">00000001</td>
-                <td class="whitespace-nowrap font-bold">01</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">127</td>
-                <td class="whitespace-nowrap">0</td>
-                <td class="whitespace-nowrap">1 B</td>
-                <td class="whitespace-nowrap">(127 &lt;&lt; 1) | 1 = 255</td>
-                <td class="whitespace-nowrap">11111111</td>
-                <td class="whitespace-nowrap font-bold">ff</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">128</td>
-                <td class="whitespace-nowrap">1</td>
-                <td class="whitespace-nowrap">2 B</td>
-                <td class="whitespace-nowrap">(128 &lt;&lt; 2) | 2 = 0x0202</td>
-                <td class="whitespace-nowrap">00000010 00000010</td>
-                <td class="whitespace-nowrap font-bold">02 02</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">300</td>
-                <td class="whitespace-nowrap">1</td>
-                <td class="whitespace-nowrap">2 B</td>
-                <td class="whitespace-nowrap">(300 &lt;&lt; 2) | 2 = 0x04B2</td>
-                <td class="whitespace-nowrap">10110010 00000100</td>
-                <td class="whitespace-nowrap font-bold">b2 04</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">16,384</td>
-                <td class="whitespace-nowrap">2</td>
-                <td class="whitespace-nowrap">4 B</td>
-                <td class="whitespace-nowrap">(16384 &lt;&lt; 3) | 4 = 0x00020004</td>
-                <td class="whitespace-nowrap">00000100 00000000 00000010 00000000</td>
-                <td class="whitespace-nowrap font-bold">04 00 02 00</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">
-                  536,870,912 (2<sup>29</sup>)
+                <td>0</td>
+                <td>0</td>
+                <td>
+                  <code>01</code>
                 </td>
-                <td class="whitespace-nowrap">&gt;= 3</td>
-                <td class="whitespace-nowrap">9 B</td>
-                <td class="whitespace-nowrap">0x00 + LE64(2^29)</td>
-                <td class="whitespace-nowrap">00000000 + 8B LE64</td>
-                <td class="whitespace-nowrap font-bold">00 00 00 00 20 00 00 00 00</td>
+              </tr>
+              <tr>
+                <td>-1</td>
+                <td>1</td>
+                <td>
+                  <code>03</code>
+                </td>
+              </tr>
+              <tr>
+                <td>1</td>
+                <td>2</td>
+                <td>
+                  <code>05</code>
+                </td>
+              </tr>
+              <tr>
+                <td>-64</td>
+                <td>127</td>
+                <td>
+                  <code>ff</code>
+                </td>
+              </tr>
+              <tr>
+                <td>64</td>
+                <td>128</td>
+                <td>
+                  <code>02 02</code>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
-
-        <div class="my-4 p-4 bg-white border-2 border-ink rounded-md text-sm sm:text-base">
-          <div class="font-mono text-xs sm:text-sm font-bold uppercase text-ink/80 mb-1.5">
-            Example: How 300 is encoded and decoded
-          </div>
-          <ol class="mb-0 space-y-1 text-sm sm:text-base">
-            <li>
-              <strong>Encode:</strong> <code>300</code> is between <code>128</code> and{' '}
-              <code>16,383</code>, so it takes 2 bytes (<code>TZCNT = 1</code>). Shift{' '}
-              <code>300</code> left by 2 bits and set the low 2 bits to <code>10</code> (
-              <code>(300 &lt;&lt; 2) | 2 = 0x04B2</code>), then write it in little-endian order as{' '}
-              <code>b2 04</code>.
-            </li>
-            <li>
-              <strong>Decode:</strong> The first byte <code>0xB2</code> (<code>10110010</code>) ends
-              with a single <code>0</code> bit (<code>TZCNT = 1</code>), telling the decoder to read
-              2 bytes (<code>0x04B2</code>) and shift right by 2 bits (
-              <code>0x04B2 &gt;&gt; 2 = 300</code>).
-            </li>
-          </ol>
-        </div>
-
-        <h3 id="sec-3-3">3.3 Overlong 2-Byte Prefix-Varints (Single-Pass Length Backpatching)</h3>
         <p>
-          Decoders MUST dispatch strictly on <code>TZCNT(b[0])</code> without rejecting non-minimal
-          ("overlong") encodings. Specifically, a length <code>v &lt; 128</code> encoded with the
-          2-byte formula (<code>uint16(v &lt;&lt; 2) | 2</code>) is valid on the wire.
-        </p>
-        <ul>
-          <li>
-            <strong>Fast Path (lengths up to 16,383 bytes):</strong> When encoding a container in a
-            single forward pass, the encoder reserves a 2-byte slot at <code>lenPos</code>, writes
-            the container body forward, and patches the 2-byte length slot at the end:{' '}
-            <code>LE16(buf[lenPos:lenPos+2]) = (byteLen &lt;&lt; 2) | 2</code>.
-          </li>
-          <li>
-            <strong>Large Container Expansion (&gt; 16,383 bytes):</strong> If a container exceeds
-            16,383 bytes, the encoder shifts the container body right by 2 bytes (for a 4-byte
-            varint up to 512 MiB) or 7 bytes (for a 9-byte varint) and writes the wider header.
-          </li>
-          <li>
-            <strong>Example (byteLen = 42 as 2-byte varint):</strong>{' '}
-            <code>(42 &lt;&lt; 2) | 2 = 170 = 0x00AA</code> &rarr; hex <code>aa 00</code>. The
-            decoder sees <code>TZCNT(0xAA) == 1</code> (2 bytes) and computes{' '}
-            <code>0x00AA &gt;&gt; 2 = 42</code>.
-          </li>
-        </ul>
-
-        <!-- SECTION 4 -->
-        <h2 id="sec-4">
-          4. Signed Integers (<code>ZigZag</code> Encoding, <code>WireSint = 12</code>)
-        </h2>
-        <p>
-          Signed integers (<code>int32</code>, <code>sint32</code>, <code>int64</code>,{' '}
-          <code>sint64</code>) map to unsigned <code>uint64</code> values via{' '}
-          <strong>ZigZag encoding</strong> before being written as a <code>WireSint</code> (12)
-          Prefix-Varint. Giving signed integers their own 4-bit wire type (
-          <code>WireSint = 12</code>, distinct from <code>WireUint = 0</code>) lets schema-less
-          decoders (<code>DecodeBlind</code>) decode negative and positive integers directly from
-          raw bytes.
+          Signed fixed-width integers use <code>WireSfixed32</code> or <code>WireSfixed64</code>
+          and two's-complement bits, without ZigZag.
         </p>
 
-        <h3 id="sec-4-1">4.1 ZigZag Formulas</h3>
-        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
-          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">ZigZag Bitwise Mapping</div>
-            <button
-              type="button"
-              data-copy={zigZagGoCode}
-              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-            >
-              Copy
-            </button>
-          </div>
-          <Code code={zigZagGoCode} lang="go" theme="github-dark" />
-        </div>
-
-        <h3 id="sec-4-2">4.2 ZigZag Binary &amp; Hex Examples</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Signed (n)</th>
-                <th>ZigZag (u)</th>
-                <th>Wire Binary (LE)</th>
-                <th>Hex</th>
-                <th>Width</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="whitespace-nowrap font-bold">0</td>
-                <td class="whitespace-nowrap">0</td>
-                <td class="whitespace-nowrap">00000001</td>
-                <td class="whitespace-nowrap font-bold">01</td>
-                <td class="whitespace-nowrap">1 B</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">-1</td>
-                <td class="whitespace-nowrap">1</td>
-                <td class="whitespace-nowrap">00000011</td>
-                <td class="whitespace-nowrap font-bold">03</td>
-                <td class="whitespace-nowrap">1 B</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">+1</td>
-                <td class="whitespace-nowrap">2</td>
-                <td class="whitespace-nowrap">00000101</td>
-                <td class="whitespace-nowrap font-bold">05</td>
-                <td class="whitespace-nowrap">1 B</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">-2</td>
-                <td class="whitespace-nowrap">3</td>
-                <td class="whitespace-nowrap">00000111</td>
-                <td class="whitespace-nowrap font-bold">07</td>
-                <td class="whitespace-nowrap">1 B</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">-62</td>
-                <td class="whitespace-nowrap">123</td>
-                <td class="whitespace-nowrap">11110111</td>
-                <td class="whitespace-nowrap font-bold">f7</td>
-                <td class="whitespace-nowrap">1 B</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">+63</td>
-                <td class="whitespace-nowrap">126</td>
-                <td class="whitespace-nowrap">11111101</td>
-                <td class="whitespace-nowrap font-bold">fd</td>
-                <td class="whitespace-nowrap">1 B</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">-64</td>
-                <td class="whitespace-nowrap">127</td>
-                <td class="whitespace-nowrap">11111111</td>
-                <td class="whitespace-nowrap font-bold">ff</td>
-                <td class="whitespace-nowrap">1 B (max 1B)</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">+64</td>
-                <td class="whitespace-nowrap">128</td>
-                <td class="whitespace-nowrap">00000010 00000010</td>
-                <td class="whitespace-nowrap font-bold">02 02</td>
-                <td class="whitespace-nowrap">2 B (min 2B)</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">-8192</td>
-                <td class="whitespace-nowrap">16,383</td>
-                <td class="whitespace-nowrap">11111110 11111111</td>
-                <td class="whitespace-nowrap font-bold">fe ff</td>
-                <td class="whitespace-nowrap">2 B (max 2B)</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">+8192</td>
-                <td class="whitespace-nowrap">16,384</td>
-                <td class="whitespace-nowrap">00000100 00000000 00000010 00000000</td>
-                <td class="whitespace-nowrap font-bold">04 00 02 00</td>
-                <td class="whitespace-nowrap">4 B (min 4B)</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- SECTION 5 -->
-        <h2 id="sec-5">5. Field Tags &amp; Explicit 4-Bit Wire Types</h2>
-        <p>
-          Every field begins with a <strong>Tag</strong> that packs the schema field number and the
-          4-bit wire type into a single Prefix-Varint:
-        </p>
+        <h2 id="sec-5">5. Field Tags &amp; Value Types</h2>
         <pre><code>Tag = (FieldNumber &lt;&lt; 4) | WireType</code></pre>
-        <ul>
-          <li>
-            <code>FieldNumber</code> is the schema field number (0 for the inline schema table, 1..N
-            for message fields).
-          </li>
-          <li>
-            <code>WireType</code> is a 4-bit unsigned integer (0..15).
-          </li>
-        </ul>
-
-        <h3 id="sec-5-1">5.1 Tag Width for Field Numbers 0..7 vs 8..1023</h3>
         <p>
-          Because <code>WireType</code> occupies the low 4 bits of the tag value, the byte width of
-          a tag depends only on how many bits <code>FieldNumber</code> needs:
+          Encode Tag as a Prefix-Varint. Field numbers range from 1 through 536,870,911, while Field
+          #0 is reserved for naming metadata. Protobuf-backed schemas retain protobuf's
+          reserved-field-number rules. Implementations MUST reject out-of-range tags before
+          narrowing them to a language integer type.
         </p>
-
-        <div class="my-5 space-y-4 font-mono text-xs sm:text-sm">
-          <!-- 1-Byte Tag Card -->
-          <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md flex flex-col justify-between space-y-3">
-            <div>
-              <div class="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-paper/20">
-                <span class="font-bold text-acid uppercase">Fields #0 .. #7</span>
-                <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded text-xs">
-                  1-Byte Tag
-                </span>
-              </div>
-              <p class="font-sans text-sm text-paper/90 leading-relaxed mb-3 !max-w-none">
-                A 1-byte Prefix-Varint holds 7 value bits. Subtracting 4 bits for{' '}
-                <code>WireType</code> leaves <strong>3 bits</strong> for <code>FieldNumber</code>{' '}
-                (0..7).
-              </p>
-            </div>
-            <div class="space-y-2">
-              <div class="text-xs text-paper/70">Byte 0 (8 bits):</div>
-              <div class="grid grid-cols-8 text-center text-xs font-bold rounded overflow-hidden border border-paper/30">
-                <div class="col-span-3 bg-paper/15 py-2 text-paper border-r border-paper/30">
-                  Field # (3b)
-                </div>
-                <div class="col-span-4 bg-acid text-ink py-2 border-r border-ink">
-                  WireType (4b)
-                </div>
-                <div class="col-span-1 bg-[#FF4F18] text-white py-2">1</div>
-              </div>
-              <div class="text-xs text-paper/80 pt-1">
-                Byte 0 = (FieldNum &lt;&lt; 5) | (WireType &lt;&lt; 1) | 1
-              </div>
-            </div>
-          </div>
-
-          <!-- 2-Byte Tag Card -->
-          <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md flex flex-col justify-between space-y-3">
-            <div>
-              <div class="flex items-center justify-between gap-2 pb-2 mb-2.5 border-b border-paper/20">
-                <span class="font-bold text-white uppercase">Fields #8 .. #1023</span>
-                <span class="px-2 py-0.5 bg-paper/20 text-paper font-bold rounded text-xs">
-                  2-Byte Tag
-                </span>
-              </div>
-              <p class="font-sans text-sm text-paper/90 leading-relaxed mb-3 !max-w-none">
-                A 2-byte Prefix-Varint holds 14 value bits. Subtracting 4 bits for{' '}
-                <code>WireType</code> leaves <strong>10 bits</strong> for <code>FieldNumber</code>{' '}
-                (8..1023).
-              </p>
-            </div>
-            <div class="space-y-2">
-              <div class="text-xs text-paper/70">16-Bit Little-Endian Word (Bytes 0..1):</div>
-              <div class="grid grid-cols-8 text-center text-xs font-bold rounded overflow-hidden border border-paper/30">
-                <div class="col-span-4 bg-paper/15 py-2 text-paper border-r border-paper/30">
-                  Field # (10b)
-                </div>
-                <div class="col-span-3 bg-acid text-ink py-2 border-r border-ink">
-                  WireType (4b)
-                </div>
-                <div class="col-span-1 bg-[#FF4F18] text-white py-2">10</div>
-              </div>
-              <div class="text-xs text-paper/80 pt-1">
-                LE16 = (FieldNum &lt;&lt; 6) | (WireType &lt;&lt; 2) | 2
-              </div>
-            </div>
-          </div>
-        </div>
-
+        <h3 id="sec-5-1">5.1 Tag Width</h3>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Field</th>
-                <th>Wire Type</th>
-                <th>Tag Value (fn &lt;&lt; 4 | wt)</th>
-                <th>Wire Binary (LE)</th>
-                <th>Hex</th>
+                <th>Field numbers</th>
+                <th>Minimum tag width</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="whitespace-nowrap font-bold">#0</td>
-                <td class="whitespace-nowrap">WireSubMsg (5)</td>
-                <td class="whitespace-nowrap">(0 &lt;&lt; 4) | 5 = 5</td>
-                <td class="whitespace-nowrap">00001011</td>
-                <td class="whitespace-nowrap font-bold">0b</td>
+                <td>0 to 7</td>
+                <td>1 byte</td>
               </tr>
               <tr>
-                <td class="whitespace-nowrap font-bold">#1</td>
-                <td class="whitespace-nowrap">WireUint (0)</td>
-                <td class="whitespace-nowrap">(1 &lt;&lt; 4) | 0 = 16</td>
-                <td class="whitespace-nowrap">00100001</td>
-                <td class="whitespace-nowrap font-bold">21</td>
+                <td>8 to 1,023</td>
+                <td>2 bytes</td>
               </tr>
               <tr>
-                <td class="whitespace-nowrap font-bold">#2</td>
-                <td class="whitespace-nowrap">WireString (3)</td>
-                <td class="whitespace-nowrap">(2 &lt;&lt; 4) | 3 = 35</td>
-                <td class="whitespace-nowrap">01000111</td>
-                <td class="whitespace-nowrap font-bold">47</td>
+                <td>1,024 to 33,554,431</td>
+                <td>4 bytes</td>
               </tr>
               <tr>
-                <td class="whitespace-nowrap font-bold">#3</td>
-                <td class="whitespace-nowrap">WireBoolTrue (2)</td>
-                <td class="whitespace-nowrap">(3 &lt;&lt; 4) | 2 = 50</td>
-                <td class="whitespace-nowrap">01100101</td>
-                <td class="whitespace-nowrap font-bold">65</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">#6</td>
-                <td class="whitespace-nowrap">WireFixed64 (11)</td>
-                <td class="whitespace-nowrap">(6 &lt;&lt; 4) | 11 = 107</td>
-                <td class="whitespace-nowrap">11010111</td>
-                <td class="whitespace-nowrap font-bold">d7</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">#8</td>
-                <td class="whitespace-nowrap">WireUintArr (7)</td>
-                <td class="whitespace-nowrap">(8 &lt;&lt; 4) | 7 = 135</td>
-                <td class="whitespace-nowrap">00011110 00000010</td>
-                <td class="whitespace-nowrap font-bold">1e 02</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">#9</td>
-                <td class="whitespace-nowrap">WireSubMsg (5)</td>
-                <td class="whitespace-nowrap">(9 &lt;&lt; 4) | 5 = 149</td>
-                <td class="whitespace-nowrap">01010110 00000010</td>
-                <td class="whitespace-nowrap font-bold">56 02</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">#10</td>
-                <td class="whitespace-nowrap">WireSubMsgArr (8)</td>
-                <td class="whitespace-nowrap">(10 &lt;&lt; 4) | 8 = 168</td>
-                <td class="whitespace-nowrap">10100010 00000010</td>
-                <td class="whitespace-nowrap font-bold">a2 02</td>
-              </tr>
-              <tr>
-                <td class="whitespace-nowrap font-bold">#11</td>
-                <td class="whitespace-nowrap">WireUint (0)</td>
-                <td class="whitespace-nowrap">(11 &lt;&lt; 4) | 0 = 176</td>
-                <td class="whitespace-nowrap">11000010 00000010</td>
-                <td class="whitespace-nowrap font-bold">c2 02</td>
+                <td>33,554,432 to 536,870,911</td>
+                <td>9 bytes</td>
               </tr>
             </tbody>
           </table>
         </div>
-
-        <!-- SECTION 6 -->
-        <h2 id="sec-6">6. Wire Type Specifications (0..15)</h2>
         <p>
-          OmniBuf assigns each of the 16 4-bit wire types (<code>0..15</code>) an explicit payload
-          layout so any decoder can skip or inspect fields without external schema metadata:
+          The same type codes identify array elements and map keys and values. Collection values
+          omit field tags. Variable-length collection values still include their own byte-length
+          prefix. Boolean values are the only contextual exception, described below.
         </p>
 
-        <div class="my-5 grid sm:grid-cols-2 gap-3 font-mono text-xs sm:text-sm">
-          {[
-            {
-              id: 0,
-              sym: 'WireUint',
-              href: '#sec-6-1',
-              types: 'uint32, uint64, enum',
-              layout: '[Value (Varint)]',
-            },
-            {
-              id: 1,
-              sym: 'WireBoolFalse',
-              href: '#sec-6-2',
-              types: 'bool = false',
-              layout: '(0 value bytes)',
-            },
-            {
-              id: 2,
-              sym: 'WireBoolTrue',
-              href: '#sec-6-2',
-              types: 'bool = true',
-              layout: '(0 value bytes)',
-            },
-            {
-              id: 3,
-              sym: 'WireString',
-              href: '#sec-6-3',
-              types: 'string',
-              layout: '[ByteLen][UTF-8 Bytes]',
-            },
-            {
-              id: 4,
-              sym: 'WireBytes',
-              href: '#sec-6-3',
-              types: 'bytes',
-              layout: '[ByteLen][Raw Bytes]',
-            },
-            {
-              id: 5,
-              sym: 'WireSubMsg',
-              href: '#sec-6-4',
-              types: 'Nested message, Field #0 SchemaMeta',
-              layout: '[ByteLen][Inner Message]',
-            },
-            {
-              id: 6,
-              sym: 'WireStringArr',
-              href: '#sec-6-5',
-              types: 'repeated string, repeated bytes',
-              layout: '[ByteLen][ElemCount][Len + Bytes]...',
-            },
-            {
-              id: 7,
-              sym: 'WireUintArr',
-              href: '#sec-6-6',
-              types: 'repeated uint32, uint64, enum, bool',
-              layout: '[ByteLen][ElemCount][Elem Varints]...',
-            },
-            {
-              id: 8,
-              sym: 'WireSubMsgArr',
-              href: '#sec-6-7',
-              types: 'repeated message',
-              layout: '[ByteLen][ElemLen + Elem]...',
-            },
-            {
-              id: 9,
-              sym: 'WireMap',
-              href: '#sec-6-8',
-              types: 'map<K, V>',
-              layout: '[ByteLen][MapType (1B)][EntryCount][Key + Val]...',
-            },
-            {
-              id: 10,
-              sym: 'WireFixed32',
-              href: '#sec-6-9',
-              types: 'float, fixed32, sfixed32',
-              layout: '[4 Bytes Little-Endian]',
-            },
-            {
-              id: 11,
-              sym: 'WireFixed64',
-              href: '#sec-6-9',
-              types: 'double, fixed64, sfixed64',
-              layout: '[8 Bytes Little-Endian]',
-            },
-            {
-              id: 12,
-              sym: 'WireSint',
-              href: '#sec-6-1',
-              types: 'int32, int64, sint32, sint64',
-              layout: '[ZigZag Value (Varint)]',
-            },
-            {
-              id: 13,
-              sym: 'WireSintArr',
-              href: '#sec-6-6',
-              types: 'repeated int32, int64, sint32, sint64',
-              layout: '[ByteLen][ElemCount][ZigZag Varints]...',
-            },
-            {
-              id: 14,
-              sym: 'WireFixedArr',
-              href: '#sec-6-10',
-              types: 'repeated float, double, fixed32/64, sfixed32/64',
-              layout: '[ByteLen][ElemType (1B)][LE Elements]...',
-            },
-            {
-              id: 15,
-              sym: 'WireExtended',
-              href: '#sec-6-11',
-              types: 'Extension escape hatch',
-              layout: '[ByteLen][ExtType (1B)][ExtPayload]',
-            },
-          ].map((wt) => (
-            <a
-              href={wt.href}
-              class="group block p-3.5 bg-white border-2 border-ink rounded-md hover:bg-[#FAF8F2] hover:shadow-[3px_3px_0px_#111111] focus-visible:bg-[#FAF8F2] focus-visible:shadow-[3px_3px_0px_#111111] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink transition"
-            >
-              <div class="flex items-center justify-between gap-2 mb-1.5">
-                <div class="flex items-center gap-2">
-                  <span class="w-7 h-6 inline-flex items-center justify-center bg-ink text-acid font-bold rounded text-xs shrink-0">
-                    {wt.id}
-                  </span>
-                  <span class="font-bold text-ink text-sm sm:text-base group-hover:underline">
-                    {wt.sym}
-                  </span>
-                </div>
-                <span class="text-xs text-ink/70 group-hover:text-ink">&darr;</span>
-              </div>
-              <div class="font-sans text-xs sm:text-sm text-ink/80 mb-2">{wt.types}</div>
-              <div class="px-2.5 py-1.5 bg-[#E5E0D5]/70 border border-ink/20 rounded text-xs text-ink break-words">
-                {wt.layout}
-              </div>
-            </a>
-          ))}
+        <h2 id="sec-6">6. Wire Type Specifications</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Field payload</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wireTypes.map(([code, name, payload]) => (
+                <tr>
+                  <td>{code}</td>
+                  <td>
+                    <code>{name}</code>
+                  </td>
+                  <td>{payload}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+        <h3 id="sec-6-1">6.1 WireUint (0)</h3>
+        <pre><code>[Value: Prefix-Varint]</code></pre>
+        <p>
+          <code>WireUint = 0</code> contains one unsigned Prefix-Varint up to 64 bits wide. It uses
+          this same encoding as a field payload, an array element, and a map key or value.
+        </p>
 
-        <h3 id="sec-6-1">
-          6.1 <code>WireUint</code> (0) &amp; <code>WireSint</code> (12)
-        </h3>
+        <h3 id="sec-6-2">6.2 WireSint (1)</h3>
+        <pre><code>[ZigZag Value: Prefix-Varint]</code></pre>
+        <p>
+          <code>WireSint = 1</code> contains one ZigZag-encoded signed integer stored as a
+          Prefix-Varint. It uses this same encoding as a field payload, an array element, and a map
+          key or value.
+        </p>
+
+        <h3 id="sec-6-3">6.3 WireBoolFalse (2)</h3>
+        <p>
+          A field tag with <code>WireBoolFalse = 2</code> encodes the boolean value{' '}
+          <code>false</code> in the tag itself and carries zero payload bytes.
+        </p>
+        <p>
+          Inside an array or map header, type code <code>2</code> represents the boolean element or
+          entry type. Each boolean inside a collection is encoded as a single raw byte:
+          <code>00</code> for false or <code>01</code> for true. Collection boolean bytes are raw
+          bytes rather than Prefix-Varints, and any value other than <code>00</code> or{' '}
+          <code>01</code> is invalid.
+        </p>
+
+        <h3 id="sec-6-4">6.4 WireBoolTrue (3)</h3>
+        <p>
+          A field tag with <code>WireBoolTrue = 3</code> encodes the boolean value <code>true</code>{' '}
+          in the tag itself and carries zero payload bytes.
+        </p>
+        <p>
+          Type code <code>3</code> is only valid as a field tag wire type. It MUST NOT appear as an{' '}
+          <code>ElementType</code> in an array or as a <code>KeyType</code> or{' '}
+          <code>ValueType</code> in a map. Collections always declare boolean elements or entries
+          using code <code>2</code>.
+        </p>
+
+        <h3 id="sec-6-5">6.5 WireFixed32 (4)</h3>
+        <pre><code>[4 bytes: uint32, little-endian]</code></pre>
+        <p>
+          <code>WireFixed32 = 4</code> contains a four-byte unsigned integer in little-endian byte
+          order. Because it is distinct from <code>WireSfixed32 = 6</code> and{' '}
+          <code>WireFloat32 = 8</code>, decoders never confuse 32-bit unsigned integers with signed
+          values or floating-point numbers.
+        </p>
+
+        <h3 id="sec-6-6">6.6 WireFixed64 (5)</h3>
+        <pre><code>[8 bytes: uint64, little-endian]</code></pre>
+        <p>
+          <code>WireFixed64 = 5</code> contains an eight-byte unsigned integer in little-endian byte
+          order. It remains distinct from <code>WireSfixed64 = 7</code> and{' '}
+          <code>WireFloat64 = 9</code> in fields, arrays, and maps.
+        </p>
+
+        <h3 id="sec-6-7">6.7 WireSfixed32 (6)</h3>
+        <pre><code>[4 bytes: int32, two's-complement little-endian]</code></pre>
+        <p>
+          <code>WireSfixed32 = 6</code> contains a four-byte signed two's-complement integer in
+          little-endian byte order. It uses code <code>6</code> as a field value, an array element,
+          and a map key or value.
+        </p>
+        <Code code={fixedExamples} lang="text" />
+
+        <h3 id="sec-6-8">6.8 WireSfixed64 (7)</h3>
+        <pre><code>[8 bytes: int64, two's-complement little-endian]</code></pre>
+        <p>
+          <code>WireSfixed64 = 7</code> contains an eight-byte signed two's-complement integer in
+          little-endian byte order. It uses code <code>7</code> as a field value, an array element,
+          and a map key or value.
+        </p>
+
+        <h3 id="sec-6-9">6.9 WireFloat32 (8)</h3>
+        <pre><code>[4 bytes: IEEE-754 binary32, little-endian]</code></pre>
+        <p>
+          <code>WireFloat32 = 8</code> contains four little-endian IEEE-754 binary32 bytes. Signed
+          zero, infinities, and NaN bit patterns are valid on the wire. In arrays and maps, each{' '}
+          <code>WireFloat32</code> value occupies four consecutive bytes.
+        </p>
+
+        <h3 id="sec-6-10">6.10 WireFloat64 (9)</h3>
+        <pre><code>[8 bytes: IEEE-754 binary64, little-endian]</code></pre>
+        <p>
+          <code>WireFloat64 = 9</code> contains eight little-endian IEEE-754 binary64 bytes. Signed
+          zero, infinities, and NaN bit patterns are valid on the wire. In arrays and maps, each{' '}
+          <code>WireFloat64</code> value occupies eight consecutive bytes.
+        </p>
+
+        <h3 id="sec-6-11">6.11 WireString (10)</h3>
+        <pre><code>[ByteLen: Prefix-Varint][UTF-8 bytes]</code></pre>
+        <p>
+          <code>WireString = 10</code> contains a byte-length prefix followed by valid UTF-8 text
+          without a null terminator. It uses this same length-prefixed encoding as a field value, an
+          array element, and a map key or value.
+        </p>
+
+        <h3 id="sec-6-12">6.12 WireBytes (11)</h3>
+        <pre><code>[ByteLen: Prefix-Varint][Raw bytes]</code></pre>
+        <p>
+          <code>WireBytes = 11</code> contains a byte-length prefix followed by arbitrary raw bytes.
+          Because it has a dedicated type code distinct from <code>WireString = 10</code> in fields,
+          arrays, and maps, binary payloads never have to masquerade as UTF-8 text.
+        </p>
+
+        <h3 id="sec-6-13">6.13 WireSubMsg (12)</h3>
+        <pre><code>[ByteLen: Prefix-Varint][Message field stream]</code></pre>
+        <p>
+          <code>WireSubMsg = 12</code> contains a byte-length prefix followed by a nested message
+          field stream. Its fields obey the same rules as root fields. A zero-length payload
+          represents a present, empty message. Array elements and map values of message type use
+          this same length-prefixed encoding.
+        </p>
+
+        <h3 id="sec-6-14">6.14 WireArray (13)</h3>
+        <pre><code>[Tag: WireArray]
+[ByteLen: Prefix-Varint][ElementType: 1 byte][Count: Prefix-Varint][Element_0]…[Element_N-1]
+                       |&lt;------------------- ByteLen bytes -----------------------------&gt;|</code></pre>
+        <p>
+          Every array uses <code>WireArray = 13</code>. Its element type appears once before the
+          element count. All elements use that type's value encoding without per-element field tags.
+          ByteLen covers <code>ElementType</code>, <code>Count</code>, and all encoded elements,
+          while excluding its own prefix and the outer field tag.
+        </p>
         <ul>
           <li>
-            <strong>
-              <code>WireUint</code> (0):
-            </strong>{' '}
-            Unsigned integer (<code>uint32</code>, <code>uint64</code>, <code>enum</code>) written
-            as a single Prefix-Varint right after the tag.
+            ElementType is a single byte containing a wire type code from the table. Its high four
+            bits MUST be zero. Code 3 is invalid here, so boolean arrays use code 2.
           </li>
           <li>
-            <strong>
-              <code>WireSint</code> (12):
-            </strong>{' '}
-            Signed integer (<code>int32</code>, <code>int64</code>, <code>sint32</code>,{' '}
-            <code>sint64</code>) ZigZag-mapped and written as a single Prefix-Varint right after the
-            tag.
+            Count is required for every element type, including messages and fixed-width values.
+            Count zero is valid and still requires an element type byte.
           </li>
+          <li>Strings, bytes, and messages retain an individual byte-length prefix per element.</li>
+          <li>Fixed-width values are packed consecutively without alignment padding.</li>
+          <li>Decoders MUST consume exactly Count elements and exactly ByteLen bytes.</li>
         </ul>
-        <pre><code><span class="text-paper/75">// Example 1: Field #1 (asn = 64512, WireUint = 0)</span>
-<span class="text-acid font-bold">21</span>   <span class="text-paper font-bold">04 e0 07 00</span>
-<span class="text-acid">Tag</span>  <span class="text-paper/85">64512 as 4B Prefix-Varint (LE32: 0x0007E004 &gt;&gt; 3)</span>
-
-<span class="text-paper/75">// Example 2: Field #5 (rssi_dbm = -62, WireSint = 12)</span>
-<span class="text-acid font-bold">b9</span>   <span class="text-paper font-bold">f7</span>
-<span class="text-acid">Tag</span>  <span class="text-paper/85">-62 -&gt; ZigZag 123 -&gt; 1B Prefix-Varint (0xF7 &gt;&gt; 1 = 123)</span></code></pre>
-
-        <h3 id="sec-6-2">
-          6.2 <code>WireBoolFalse</code> (1) &amp; <code>WireBoolTrue</code> (2)
-        </h3>
+        <Code code={arrayExamples} lang="text" />
         <p>
-          Booleans consume <strong>0 payload bytes</strong> after the tag; the boolean value is
-          carried directly in the 4-bit wire type (<code>1 = false</code>, <code>2 = true</code>).
+          Arrays and maps can also nest inside an array. An array of arrays uses{' '}
+          <code>ElementType = 13</code>, where each inner array carries its own ByteLen,
+          ElementType, Count, and elements. An array of maps uses <code>ElementType = 14</code>,
+          where each inner map carries its own ByteLen, KeyType, ValueType, Count, and entries.
         </p>
-        <pre><code><span class="text-acid font-bold">65</span>   <span class="text-paper/85">// Field #3 = true  ((3 &lt;&lt; 4) | 2 = 50 -&gt; 0x65)</span>
-<span class="text-acid font-bold">63</span>   <span class="text-paper/85">// Field #3 = false ((3 &lt;&lt; 4) | 1 = 49 -&gt; 0x63)</span></code></pre>
+        <Code code={nestedArrayExample} lang="text" />
 
-        <h3 id="sec-6-3">
-          6.3 <code>WireString</code> (3) &amp; <code>WireBytes</code> (4)
-        </h3>
+        <h3 id="sec-6-15">6.15 WireMap (14)</h3>
+        <pre><code>[Tag: WireMap]
+[ByteLen: Prefix-Varint][KeyType: 1 byte][ValueType: 1 byte][Count: Prefix-Varint][Key_0][Value_0]…
+                       |&lt;----------------------- ByteLen bytes ------------------------&gt;|</code></pre>
         <p>
-          The tag is followed by <code>[ByteLen (Prefix-Varint)]</code> and{' '}
-          <code>[ByteLen raw bytes]</code>. Strings are UTF-8 encoded without a NUL terminator.
+          Every map uses <code>WireMap = 14</code>. Two type bytes (<code>KeyType</code> followed by{' '}
+          <code>ValueType</code>) declare its key and value types once using the same 1-byte codes
+          as fields and array elements (with the high four bits of each byte set to zero). Entries
+          omit field tags and synthetic entry-message wrappers. Each entry contains one key
+          immediately followed by one value. ByteLen covers <code>KeyType</code>,{' '}
+          <code>ValueType</code>, <code>Count</code>, and all encoded entries.
         </p>
-        <pre><code><span class="text-acid font-bold">47</span>   <span class="text-[#FF4F18] font-bold">09</span>     <span class="text-paper font-bold">72 74 72 31</span>
-<span class="text-acid">Tag</span>  <span class="text-[#FF4F18]">Len=4</span>  <span class="text-paper/85">"rtr1" (Field #2, 4 UTF-8 bytes)</span></code></pre>
-
-        <h3 id="sec-6-4">
-          6.4 <code>WireSubMsg</code> (5)
-        </h3>
-        <p>
-          <code>WireSubMsg</code> encodes a nested message as{' '}
-          <code>[ByteLen (Prefix-Varint)][Inner Message Bytes]</code>. Single-pass encoders reserve
-          a 2-byte Prefix-Varint slot (<code>TZCNT = 1</code>) for <code>ByteLen</code> and patch it
-          after writing the nested fields; decoders accept any valid Prefix-Varint width.
-        </p>
-        <pre><code><span class="text-paper/75">// Inner Location message (city = "FRA" at #3, rack = 42 at #4):</span>
-<span class="text-acid font-bold">67</span> <span class="text-[#FF4F18]">07</span> <span class="text-paper">46 52 41</span>   <span class="text-paper/75">// #3: "FRA" (5 bytes)</span>
-<span class="text-acid font-bold">81</span> <span class="text-paper">55</span>            <span class="text-paper/75">// #4: 42    (2 bytes)</span>
-
-<span class="text-paper/75">// Outer Field #9 wrapping the 7-byte inner message:</span>
-<span class="text-acid font-bold">56 02</span>  <span class="text-[#FF4F18] font-bold">1e 00</span>  <span class="text-paper font-bold">67 07 46 52 41 81 55</span>
-<span class="text-acid">Tag#9</span>  <span class="text-[#FF4F18]">Len=7</span>  <span class="text-paper/85">Inner Sub-Message (7 bytes)</span></code></pre>
-
-        <h3 id="sec-6-5">
-          6.5 <code>WireStringArr</code> (6)
-        </h3>
-        <p>
-          <code>WireStringArr</code> encodes <code>repeated string</code> or{' '}
-          <code>repeated bytes</code> with an outer <code>ByteLen</code> prefix followed by{' '}
-          <code>ElemCount</code> and each length-prefixed element, so a reader can skip the entire
-          list in one addition (<code>pos += ByteLen</code>):
-        </p>
-        <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemCount] [StrLen_0][Bytes_0] ... [StrLen_N-1][Bytes_N-1]</span>
-
-<span class="text-paper/75">// Example: Field #7 (tags = ["a", "bc"])</span>
-<span class="text-acid font-bold">ed</span>   <span class="text-[#FF4F18] font-bold">1a 00</span>  <span class="text-acid">05</span>   <span class="text-paper">03 61</span>   <span class="text-paper">05 62 63</span>
-<span class="text-acid">Tag</span>  <span class="text-[#FF4F18]">Len=6</span>  <span class="text-acid">N=2</span>  <span class="text-paper/85">"a"     "bc"</span></code></pre>
-
-        <h3 id="sec-6-6">
-          6.6 <code>WireUintArr</code> (7) &amp; <code>WireSintArr</code> (13)
-        </h3>
-        <p>
-          These wire types encode a packed array of unsigned (<code>WireUintArr</code>) or
-          ZigZag-signed (<code>WireSintArr</code>) varints with an outer <code>ByteLen</code> prefix
-          and <code>ElemCount</code>:
-        </p>
-        <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemCount] [Elem_0] ... [Elem_N-1]</span>
-
-<span class="text-paper/75">// Example: Field #8 (prefixes = [10, 300])</span>
-<span class="text-acid font-bold">1e 02</span>  <span class="text-[#FF4F18] font-bold">12 00</span>  <span class="text-acid">05</span>   <span class="text-paper">15</span>  <span class="text-paper">b2 04</span>
-<span class="text-acid">Tag#8</span>  <span class="text-[#FF4F18]">Len=4</span>  <span class="text-acid">N=2</span>  <span class="text-paper/85">10  300</span></code></pre>
-
-        <h3 id="sec-6-7">
-          6.7 <code>WireSubMsgArr</code> (8)
-        </h3>
-        <p>
-          <code>WireSubMsgArr</code> encodes <code>repeated message</code> inside a single outer{' '}
-          <code>ByteLen</code> container followed by length-prefixed sub-message elements:
-        </p>
-        <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemLen_0][Elem_0] ... [ElemLen_N-1][Elem_N-1]</span>
-<span class="text-paper/75">                         |&lt;-------------- ByteLen bytes --------------&gt;|</span></code></pre>
         <ul>
           <li>
-            Each element <code>i</code> starts with its byte length <code>ElemLen_i</code>{' '}
-            (Prefix-Varint) followed by <code>ElemLen_i</code> bytes of the element message.
+            KeyType MUST be unsigned integer (0), signed integer (1), boolean (2), unsigned fixed32
+            (4), unsigned fixed64 (5), signed fixed32 (6), signed fixed64 (7), or string (10).
           </li>
           <li>
-            The sum of all <code>len(ElemLen_i) + ElemLen_i</code> across elements MUST equal{' '}
-            <code>ByteLen</code>.
+            ValueType may be any value type except code 3. Nested arrays (13) and maps (14) are
+            encoded recursively using their own length-prefixed headers.
+          </li>
+          <li>
+            Count is the number of encoded entries, including duplicate keys. Zero entries are
+            valid.
+          </li>
+          <li>
+            Duplicate keys use last-entry-wins semantics. Repeated map fields merge entries.
+            Duplicate message-valued entries replace the earlier message rather than merging it.
+          </li>
+          <li>
+            Map entries may appear in any order. Deterministic encoders SHOULD sort keys by value.
           </li>
         </ul>
+        <Code code={mapExample} lang="text" />
 
-        <h3 id="sec-6-8">
-          6.8 <code>WireMap</code> (9)
-        </h3>
+        <h3 id="sec-6-16">6.16 WireExtended (15)</h3>
+        <pre><code>[ByteLen: Prefix-Varint][ExtType: 1 byte][Extension payload]</code></pre>
         <p>
-          <code>WireMap</code> encodes <code>map&lt;K, V&gt;</code> directly inside one
-          length-prefixed container without synthetic <code>MapEntry</code> wrapper sub-messages:
+          <code>WireExtended = 15</code> reserves an escape hatch for future value types. ByteLen
+          MUST be at least one and includes <code>ExtType</code>. This draft assigns no extension
+          subtypes. Unknown extensions remain skippable by their outer byte length. A reader asked
+          to interpret an unknown extension MUST return an unsupported-type error rather than guess
+          its meaning. Each extension value in an array or map includes its own length and subtype.
         </p>
-        <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [MapType (1B)] [EntryCount] [Key_0][Val_0] ...</span>
-<span class="text-paper/75">                         |&lt;-------------- ByteLen bytes -------------&gt;|</span></code></pre>
+
+        <h2 id="sec-7">7. Field Lookup &amp; Validation</h2>
+        <p>
+          A field scanner reads a tag, determines its scalar width or container byte length, and
+          advances to the next field. Skipping a container does not require visiting its elements.
+          Locating a field is linear in the number of field headers examined, with constant-time
+          skipping per field rather than constant-time random access.
+        </p>
+        <p>
+          Lookup APIs MUST state whether they return the last occurrence, all occurrences, or a
+          merged value. Returning only the last message or array occurrence does not implement
+          recursive message merge or array concatenation.
+        </p>
+        <p>
+          Bounds-checked skipping and full validation are distinct operations. A scanner MAY skip a
+          bounded container without validating its contents. A full validating decoder MUST validate
+          all core-type contents, even in unknown fields. APIs that skip unknown contents MUST
+          document that they do not perform full packet validation.
+        </p>
+
+        <h2 id="sec-8">8. Optional Naming Metadata (Field #0)</h2>
+        <h3 id="sec-8-1">8.1 SchemaMeta Definition</h3>
+        <p>
+          Field #0 MUST be a WireSubMsg containing this message, encoded using OmniBuf rather than
+          protobuf wire bytes. Names are optional because scalar and collection types are already
+          carried by their value encodings. No logical-type correction table is needed.
+        </p>
+        <Code code={sec8MetaProtoCode} lang="proto" />
+        <h3 id="sec-8-2">8.2 Placement &amp; Interpretation</h3>
+        <p>
+          Encoders SHOULD put Field #0 first. Decoders MUST accept it anywhere, including multiple
+          occurrences after concatenation. Metadata applies by numeric field ID, not by the position
+          of a field in a packet. A blind reader SHOULD resolve the merged metadata before assigning
+          output names, so late metadata does not create duplicate output keys for one field.
+        </p>
+        <p>
+          Without names, a blind reader can use keys such as <code>field_1</code>. Metadata does not
+          reconstruct omitted values, enum labels, oneof membership, or application-specific
+          meaning. Names are presentation metadata and MUST NOT change which numeric fields merge. A
+          reader MUST avoid silently overwriting distinct fields when their supplied names collide.
+        </p>
+        <h3 id="sec-8-3">8.3 Names for Collection Contents</h3>
+        <p>
+          The <code>children</code> map stores the naming metadata for a field's message values
+          once. For arrays and map values, that metadata is inherited through nested collections
+          until a message value is reached. It is not repeated for every element. An element's own
+          Field #0 may refine its inherited names. If collection contents have different message
+          schemas, they can carry their own naming metadata.
+        </p>
+        <h3 id="sec-8-4">8.4 Metadata Merge</h3>
+        <p>
+          Later nonempty type names and later field-name entries override earlier ones. Child
+          metadata for the same numeric field merges recursively. This recursive merge of
+          <code>children</code> is a SchemaMeta-specific rule, while ordinary map entries still
+          replace their entire values. Field #0 MUST be structurally valid, even when a decoder
+          already has an external schema.
+        </p>
+
+        <h2 id="sec-9">9. Complete Message Example</h2>
+        <Code code={sec9ProtoCode} lang="proto" />
+        <Code code={nodeExample} lang="text" />
+        <p>
+          The seven-byte Location body has a two-byte reserved length prefix. The root message
+          occupies 15 bytes. A reader can skip Location directly from its length, or decode its
+          fields without knowing the schema, and Field #0 can add field names to that inspection.
+        </p>
+
+        <h2 id="sec-10">10. Validity &amp; Rejection Rules</h2>
         <ul>
           <li>
-            <strong>
-              1-Byte <code>MapType</code> Header:
-            </strong>{' '}
-            Encodes <code>(KeyWireType &lt;&lt; 4) | ValWireType</code>:
-            <ul>
-              <li>
-                <code>KeyWireType</code>: <code>WireUint</code> (0), <code>WireString</code> (3),{' '}
-                <code>WireFixed32</code> (10), <code>WireFixed64</code> (11), or{' '}
-                <code>WireSint</code> (12).
-              </li>
-              <li>
-                <code>ValWireType</code>: <code>WireUint</code> (0), <code>WireString</code> (3),{' '}
-                <code>WireBytes</code> (4), <code>WireSubMsg</code> (5), <code>WireFixed32</code>{' '}
-                (10), <code>WireFixed64</code> (11), or <code>WireSint</code> (12).
-              </li>
-            </ul>
+            Reject truncated tags, scalar payloads, and length or count prefixes, invalid prefix
+            patterns, and field numbers outside the defined range. Check lengths before converting
+            to a platform-sized integer or adding them to an offset.
           </li>
           <li>
-            <strong>Minimum Container Length:</strong> Because every <code>WireMap</code> includes
-            the 1-byte <code>MapType</code> and at least 1 byte for <code>EntryCount</code>,{' '}
-            <code>ByteLen</code> MUST be at least 2.
+            For every length-prefixed value, require
+            <code>byteLen &lt;= remainingBytes</code> after consuming the length prefix. Nested
+            values MUST stay within their own enclosing container, not merely the root packet.
           </li>
           <li>
-            <strong>Untagged Entries &amp; Unordered Keys:</strong> Each entry writes the raw
-            payload of <code>KeyWireType</code> followed by the raw payload of{' '}
-            <code>ValWireType</code>. Keys may appear in any order; duplicate keys follow "last
-            write wins".
+            An array body MUST contain ElementType and Count. Validate its type even when Count is
+            zero. Reject invalid element codes, invalid boolean bytes, mismatched counts, and
+            trailing bytes. For fixed-width elements require
+            <code>count == remainingBytes / width</code> and
+            <code>remainingBytes % width == 0</code>.
+          </li>
+          <li>
+            Before allocating variable-width array elements, require
+            <code>count &lt;= remainingBytes</code>. Every value encoding consumes at least one
+            byte. Then parse exactly Count elements and require an exact end boundary.
+          </li>
+          <li>
+            A map body MUST contain KeyType, ValueType, and Count. Validate both type bytes even
+            when empty. Before allocating entries, require{' '}
+            <code>count &lt;= remainingBytes / 2</code>. Use division rather than multiplying an
+            attacker-controlled count, which can overflow. Parse exactly Count entries and require
+            an exact end boundary.
+          </li>
+          <li>Strings MUST contain valid UTF-8. Arbitrary binary data MUST use WireBytes.</li>
+          <li>
+            Field #0 MUST use WireSubMsg and contain valid SchemaMeta. Its fields map uses
+            <code>KeyType = 0x00, ValueType = 0x0A</code> and its children map uses{' '}
+            <code>KeyType = 0x00, ValueType = 0x0C</code>.
+          </li>
+          <li>
+            Decoders MUST enforce a nesting limit. The default is 32 nested containers below the
+            root, counting messages, arrays, and maps, including nested collections. Metadata
+            parsing MUST also have a bounded recursion limit.
+          </li>
+          <li>
+            Implementations SHOULD provide message-size and allocation limits. A valid uint64 length
+            is not authorization to allocate that much memory.
           </li>
         </ul>
-
-        <h3 id="sec-6-9">
-          6.9 <code>WireFixed32</code> (10) &amp; <code>WireFixed64</code> (11)
-        </h3>
-        <ul>
-          <li>
-            <strong>
-              <code>WireFixed32</code> (10):
-            </strong>{' '}
-            4 bytes in little-endian order (<code>float</code>, <code>fixed32</code>,{' '}
-            <code>sfixed32</code>).
-          </li>
-          <li>
-            <strong>
-              <code>WireFixed64</code> (11):
-            </strong>{' '}
-            8 bytes in little-endian order (<code>double</code>, <code>fixed64</code>,{' '}
-            <code>sfixed64</code>).
-          </li>
-        </ul>
-        <pre><code><span class="text-paper/75">// Example: Field #6 (cpu_load = 0.5 as float64)</span>
-<span class="text-acid font-bold">d7</span>   <span class="text-paper font-bold">00 00 00 00 00 00 e0 3f</span>
-<span class="text-acid">Tag</span>  <span class="text-paper/85">IEEE-754 0.5 (8 bytes little-endian)</span></code></pre>
-
-        <h3 id="sec-6-10">
-          6.10 <code>WireFixedArr</code> (14)
-        </h3>
         <p>
-          <code>WireFixedArr</code> encodes a packed array of fixed-width 32-bit or 64-bit
-          little-endian elements with an outer <code>ByteLen</code> prefix and a 1-byte{' '}
-          <code>ElemType</code> header:
+          Unknown field numbers do not make a packet invalid. Unknown core fields can be inspected
+          or skipped using their wire types. Unknown extensions can be skipped by length, but cannot
+          be interpreted without their extension definition. Implementations MUST document whether
+          unknown fields survive decode and re-encode.
         </p>
-        <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ElemType (1B: 10 or 11)] [Little-Endian Elements...]</span>
-<span class="text-paper/75">                         |&lt;------------------ ByteLen bytes -----------------&gt;|</span></code></pre>
-        <ul>
-          <li>
-            <code>ElemType = 10</code> (<code>WireFixed32</code>): The header is followed by{' '}
-            <code>(ByteLen - 1) / 4</code> 4-byte elements.
-          </li>
-          <li>
-            <code>ElemType = 11</code> (<code>WireFixed64</code>): The header is followed by{' '}
-            <code>(ByteLen - 1) / 8</code> 8-byte elements.
-          </li>
-        </ul>
 
-        <h3 id="sec-6-11">
-          6.11 <code>WireExtended</code> (15)
-        </h3>
-        <p>
-          <code>WireExtended</code> reserves wire type 15 as a length-prefixed extension escape
-          hatch capable of expressing up to 256 extended wire types while remaining skippable in{' '}
-          <code>O(1)</code> time:
-        </p>
-        <pre><code><span class="text-paper/75">Layout:  [Tag] [ByteLen] [ExtType (1B: 0..255)] [ExtPayload (ByteLen - 1 bytes)]</span>
-<span class="text-paper/75">                         |&lt;------------------- ByteLen bytes -----------------&gt;|</span></code></pre>
-        <ul>
-          <li>
-            Because <code>WireExtended</code> starts with <code>ByteLen</code> just like every other
-            container, existing decoders can skip unknown extended fields in a single jump (
-            <code>pos += ByteLen</code>).
-          </li>
-        </ul>
-
-        <!-- SECTION 7 -->
-        <h2 id="sec-7">
-          7. Branchless <code>TZCNT</code> Header-Hop Field Lookup (<code>LocateField</code>)
-        </h2>
-        <p>
-          In Protocol Buffers, skipping a preceding varint field requires a byte-by-byte loop. In
-          OmniBuf, every scalar width is known from <code>b[0]</code>, booleans are 0 value bytes,
-          and every container starts with <code>ByteLen</code>, so <code>LocateField</code> jumps
-          across fields in <code>O(1)</code> time per field:
-        </p>
-        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
-          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">O(1) Header-Hop Field Lookup</div>
-            <button
-              type="button"
-              data-copy={locateFieldGoCode}
-              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-            >
-              Copy
-            </button>
-          </div>
-          <Code code={locateFieldGoCode} lang="go" theme="github-dark" />
+        <h2 id="sec-11">11. Schema Mapping &amp; Conformance</h2>
+        <h3 id="sec-11-1">11.1 Schema Mapping</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Protobuf schema kind</th>
+                <th>OmniBuf wire type</th>
+                <th>Collection &amp; value notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <code>uint32</code>
+                </td>
+                <td>
+                  <code>WireUint (0)</code>
+                </td>
+                <td>Unsigned Prefix-Varint (must fit in 32 bits)</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>uint64</code>
+                </td>
+                <td>
+                  <code>WireUint (0)</code>
+                </td>
+                <td>Unsigned Prefix-Varint (up to 64 bits)</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>int32</code>
+                </td>
+                <td>
+                  <code>WireSint (1)</code>
+                </td>
+                <td>ZigZag Prefix-Varint (must fit in signed 32 bits)</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>int64</code>
+                </td>
+                <td>
+                  <code>WireSint (1)</code>
+                </td>
+                <td>ZigZag Prefix-Varint (up to signed 64 bits)</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>sint32</code>
+                </td>
+                <td>
+                  <code>WireSint (1)</code>
+                </td>
+                <td>ZigZag Prefix-Varint (must fit in signed 32 bits)</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>sint64</code>
+                </td>
+                <td>
+                  <code>WireSint (1)</code>
+                </td>
+                <td>ZigZag Prefix-Varint (up to signed 64 bits)</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>enum</code>
+                </td>
+                <td>
+                  <code>WireSint (1)</code>
+                </td>
+                <td>ZigZag Prefix-Varint (signed 32-bit enum number)</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>bool</code>
+                </td>
+                <td>
+                  <code>WireBoolFalse (2)</code> / <code>WireBoolTrue (3)</code>
+                </td>
+                <td>
+                  Zero payload bytes in field tags, or type code <code>2</code> with 1 raw byte (
+                  <code>00</code> or <code>01</code>) in arrays and maps
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>fixed32</code>
+                </td>
+                <td>
+                  <code>WireFixed32 (4)</code>
+                </td>
+                <td>4-byte little-endian unsigned integer</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>fixed64</code>
+                </td>
+                <td>
+                  <code>WireFixed64 (5)</code>
+                </td>
+                <td>8-byte little-endian unsigned integer</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>sfixed32</code>
+                </td>
+                <td>
+                  <code>WireSfixed32 (6)</code>
+                </td>
+                <td>4-byte little-endian two's-complement signed integer</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>sfixed64</code>
+                </td>
+                <td>
+                  <code>WireSfixed64 (7)</code>
+                </td>
+                <td>8-byte little-endian two's-complement signed integer</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>float</code>
+                </td>
+                <td>
+                  <code>WireFloat32 (8)</code>
+                </td>
+                <td>4-byte little-endian IEEE-754 binary32 float</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>double</code>
+                </td>
+                <td>
+                  <code>WireFloat64 (9)</code>
+                </td>
+                <td>8-byte little-endian IEEE-754 binary64 float</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>string</code>
+                </td>
+                <td>
+                  <code>WireString (10)</code>
+                </td>
+                <td>ByteLen Prefix-Varint followed by valid UTF-8 bytes</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>bytes</code>
+                </td>
+                <td>
+                  <code>WireBytes (11)</code>
+                </td>
+                <td>ByteLen Prefix-Varint followed by raw bytes</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>message</code>
+                </td>
+                <td>
+                  <code>WireSubMsg (12)</code>
+                </td>
+                <td>ByteLen Prefix-Varint followed by nested field stream</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>repeated T</code>
+                </td>
+                <td>
+                  <code>WireArray (13)</code>
+                </td>
+                <td>
+                  ByteLen + <code>ElementType</code> (T's wire type code, using <code>2</code> for
+                  bool) + <code>Count</code> + elements
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <code>map&lt;K, V&gt;</code>
+                </td>
+                <td>
+                  <code>WireMap (14)</code>
+                </td>
+                <td>
+                  ByteLen + <code>KeyType</code> (1 byte) + <code>ValueType</code> (1 byte) +{' '}
+                  <code>Count</code> + key/value pairs
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-
-        <!-- SECTION 8 -->
-        <h2 id="sec-8">
-          8. Optional Inline Schema (<code>Field #0</code>, <code>omnibuf.v1.SchemaMeta</code>)
-        </h2>
         <p>
-          When self-describing mode is enabled, <strong>Field #0</strong> (<code>Tag = 0x0B</code>,{' '}
-          <code>WireSubMsg = 5</code>) is written at byte 0 of the message as a standard OmniBuf
-          sub-message encoding <code>omnibuf.v1.SchemaMeta</code>.
+          Implementations MUST preserve explicit presence and active oneof members, including
+          present zero values. Unsupported schema features MUST produce a clear error rather than
+          silently dropping data. Using protobuf schemas does not make OmniBuf bytes protobuf-wire
+          compatible. Language libraries and generators MUST document their supported schema subset.
+        </p>
+        <h3 id="sec-11-2">11.2 Conformance Requirements</h3>
+        <p>
+          Each implementation should exercise independent wire fixtures and cross-path round trips
+          for the current draft. Generated codecs, descriptor-based codecs, plain-struct codecs, and
+          blind readers MUST agree on value encodings wherever their supported features overlap.
+          Tests MUST cover:
         </p>
         <ul>
+          <li>Every scalar type, prefix width, non-minimal prefix, and field-number boundary.</li>
           <li>
-            <strong>Zero-Cost Skipping for Schema-Aware Decoders:</strong> Because Field #0 is a
-            normal <code>WireSubMsg</code> starting with <code>ByteLen</code>, schema-aware decoders
-            read <code>ByteLen</code> and jump over the entire metadata block in one addition.
+            Every valid array element type, empty arrays, arrays of arrays, arrays of maps, and maps
+            containing arrays or maps.
+          </li>
+          <li>Distinct string/bytes and float/fixed/sfixed interpretations without Field #0.</li>
+          <li>
+            Recursive message merges, nested repeated fields, duplicate map keys, late metadata, and
+            present oneof zero values.
           </li>
           <li>
-            <strong>
-              Extensible via <code>.proto</code>:
-            </strong>{' '}
-            Because <code>SchemaMeta</code> is a normal Protobuf message (
-            <code>proto/omnibuf/v1/meta.proto</code>), future optional metadata fields can be added
-            without changing the wire format.
-          </li>
-        </ul>
-
-        <h3 id="sec-8-1">
-          8.1 <code>omnibuf.v1.SchemaMeta</code> Definition (<code>meta.proto</code>)
-        </h3>
-        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
-          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">proto/omnibuf/v1/meta.proto</div>
-            <button
-              type="button"
-              data-copy={sec8MetaProtoCode}
-              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-            >
-              Copy
-            </button>
-          </div>
-          <Code code={sec8MetaProtoCode} lang="protobuf" theme="github-dark" />
-        </div>
-        <ul>
-          <li>
-            <strong>
-              Keyed by FieldNumber (<code>fields = 2</code>):
-            </strong>{' '}
-            Maps each field number to its name (<code>1 &rarr; "id"</code>), so omitted optional
-            fields never shift field names.
-          </li>
-          <li>
-            <strong>
-              Hoisted Child Schemas (<code>children = 3</code>):
-            </strong>{' '}
-            Maps a parent field number (for a nested sub-message, sub-message array, or map value)
-            to its child <code>SchemaMeta</code> so repeated sub-messages only encode their field
-            names once.
+            Counts near integer limits, mismatched byte lengths, malformed empty collections,
+            invalid UTF-8, nesting limits, and unsupported extensions.
           </li>
         </ul>
-
-        <h3 id="sec-8-2">
-          8.2 Single Message Wire Encoding with <code>Field #0</code>
-        </h3>
         <p>
-          Consider a <code>Location</code> message (<code>city = "FRA"</code> at #3,{' '}
-          <code>rack = 42</code> at #4) encoded with <code>Field #0</code> (
-          <code>type_name = "Location"</code>,{' '}
-          <code>fields = &#123;3: "city", 4: "rack"&#125;</code>):
+          This draft changes the wire layout. Earlier fixtures and benchmark results must be
+          regenerated before they are used as evidence for this design. Performance comparisons
+          should identify the codec, allocation and ownership policy, workload, and validation work.
         </p>
-
-        <!-- Responsive Annotated Byte Breakdown (No Cramped Mobile Columns) -->
-        <div class="my-4 border-2 border-ink rounded-md bg-white overflow-hidden">
-          <div class="bg-[#E5E0D5] border-b-2 border-ink px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 font-mono text-xs font-bold uppercase">
-            <span>Annotated Wire Dump (39 Bytes Total)</span>
-            <div class="flex flex-wrap items-center gap-3">
-              <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-ink border border-ink inline-block rounded-sm"></span> Tag
-              </span>
-              <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-[#E5E0D5] border border-ink inline-block rounded-sm"></span>{' '}
-                Length
-              </span>
-              <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-acid/45 border border-ink inline-block rounded-sm"></span>{' '}
-                Value
-              </span>
-            </div>
-          </div>
-          <div class="divide-y divide-ink/15 font-mono text-xs sm:text-sm">
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start">
-              <div class="sm:col-span-5 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x00</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">0b</span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  6e 00
-                </span>
-              </div>
-              <div class="sm:col-span-7 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Field #0 Header (SchemaMeta, WireSubMsg = 5)</div>
-                <div>
-                  Tag <code>0x0B</code> (Field #0, SubMsg) + 2B length <code>6e 00</code> (27 bytes)
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start bg-[#FAF8F2]/60">
-              <div class="sm:col-span-5 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x03</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">27</span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  11
-                </span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  4c 6f 63 61 74 69 6f 6e
-                </span>
-              </div>
-              <div class="sm:col-span-7 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">SchemaMeta #1: type_name = "Location"</div>
-                <div>
-                  Tag <code>0x27</code> (Field #1, String) + length <code>0x11</code> (8 bytes) +
-                  UTF-8 <code>"Location"</code>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start">
-              <div class="sm:col-span-5 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x0D</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">53</span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  3a 00
-                </span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  03 05
-                </span>
-              </div>
-              <div class="sm:col-span-7 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">SchemaMeta #2: fields Map Header (WireMap = 9)</div>
-                <div>
-                  Tag <code>0x53</code> + length <code>3a 00</code> (14B) + MapType{' '}
-                  <code>0x03</code> (uint &rarr; string) + EntryCount <code>0x05</code> (2 entries)
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start bg-[#FAF8F2]/60">
-              <div class="sm:col-span-5 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x12</span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  07
-                </span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  09
-                </span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  63 69 74 79
-                </span>
-              </div>
-              <div class="sm:col-span-7 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Map Entry 1: 3 &rarr; "city"</div>
-                <div>
-                  Key <code>0x07</code> (Field 3) + length <code>0x09</code> (4 bytes) +{' '}
-                  <code>"city"</code>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start">
-              <div class="sm:col-span-5 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x18</span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  09
-                </span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  09
-                </span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  72 61 63 6b
-                </span>
-              </div>
-              <div class="sm:col-span-7 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Map Entry 2: 4 &rarr; "rack"</div>
-                <div>
-                  Key <code>0x09</code> (Field 4) + length <code>0x09</code> (4 bytes) +{' '}
-                  <code>"rack"</code>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start bg-[#FAF8F2]/60">
-              <div class="sm:col-span-5 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x1E</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">67</span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  07
-                </span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  46 52 41
-                </span>
-              </div>
-              <div class="sm:col-span-7 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Data Field #3: city = "FRA"</div>
-                <div>
-                  Tag <code>0x67</code> (Field #3, String) + length <code>0x07</code> (3 bytes) +{' '}
-                  <code>"FRA"</code>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start">
-              <div class="sm:col-span-5 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x23</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">81</span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  55
-                </span>
-              </div>
-              <div class="sm:col-span-7 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Data Field #4: rack = 42</div>
-                <div>
-                  Tag <code>0x81</code> (Field #4, Uint) + value <code>0x55</code> (42)
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h3 id="sec-8-3">
-          8.3 <code>repeated message</code> (<code>WireSubMsgArr</code>) Without Field-Name
-          Duplication
-        </h3>
-        <p>
-          In JSON, an array of 10,000 objects repeats the key strings <code>"city"</code> and{' '}
-          <code>"rack"</code> 10,000 times. In OmniBuf, the parent message's <code>Field #0</code>{' '}
-          places the child schema in <code>children[fieldNum]</code> <strong>once</strong>, and all
-          10,000 elements in the <code>WireSubMsgArr</code> carry only compact numeric tags and
-          values:
-        </p>
-        <pre><code><span class="text-paper/75">// 1. Stored ONCE in Parent Field #0:</span>
-children[10] = &#123;
-  type_name: "Neighbor",
-  fields:    &#123; 1: "peer_asn", 2: "router", 3: "latency_us", 4: "established" &#125;
-&#125;
-
-<span class="text-paper/75">// 2. Data Field #10 (WireSubMsgArr, N = 10,000 elements):</span>
-[ElemLen_0][Elem_0: compact tags + values, 0 repeated field names]
-[ElemLen_1][Elem_1: compact tags + values, 0 repeated field names]
-...</code></pre>
-
-        <h3 id="sec-8-4">
-          8.4 Raw Concatenation (<code>append(msgA, msgB...)</code>) with <code>Field #0</code>
-        </h3>
-        <p>
-          Because <code>Field #0</code> is a regular <code>WireSubMsg</code> (5) whose maps use{' '}
-          <code>WireMap</code> (9), concatenating two self-describing packets (
-          <code>append(msgA, msgB...)</code>) works without special framing: when{' '}
-          <code>DecodeBlind</code> sees a second <code>Field #0</code> later in the stream, it
-          merges the new <code>SchemaMeta</code> into the active schema.
-        </p>
-
-        <!-- SECTION 9 -->
-        <h2 id="sec-9">9. Complete End-to-End Annotated Wire Example</h2>
-        <div class="my-4 p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
-          <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">Example Schema</div>
-            <button
-              type="button"
-              data-copy={sec9ProtoCode}
-              class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-            >
-              Copy
-            </button>
-          </div>
-          <Code code={sec9ProtoCode} lang="protobuf" theme="github-dark" />
-        </div>
-
-        <div class="my-4 border-2 border-ink rounded-md bg-white overflow-hidden">
-          <div class="bg-[#E5E0D5] border-b-2 border-ink px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 font-mono text-xs font-bold uppercase">
-            <span>Encoded Node Packet (15 Bytes Total)</span>
-            <div class="flex flex-wrap items-center gap-3">
-              <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-ink border border-ink inline-block rounded-sm"></span> Tag
-              </span>
-              <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-[#E5E0D5] border border-ink inline-block rounded-sm"></span>{' '}
-                Length
-              </span>
-              <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 bg-acid/45 border border-ink inline-block rounded-sm"></span>{' '}
-                Value
-              </span>
-            </div>
-          </div>
-          <div class="divide-y divide-ink/15 font-mono text-xs sm:text-sm">
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start">
-              <div class="sm:col-span-4 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x00</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">21</span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  b2 04
-                </span>
-              </div>
-              <div class="sm:col-span-8 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Field #1: id = 300</div>
-                <div>
-                  Tag <code>0x21</code> (Field #1, WireUint) + 2B varint <code>b2 04</code> (300)
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start bg-[#FAF8F2]/60">
-              <div class="sm:col-span-4 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x03</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">65</span>
-              </div>
-              <div class="sm:col-span-8 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Field #3: active = true</div>
-                <div>
-                  Tag <code>0x65</code> (Field #3, WireBoolTrue), <strong>0 value bytes</strong>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start">
-              <div class="sm:col-span-4 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x04</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">56 02</span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  1e 00
-                </span>
-              </div>
-              <div class="sm:col-span-8 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Field #9 Header: location Sub-Message</div>
-                <div>
-                  2B Tag <code>56 02</code> (Field #9, WireSubMsg) + 2B length <code>1e 00</code> (7
-                  bytes)
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start bg-[#FAF8F2]/60">
-              <div class="sm:col-span-4 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x08</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">67</span>
-                <span class="px-1.5 py-0.5 bg-[#E5E0D5] border border-ink/30 text-ink rounded">
-                  07
-                </span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  46 52 41
-                </span>
-              </div>
-              <div class="sm:col-span-8 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Location #3: city = "FRA"</div>
-                <div>
-                  Tag <code>0x67</code> (Field #3, WireString) + length <code>0x07</code> (3 bytes)
-                  + <code>"FRA"</code>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3.5 sm:p-4 grid sm:grid-cols-12 gap-2 sm:gap-4 items-start">
-              <div class="sm:col-span-4 flex flex-wrap items-center gap-1.5 font-bold">
-                <span class="text-ink/60 w-11 shrink-0">0x0D</span>
-                <span class="px-1.5 py-0.5 bg-ink text-acid rounded">81</span>
-                <span class="px-1.5 py-0.5 bg-acid/45 border border-ink/30 text-ink rounded">
-                  55
-                </span>
-              </div>
-              <div class="sm:col-span-8 font-sans text-sm text-ink/90 space-y-0.5">
-                <div class="font-bold text-ink">Location #4: rack = 42</div>
-                <div>
-                  Tag <code>0x81</code> (Field #4, WireUint) + value <code>0x55</code> (42)
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- SECTION 10 -->
-        <h2 id="sec-10">10. Wire Validity &amp; Malformed Packet Rejection Rules</h2>
-        <p>
-          A conforming OmniBuf decoder MUST validate untrusted wire input and reject malformed or
-          adversarial packets without panicking or reading out of bounds:
-        </p>
-        <ol>
-          <li>
-            <strong>Empty Message:</strong> A 0-byte slice (<code>len(packet) == 0</code>) is a
-            valid empty message with zero present fields.
-          </li>
-          <li>
-            <strong>
-              <code>Field #0</code> Wire Type &amp; Structure:
-            </strong>{' '}
-            Any occurrence of <code>Field #0</code> MUST have <code>WireType == WireSubMsg</code>{' '}
-            (5) and encode a valid <code>omnibuf.v1.SchemaMeta</code> sub-message (where{' '}
-            <code>fields</code> is a <code>WireMap</code> with <code>MapType = 0x03</code> and{' '}
-            <code>children</code> is a <code>WireMap</code> with <code>MapType = 0x05</code>).
-          </li>
-          <li>
-            <strong>Defined 4-Bit Wire Types:</strong> Wire types <code>0..14</code> are core wire
-            types and <code>WireExtended</code> (15) is the length-prefixed extension escape hatch.
-            Any tag whose payload violates its wire type's structural rules MUST be rejected.
-          </li>
-          <li>
-            <strong>Payload &amp; Container Bounds:</strong>
-            <ul>
-              <li>
-                No Prefix-Varint or fixed-width value (<code>WireFixed32</code>,{' '}
-                <code>WireFixed64</code>) may read past <code>len(packet)</code>.
-              </li>
-              <li>
-                Length-prefixed fields (<code>WireString</code>, <code>WireBytes</code>,{' '}
-                <code>WireSubMsg</code>, <code>WireStringArr</code>, <code>WireUintArr</code>,{' '}
-                <code>WireSubMsgArr</code>, <code>WireMap</code>, <code>WireSintArr</code>,{' '}
-                <code>WireFixedArr</code>, <code>WireExtended</code>) MUST satisfy{' '}
-                <code>byteLen &lt;= uint64(len(packet) - pos)</code>.
-              </li>
-              <li>
-                <code>WireStringArr</code>, <code>WireUintArr</code>, and <code>WireSintArr</code>{' '}
-                elements MUST end on an exact element boundary at <code>pos + byteLen</code>.
-              </li>
-              <li>
-                <code>WireFixedArr</code> MUST satisfy <code>byteLen &gt;= 1</code>, with{' '}
-                <code>ElemType == WireFixed32</code> (10) and <code>(byteLen - 1) % 4 == 0</code>,
-                or <code>ElemType == WireFixed64</code> (11) and <code>(byteLen - 1) % 8 == 0</code>
-                .
-              </li>
-              <li>
-                <code>WireExtended</code> MUST satisfy <code>byteLen &gt;= 1</code> (at least 1 byte
-                for <code>ExtType</code>); schema-less decoders MUST reject unrecognized{' '}
-                <code>ExtType</code> values, while schema-aware decoders skip unknown fields with{' '}
-                <code>WireExtended</code> in <code>O(1)</code> time.
-              </li>
-              <li>
-                <code>WireSubMsgArr</code> elements MUST each satisfy{' '}
-                <code>elemLen &lt;= uint64(len(arrPayload) - pos)</code> and the final element MUST
-                end exactly at <code>len(arrPayload)</code>.
-              </li>
-              <li>
-                <code>WireMap</code> MUST satisfy <code>byteLen &gt;= 2</code>, contain a valid
-                1-byte <code>MapType</code> header, satisfy{' '}
-                <code>entryCount*2 &lt;= uint64(len(mapPayload) - pos)</code> before allocating
-                entries (preventing OOM pre-allocation attacks), and the final entry MUST end
-                exactly at <code>len(mapPayload)</code>. Duplicate keys follow "last write wins"
-                semantics.
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Resource &amp; Message Size Limits:</strong>
-            <ul>
-              <li>
-                <strong>
-                  Maximum Nesting Depth (<code>MaxNestingDepth = 32</code>):
-                </strong>{' '}
-                By default, sub-message recursion deeper than 32 levels MUST be rejected.
-                Implementations MAY provide an option to configure a custom recursion limit.
-              </li>
-              <li>
-                <strong>Message &amp; Container Byte-Size Limits:</strong> At the wire level,
-                Prefix-Varints can represent container lengths up to{' '}
-                <code>
-                  2<sup>29</sup> - 1
-                </code>{' '}
-                bytes (~512 MiB) using a 4-byte header and up to{' '}
-                <code>
-                  2<sup>64</sup> - 1
-                </code>{' '}
-                bytes using a 9-byte header. To guard against memory exhaustion on untrusted inputs,
-                implementations and transport layers MAY enforce configurable maximum message size
-                limits:
-                <ul>
-                  <li>
-                    RPC and framing layers MAY enforce a default per-message limit of 4 MiB (
-                    <code>4,194,304</code> bytes, matching gRPC's default receive limit), and
-                    general-purpose decoders MAY enforce a default total message limit of 64 MiB (
-                    <code>67,108,864</code> bytes, matching Protocol Buffers' default limit) unless
-                    overridden by the caller.
-                  </li>
-                  <li>
-                    Implementations MAY reject individual container or string lengths exceeding{' '}
-                    <code>536,870,911</code> bytes (the 4-byte Prefix-Varint maximum) unless
-                    explicitly configured for &gt;512 MiB payloads.
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-        </ol>
-
-        <!-- SECTION 11 -->
-        <h2 id="sec-11">11. Language Implementation Requirements &amp; Conformance</h2>
-        <p>
-          OmniBuf implementations across programming languages SHOULD follow modern, idiomatic
-          practices for their target ecosystem (such as zero-copy slice or span views where memory
-          safety permits, buffer-append encoding APIs to support pooling, and standard language
-          error handling). To provide a consistent developer experience across ecosystems, every
-          complete OmniBuf implementation MUST support three ways to work with types and pass the
-          full conformance test suite.
-        </p>
-
-        <h3 id="sec-11-1">11.1 Required Usage Modes</h3>
-        <p>
-          Every complete OmniBuf language implementation MUST support encoding and decoding in three
-          ways:
-        </p>
-        <ol>
-          <li>
-            <strong>
-              Protobuf Compiler Plugin (<code>protoc-gen-omnibuf-*</code>):
-            </strong>{' '}
-            A dedicated <code>protoc</code> /{' '}
-            <a href="https://buf.build" target="_blank" rel="noopener noreferrer">
-              <code>buf</code>
-            </a>{' '}
-            plugin that generates reflection-free, single-pass forward encoders, branchless{' '}
-            <code>TZCNT</code> decoders, and lazy header-hopping views (<code>Opaque</code>{' '}
-            accessors and raw field splicing) directly from <code>.proto</code> schemas.
-          </li>
-          <li>
-            <strong>Usable on Protobuf Types Without the Plugin:</strong> Drop-in serialization and
-            deserialization of standard <code>protoc</code>-generated message types (for example,{' '}
-            <code>.pb.go</code> structs in Go or standard Protobuf classes in C++, Java, Python,
-            Rust, and TypeScript) using the language's Protobuf runtime descriptors or reflection,
-            requiring zero build-pipeline changes.
-          </li>
-          <li>
-            <strong>
-              Usable on Normal Classes, Objects, or Structs with Annotations (or Declarative Type
-              Mapping):
-            </strong>{' '}
-            Direct serialization of plain language types (structs, classes, records, or data
-            objects) without <code>.proto</code> files using native field annotations, attributes,
-            decorators, or struct tags (such as Go's <code>`omnibuf:"1,name=city"`</code>, Rust
-            derive attributes, or Java/C#/Python/TypeScript decorators) to declare field numbers,
-            JSON/
-            <code>Field #0</code> names, and wire-type overrides (<code>wire=sint</code>,{' '}
-            <code>wire=fixed32</code>, <code>wire=fixed64</code>). In languages that do not have a
-            built-in annotation or attribute feature, the implementation MUST provide an idiomatic
-            declarative type-mapping API or descriptor table to bind field numbers, JSON names, and
-            wire types to plain objects or structs.
-          </li>
-        </ol>
-
-        <h3 id="sec-11-2">11.2 Conformance Test Suite</h3>
-        <p>
-          All implementations MUST pass the official OmniBuf Conformance Test Suite across all
-          supported usage modes. Modeled after Protocol Buffers' conformance harness, a dedicated
-          conformance test runner binary executes a small adapter binary provided by each language
-          implementation, feeding test requests and verifying responses to ensure:
-        </p>
-        <ul>
-          <li>
-            <strong>Wire Round-Trip &amp; Interoperability:</strong> Deterministic decoding and
-            re-encoding across all 16 wire types (<code>0..15</code>), single-byte and 2-byte field
-            tags, overlong 2-byte container length prefixes, optional <code>Field #0</code>{' '}
-            self-describing headers, raw concatenation merges, and schema-less inspection.
-          </li>
-          <li>
-            <strong>Cross-Mode Equivalence:</strong> Identical wire semantics whether a message is
-            processed via generated plugin code, standard Protobuf types without the plugin, or
-            annotated/mapped native classes and structs.
-          </li>
-          <li>
-            <strong>Malformed Input Rejection:</strong> Strict, panic-free rejection of all invalid
-            or adversarial wire packets defined in <a href="#sec-10">Section 10</a>.
-          </li>
-        </ul>
       </article>
     </div>
 
     <div class="mt-12 pt-10 border-t-2 border-ink flex flex-wrap items-center justify-between gap-4 no-print">
       <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
-        See how the specification translates to real-world performance
+        More about OmniBuf
       </div>
       <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
         <a

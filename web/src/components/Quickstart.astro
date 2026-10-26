@@ -18,10 +18,8 @@ pkt, err := omnibuf.Marshal(&Peer{
 var out Peer
 err = omnibuf.Unmarshal(pkt, &out)`;
 
-const pbGoSnippet = `// Encode any existing *pb.Peer (.pb.go) struct with zero extra codegen:
-pkt, err := omnibuf.Marshal(msg)
+const pbGoSnippet = `pkt, err := omnibuf.Marshal(msg)
 
-// Decode back into a reused or new *pb.Peer struct:
 var out pb.Peer
 err = omnibuf.Unmarshal(pkt, &out)`;
 
@@ -34,10 +32,8 @@ plugins:
     out: gen
     opt: paths=source_relative`;
 
-const generatedMethodsSnippet = `// Allocate a new slice, or append to a pooled buffer (buf[:0]):
-pkt := msg.MarshalOmniBufAppend(nil)
+const generatedMethodsSnippet = `pkt := msg.MarshalOmniBufAppend(nil)
 
-// Decode back into *pb.Peer (pass true to alias strings zero-copy):
 var out pb.Peer
 err := out.UnmarshalOmniBuf(pkt, false)`;
 ---
@@ -52,8 +48,8 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
       <span class="font-serif italic font-normal normal-case text-[#FF4F18]">OmniBuf in Go.</span>
     </h2>
     <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-      Use plain Go structs with struct tags, pass standard Protobuf structs with no build changes,
-      or generate single-pass methods and lazy <code>Opaque</code> views with the compiler plugin.
+      You don't need <code>.proto</code> files or a code generator to get started, though the
+      compiler plugin is available if you want the fastest encode and decode times.
     </p>
   </div>
 
@@ -68,26 +64,26 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
           Plain Go structs
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          Add <code>omnibuf:"..."</code> struct tags to exported fields and pass a struct pointer to{' '}
-          <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>. On first use, OmniBuf
-          caches each field's memory offset and wire type so subsequent calls read and write fields
-          directly without per-call reflection:
+          Put <code>omnibuf:"..."</code> tags on your exported fields and pass a struct pointer to{' '}
+          <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>. The first call inspects
+          the struct type and caches its field offsets. After that, it reads and writes struct
+          memory directly without reflection overhead:
         </p>
         <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
           <li>
-            <code>1..65535</code> sets the wire field number (untagged fields are ignored).
+            The first number (<code>1..65535</code>) sets the wire field number. Untagged fields are
+            ignored.
           </li>
           <li>
-            <code>name=...</code> sets the field name written to Field #0 (defaults to the Go field
-            name).
+            Use <code>name=...</code> if you want a custom field name in Field #0 instead of the Go
+            field name.
           </li>
           <li>
-            <code>wire=...</code> overrides the inferred wire type (<code>uint</code>,{' '}
-            <code>sint</code>, <code>fixed32</code>, <code>fixed64</code>, <code>string</code>,{' '}
-            <code>bytes</code>).
+            Use <code>wire=...</code> to pick a specific wire encoding like <code>sint</code> or{' '}
+            <code>fixed32</code>.
           </li>
           <li>
-            <code>omitempty</code> skips encoding when the field holds its zero value.
+            Add <code>omitempty</code> to skip writing the field when it has its zero value.
           </li>
         </ul>
       </div>
@@ -119,15 +115,15 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
           Standard Protobuf structs
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          Already generating Go code with <code>protoc-gen-go</code>? Pass your generated Protobuf
-          structs (<code>.pb.go</code>) directly to <code>omnibuf.Marshal</code> and{' '}
-          <code>omnibuf.Unmarshal</code> with no extra plugin step.
+          Already generating Go code with <code>protoc-gen-go</code>? You don't have to change your
+          build setup. Just pass your generated <code>.pb.go</code> structs straight to{' '}
+          <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>.
         </p>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          OmniBuf reads the existing <code>protobuf:"..."</code> struct tags once per type, builds a
-          cached pointer-offset table, and runs <strong>~2.5x to 3x faster</strong> than standard Go
-          Protobuf (and <strong>4x to 11x faster</strong> than JSON and MessagePack) with zero heap
-          allocations on reused structs.
+          OmniBuf uses the protobuf descriptor and cached struct offsets to support the full
+          Protobuf feature set, including <code>oneof</code> fields, explicit <code>optional</code>{' '}
+          presence, maps, and field numbers up to <code>536,870,911</code>. Even without our
+          compiler plugin, this runs <strong>~2.4x faster</strong> than standard Go Protobuf.
         </p>
       </div>
 
@@ -158,15 +154,19 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
           Generated code with protoc-gen-omnibuf
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          Add <code>protoc-gen-omnibuf</code> to your <code>buf.gen.yaml</code> (supports both
-          proto3 and Editions 2023/2024 schemas). The plugin attaches single-pass{' '}
-          <code>MarshalOmniBufAppend</code> and <code>UnmarshalOmniBuf</code> methods plus lazy{' '}
-          <code>Opaque</code> views directly onto your <code>.pb.go</code> structs.
+          If you want the fastest possible numbers, add <code>protoc-gen-omnibuf</code> to your{' '}
+          <code>buf.gen.yaml</code>. It attaches <code>MarshalOmniBufAppend</code> and{' '}
+          <code>UnmarshalOmniBuf</code> methods directly onto your <code>.pb.go</code> structs,
+          along with a lazy <code>Opaque</code> wrapper type.
         </p>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-          Generated codecs run <strong>~6x faster on encode</strong> and{' '}
-          <strong>~8x faster on decode</strong> than standard Go Protobuf, and beat{' '}
-          <code>vtprotobuf</code> by over 50% while generating less than half the code.
+          With buffer and struct reuse, the generated methods run{' '}
+          <strong>5.9x faster on encode</strong> and <strong>7.3x faster on decode</strong> than
+          standard Go Protobuf (or <strong>2.3x faster on decode</strong> when allocating a fresh
+          struct and copying every string). The plugin targets flat proto3 messages (fields{' '}
+          <code>1..65535</code>, or <code>1..15</code> for <code>Opaque</code> views). For messages
+          with <code>oneof</code>, maps, or explicit <code>optional</code> presence, use{' '}
+          <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>.
         </p>
       </div>
 

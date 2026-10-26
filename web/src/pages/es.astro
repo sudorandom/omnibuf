@@ -39,7 +39,6 @@ const protobufEsSnippet = `import {
   toBinary,
   fromBinary,
 } from '@omnibuf/core';
-// Standard protoc-gen-es descriptor:
 import { PeerUpdateSchema } from './gen/peer_pb.js';
 
 const msg = create(PeerUpdateSchema, {
@@ -73,7 +72,6 @@ const msg = create(PeerUpdateSchema, {
 });
 const pkt = toBinary(PeerUpdateSchema, msg);
 
-// Lazy Opaque view: O(1) hop + zero-decode splice
 const view = new OpaquePeerUpdate(pkt);
 if (view.getActive() && view.getAsn() === 64512) {
   view.setSequence(99n);
@@ -81,30 +79,24 @@ if (view.getActive() && view.getAsn() === 64512) {
 }`;
 
 const opaqueSpliceEsCode = `const view = new OpaquePeerUpdate(pkt);
-const router = view.getRouterId(); // O(1) header hop
+const router = view.getRouterId();
 
-// Update field #3 (active) and field #11 (sequence) in place:
 view.setActive(false);
 view.setSequence(42n);
 const updated = view.marshal();`;
 
 const field0BlindEsCode = `import { toBinary, decodeBlind } from '@omnibuf/core';
 
-// Prepend Field #0 (SchemaMeta) inline with the packet:
 const pkt = toBinary(PeerSchema, peer, {
   selfDescribing: true,
 });
-
-// Decode any OmniBuf packet without a schema:
 const fields = decodeBlind(pkt);`;
 
-const runtimeAdaptersCode = `// Browser / Edge: TextEncoder.encodeInto + Web Streams
-import {
+const runtimeAdaptersCode = `import {
   createOmniBufDecodeStream,
   inspectPacket,
 } from '@omnibuf/web';
 
-// Node.js: Buffer UTF-8 codec + stream framing
 import { writeFrame, readFrames } from '@omnibuf/node';`;
 
 interface EsBenchmarkRow {
@@ -130,13 +122,13 @@ const esBenchmarkCategories: EsBenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 5000,
     methodology:
-      'Measures serializing the canonical 11-field PeerUpdate message (nested Location submessage, 4 Neighbor submessages, packed uint32 prefixes, string tags, and 64-bit counters) into a Uint8Array. OmniBuf writes in a single forward pass with 2-byte length backpatching and an inline UTF-8 fast path.',
+      'Serializing the 11-field PeerUpdate message (nested Location, 4 Neighbor messages, packed uint32 prefixes, string tags, and 64-bit counters) into a Uint8Array.',
     rows: [
       {
         name: 'OmniBuf',
         val: 734,
         ops: '1,362,684 ops/s',
-        sizeBytes: 362,
+        sizeBytes: 366,
         highlight: true,
         baseline: true,
       },
@@ -176,8 +168,7 @@ const esBenchmarkCategories: EsBenchmarkCategory[] = [
     title: 'Full Message Decode Speed',
     unit: 'ns',
     maxVal: 3000,
-    methodology:
-      'Measures decoding the full 11-field PeerUpdate packet back into a typed JavaScript message object. Generated OmniBuf schemas dispatch on Prefix-Varint tags in a single switch loop without reflection, reading strings and submessages in place without intermediate subarray slices.',
+    methodology: 'Decoding the 11-field PeerUpdate packet back into a typed JavaScript object.',
     rows: [
       {
         name: 'OmniBuf',
@@ -218,7 +209,7 @@ const esBenchmarkCategories: EsBenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 3000,
     methodology:
-      'Measures extracting a nested string field (peer.location.city) from a serialized packet. OmniBuf hops across preceding field headers in O(1) time per field using TZCNT length prefixes without decoding untouched strings, arrays, or submessages.',
+      'Time to read peer.location.city from a packet without unpacking the rest of the message. The other JS libraries have to decode the full message first, while OmniBuf steps over the earlier field headers by adding their byte lengths.',
     rows: [
       {
         name: 'OmniBuf',
@@ -259,7 +250,7 @@ const esBenchmarkCategories: EsBenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 7500,
     methodology:
-      'Measures updating a 64-bit sequence counter on an in-flight packet and producing the updated wire bytes. OmniBuf splices the modified field directly onto the raw Uint8Array packet without decoding or re-encoding untouched fields.',
+      'Bumping the 64-bit sequence counter on an in-flight packet and returning the updated Uint8Array. OmniBuf splices the new field directly onto the raw bytes without touching the other 10 fields.',
     rows: [
       {
         name: 'OmniBuf',
@@ -301,36 +292,36 @@ const esFaqItems = [
   {
     question: 'How does omnibuf-es fit into a protobuf-es (@bufbuild/protobuf) codebase?',
     paragraphs: [
-      'Messages in <code>@omnibuf/core</code> follow the <code>@bufbuild/protobuf</code> v2 plain-object design: every message has a <code>$typeName</code> property, optional <code>$unknown</code> field storage, and <code>camelCase</code> field properties that map to <code>snake_case</code> names in Field #0.',
-      'The standard lifecycle functions (<code>create</code>, <code>toBinary</code>, <code>fromBinary</code>, <code>mergeFromBinary</code>, <code>clone</code>, <code>equals</code>, and <code>isMessage</code>) accept existing <code>protoc-gen-es</code> descriptors, generated <code>protoc-gen-omnibuf-es</code> schemas, and declarative <code>defineMessage</code> schemas interchangeably.',
+      'I modeled the TypeScript API after <code>@bufbuild/protobuf</code> v2 so it feels familiar if you already use Connect or <code>protobuf-es</code>. Messages are plain objects with a <code>$typeName</code> property, optional <code>$unknown</code> bytes, and normal <code>camelCase</code> field names.',
+      'The top-level functions (<code>create</code>, <code>toBinary</code>, <code>fromBinary</code>, <code>mergeFromBinary</code>, <code>clone</code>, and <code>equals</code>) accept <code>protoc-gen-es</code> descriptors, <code>protoc-gen-omnibuf-es</code> schemas, or schemas defined with <code>defineMessage</code>.',
     ],
   },
   {
     question: 'When should I use Opaque views instead of fromBinary?',
     paragraphs: [
-      'Use <code>fromBinary</code> when your code reads most fields of a message. Use generated <code>Opaque</code> views in edge workers, WebSocket gateways, and telemetry pipelines that only inspect a routing field or update a counter before forwarding the packet.',
-      'Getters hop across field headers in one step without decoding untouched strings or sub-messages, and <code>view.marshal()</code> splices modified fields directly onto the underlying <code>Uint8Array</code>.',
+      'Most of the time you should just call <code>fromBinary</code>. If your code reads most of the fields on a message anyway, decoding the whole object up front is the simplest option.',
+      'I built the <code>Opaque</code> wrapper for things like Cloudflare Workers or WebSocket proxies that only inspect one or two fields on an incoming packet before forwarding it. Calling <code>view.getRouterId()</code> steps over the earlier field headers to read that one string, and <code>view.marshal()</code> tacks any updated fields onto the end of the existing <code>Uint8Array</code>.',
     ],
     codeBlock: opaqueSpliceEsCode,
-    codeLabel: 'Lazy Read & Zero-Decode Splice',
+    codeLabel: 'Example',
   },
   {
     question: 'How do I enable Field #0 inline field names or decode without a schema?',
     paragraphs: [
-      'Pass <code>{ selfDescribing: true }</code> to <code>toBinary(schema, msg, options)</code> on any schema to emit Field #0 (<code>omnibuf.v1.SchemaMeta</code>) at byte 0 with the root and nested field-name tables.',
-      'To inspect a packet without a schema or generated code, call <code>decodeBlind(pkt)</code>. It returns a plain object keyed by field numbers, or by field names automatically when Field #0 is present.',
+      'Even when field names are left off the wire, you can call <code>decodeBlind(pkt)</code> on any packet to get back a plain object keyed by field number.',
+      'If you want the actual field names written into the packet too, pass <code>{ selfDescribing: true }</code> to <code>toBinary(schema, msg, options)</code>. That writes a Field #0 header at the start of the packet so <code>decodeBlind(pkt)</code> can key the returned object by field name.',
     ],
     codeBlock: field0BlindEsCode,
-    codeLabel: 'Field #0 & Schema-Less Decode',
+    codeLabel: 'Example',
   },
   {
     question: 'What is the difference between @omnibuf/core, @omnibuf/web, and @omnibuf/node?',
     paragraphs: [
-      '<code>@omnibuf/core</code> is a zero-dependency, environment-agnostic runtime that works in browsers, Node.js, Deno, Bun, and Cloudflare Workers.',
-      'Importing <code>@omnibuf/web</code> registers a browser codec backed by <code>TextEncoder.encodeInto</code> and adds Web Streams (<code>TransformStream</code>) and DevTools packet inspection helpers. Importing <code>@omnibuf/node</code> registers a <code>Buffer</code>-backed UTF-8 codec, Node stream framing (<code>writeFrame</code>, <code>readFrames</code>), and <code>.fds.json</code> / <code>.fds.pb.gz</code> descriptor loaders.',
+      '<code>@omnibuf/core</code> has no dependencies and works in any JavaScript runtime (browsers, Node.js, Deno, Bun, and edge workers).',
+      "The other two packages are optional helpers for specific runtimes. <code>@omnibuf/web</code> includes Web Streams (<code>TransformStream</code>) adapters and a browser packet inspector, while <code>@omnibuf/node</code> uses Node's native <code>Buffer</code> for faster UTF-8 string decoding and adds length-prefixed stream helpers.",
     ],
     codeBlock: runtimeAdaptersCode,
-    codeLabel: 'Browser & Node.js Adapters',
+    codeLabel: 'Example',
   },
 ];
 
@@ -370,23 +361,23 @@ const esFaqJsonLd = {
       <div class="mt-6 grid lg:grid-cols-12 gap-6 lg:gap-8 items-end">
         <div class="lg:col-span-7 space-y-4">
           <p class="text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
-            Runtime and code generator for Node.js, browsers, and edge workers: serialize{' '}
+            You can use OmniBuf in TypeScript and JavaScript by{' '}
             <a href="#define-message" class="doc-link">
-              declarative TypeScript schemas
+              defining schemas in TypeScript
             </a>
-            , drop in on{' '}
+            , passing in your existing{' '}
             <a href="#protobuf-es" class="doc-link">
               @bufbuild/protobuf descriptors
             </a>
-            , or generate single-pass codecs and lazy{' '}
+            , or generating code with{' '}
             <a href="#plugin-codegen" class="doc-link">
-              Opaque views
-            </a>{' '}
-            (see the{' '}
+              protoc-gen-omnibuf-es
+            </a>
+            . Check the{' '}
             <a href="#benchmarks" class="doc-link">
               TypeScript &amp; JS benchmarks
             </a>{' '}
-            below).
+            below to see how it performs in V8.
           </p>
           <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base pt-1 no-print">
             <a
@@ -464,9 +455,9 @@ const esFaqJsonLd = {
           </span>
         </h2>
         <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-          Define schemas directly in TypeScript, pass existing <code>@bufbuild/protobuf</code>{' '}
-          descriptors with no build changes, or generate single-pass codecs and lazy{' '}
-          <code>Opaque</code> views with the compiler plugin.
+          You don't need <code>.proto</code> files to use OmniBuf in TypeScript, though it also
+          works with your existing <code>@bufbuild/protobuf</code> descriptors or our compiler
+          plugin.
         </p>
       </div>
 
@@ -481,26 +472,25 @@ const esFaqJsonLd = {
               Declarative TypeScript schemas
             </h3>
             <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-              Define a schema in TypeScript with <code>defineMessage</code> (or decorate a class
-              with <code>@omnibufMessage</code> and <code>@omnibufField</code>) and pass it to{' '}
-              <code>create</code>, <code>toBinary</code>, and <code>fromBinary</code>:
+              If you want to skip <code>.proto</code> files altogether, you can define a schema in
+              TypeScript with <code>defineMessage</code> (or class decorators) and pass it to{' '}
+              <code>toBinary</code> and <code>fromBinary</code>:
             </p>
             <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
               <li>
                 <code>fieldNum</code> sets the wire field number (<code>1..65535</code>).
               </li>
               <li>
-                <code>name</code> sets the wire field name written to Field #0 (defaults to{' '}
+                <code>name</code> sets the field name written to Field #0 (if omitted, it uses{' '}
                 <code>snake_case</code> of the TypeScript property name).
               </li>
               <li>
-                <code>type</code> selects the wire encoding (<code>uint32</code>,{' '}
-                <code>uint64</code>, <code>sint32</code>, <code>sint64</code>, <code>fixed32</code>,{' '}
-                <code>fixed64</code>, <code>float</code>, <code>double</code>, <code>bool</code>,{' '}
-                <code>string</code>, <code>bytes</code>, <code>message</code>, or <code>map</code>).
+                <code>type</code> picks the wire encoding (such as <code>uint32</code>,{' '}
+                <code>sint64</code>, <code>string</code>, <code>message</code>, or <code>map</code>
+                ).
               </li>
               <li>
-                <code>omitEmpty</code> skips encoding when the field holds its default value.
+                <code>omitEmpty</code> skips writing the field when it holds its default value.
               </li>
             </ul>
           </div>
@@ -532,15 +522,14 @@ const esFaqJsonLd = {
               Existing @bufbuild/protobuf schemas
             </h3>
             <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-              Already generating TypeScript descriptors with <code>protoc-gen-es</code>? Pass your
-              existing <code>DescMessage</code> schemas directly to <code>create</code>,{' '}
-              <code>toBinary</code>, <code>fromBinary</code>, and <code>mergeFromBinary</code> with
-              no extra plugin step.
+              Already generating TypeScript descriptors with <code>protoc-gen-es</code>? You don't
+              have to add a new plugin to your build. Pass your existing <code>DescMessage</code>{' '}
+              schemas straight to <code>toBinary</code> and <code>fromBinary</code>.
             </p>
             <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-              OmniBuf compiles each <code>DescMessage</code> into a cached field-dispatch table on
-              first use, preserving unknown fields in <code>$unknown</code> and supporting both{' '}
-              <code>proto3</code> and Editions 2023/2024 descriptors.
+              On first use, OmniBuf builds a cached dispatch table for the descriptor. Both{' '}
+              <code>proto3</code> and Editions 2023/2024 descriptors work as expected, and unknown
+              fields are kept in <code>$unknown</code>.
             </p>
           </div>
 
@@ -573,15 +562,15 @@ const esFaqJsonLd = {
               Generated code with protoc-gen-omnibuf-es
             </h3>
             <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-              Install <code>@omnibuf/protoc-gen-omnibuf-es</code> and add{' '}
-              <code>protoc-gen-omnibuf-es</code> to your <code>buf.gen.yaml</code>. The plugin
-              generates typed <code>Message</code> interfaces, single-pass encoders and switch-based
-              decoders, and lazy <code>Opaque</code> wrapper classes.
+              For the fastest path, install <code>@omnibuf/protoc-gen-omnibuf-es</code> and add it
+              to your <code>buf.gen.yaml</code>. The plugin generates TypeScript interfaces,
+              single-pass encoders, and lazy <code>Opaque</code> wrapper classes.
             </p>
             <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-              <code>Opaque</code> views read individual fields directly from the{' '}
-              <code>Uint8Array</code> packet via <code>locateField</code> and re-serialize modified
-              packets using <code>spliceFields</code> without decoding untouched fields.
+              The <code>Opaque</code> wrapper is handy when you don't want to unpack a whole
+              message. It reads individual fields straight out of the <code>Uint8Array</code> and
+              can append updated fields onto the existing buffer without touching the rest of the
+              packet.
             </p>
           </div>
 
@@ -649,9 +638,9 @@ const esFaqJsonLd = {
           <span class="font-serif italic font-normal normal-case text-[#FF4F18]">benchmarks.</span>
         </h2>
         <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium">
-          Measured against <code>protobufjs</code>, <code>@bufbuild/protobuf</code> v2 (
-          <code>protobuf-es</code>), <code>google-protobuf</code>, <code>@msgpack/msgpack</code>,
-          and native <code>JSON</code> on the canonical 11-field <code>PeerUpdate</code> workload.{' '}
+          Here is how <code>@omnibuf/core</code> compares against <code>protobufjs</code>,{' '}
+          <code>@bufbuild/protobuf</code>, <code>google-protobuf</code>,{' '}
+          <code>@msgpack/msgpack</code>, and <code>JSON</code> on our 11-field test message.{' '}
           <strong>Shorter bars = Faster.</strong>
         </p>
       </div>
@@ -740,14 +729,13 @@ const esFaqJsonLd = {
         </div>
         <div class="md:col-span-8 md:pt-1 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
           <p>
-            All benchmarks serialize, deserialize, inspect, and mutate the same 11-field{' '}
-            <code>PeerUpdate</code> message used in the Go benchmark suite: unsigned and
-            ZigZag-signed integers, booleans, IEEE-754 floats, string lists, packed{' '}
-            <code>uint32</code> prefix arrays, a 6-field nested <code>Location</code> sub-message,
-            and a 4-element repeated <code>Neighbor</code> sub-message list.
+            I ran these benchmarks on an Apple Silicon Mac using Node.js v24.22.1. Each test uses
+            the same 11-field <code>PeerUpdate</code> message as the Go benchmark suite (numbers,
+            booleans, strings, a nested <code>Location</code> message, and 4 <code>Neighbor</code>{' '}
+            messages).
           </p>
           <p class="text-sm sm:text-base text-ink/80">
-            The benchmark harness is located in{' '}
+            If you want to run them locally, check out{' '}
             <a
               href="https://github.com/sudorandom/omnibuf-es/blob/main/benchmarks/bench.ts"
               target="_blank"
@@ -756,8 +744,7 @@ const esFaqJsonLd = {
             >
               benchmarks/bench.ts
             </a>{' '}
-            in the <code>omnibuf-es</code> repository and can be reproduced locally with{' '}
-            <code>pnpm run bench</code> or <code>just bench</code>.
+            in the <code>omnibuf-es</code> repository and run <code>pnpm run bench</code>.
           </p>
         </div>
       </div>
@@ -814,7 +801,7 @@ const esFaqJsonLd = {
     <section class="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink no-print">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="font-mono text-sm sm:text-base font-bold uppercase text-ink/80">
-          Explore the wire layout, Go implementation &amp; specification
+          More about the wire format
         </div>
         <div class="flex flex-wrap gap-3 font-mono text-sm sm:text-base">
           <a href="/how-it-works" class="os-btn px-5 py-2.5 bg-acid text-ink font-bold rounded-md">
