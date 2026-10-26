@@ -101,7 +101,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
       'OmniBuf uses standard .proto schemas and supports raw message concatenation.',
     ],
     oppWinsList: [
-      "Cap'n Proto's fixed-offset struct layout jumps directly to fields in shared memory (5 ns) without scanning preceding field headers.",
+      "Cap'n Proto's fixed-offset struct layout jumps directly to fields by offset without scanning preceding field headers.",
       "Cap'n Proto can read and write directly in place inside a segment arena without unpacking into separate structs.",
       "Cap'n Proto includes a built-in RPC system with promise pipelining.",
     ],
@@ -175,8 +175,8 @@ export const benchmarkCategories: BenchmarkCategory[] = [
       { name: 'OmniBuf (Generated)', val: 94, highlight: true, baseline: true },
       { name: 'OmniBuf (Go Struct Tags)', val: 232, highlight: true },
       { name: 'Protobuf', val: 561 },
-      { name: 'FlatBuffers (Builder from Go Struct)', val: 562 },
-      { name: "Cap'n Proto (Arena Marshal from Go Struct)", val: 1016 },
+      { name: 'FlatBuffers', val: 562 },
+      { name: "Cap'n Proto", val: 1016 },
       { name: 'MessagePack', val: 1590 },
       { name: 'JSON (encoding/json)', val: 1705 },
       { name: 'JSON (encoding/json/v2)', val: 1753 },
@@ -190,9 +190,9 @@ export const benchmarkCategories: BenchmarkCategory[] = [
       "This benchmark measures unpacking all 11 fields of a packet into a native Go struct. When FlatBuffers and Cap'n Proto are read directly in place without unpacking into a separate struct, their decode step is effectively zero (see the single-field lookup benchmark below).",
     rows: [
       { name: 'OmniBuf (Generated)', val: 120, highlight: true, baseline: true },
-      { name: 'FlatBuffers (Unpack to Go Struct)', val: 170 },
+      { name: 'FlatBuffers', val: 170 },
       { name: 'OmniBuf (Go Struct Tags)', val: 343, highlight: true },
-      { name: "Cap'n Proto (Unpack to Go Struct)", val: 772 },
+      { name: "Cap'n Proto", val: 772 },
       { name: 'Protobuf', val: 960 },
       { name: 'MessagePack', val: 2185 },
       { name: 'JSON (encoding/json/v2)', val: 2778 },
@@ -206,10 +206,9 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     methodology:
       "This benchmark is about extracting a string from a nested message without decoding the rest of the message. Although OmniBuf isn't optimized for single-field random access like pointer-table formats (FlatBuffers and Cap'n Proto), it still performs quite well by hopping over preceding field headers in a single addition per field.",
     rows: [
-      { name: "Cap'n Proto (Unframed Shared Memory)", val: 5 },
       { name: 'FlatBuffers', val: 13 },
       { name: 'OmniBuf', val: 76, highlight: true, baseline: true },
-      { name: "Cap'n Proto (Framed Packet)", val: 221 },
+      { name: "Cap'n Proto", val: 221 },
       { name: 'MessagePack', val: 590 },
       { name: 'Protobuf', val: 983 },
     ],
