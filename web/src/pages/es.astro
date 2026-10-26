@@ -573,7 +573,8 @@ const esFaqJsonLd = {
               Generated code with protoc-gen-omnibuf-es
             </h3>
             <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-              Add <code>protoc-gen-omnibuf-es</code> to your <code>buf.gen.yaml</code>. The plugin
+              Install <code>@omnibuf/protoc-gen-omnibuf-es</code> and add{' '}
+              <code>protoc-gen-omnibuf-es</code> to your <code>buf.gen.yaml</code>. The plugin
               generates typed <code>Message</code> interfaces, single-pass encoders and switch-based
               decoders, and lazy <code>Opaque</code> wrapper classes.
             </p>
@@ -597,6 +598,23 @@ const esFaqJsonLd = {
                 </button>
               </div>
               <Code code={bufGenEsSnippet} lang="yaml" theme="github-dark" />
+            </div>
+
+            <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink">
+              <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
+                <div class="text-xs font-bold uppercase text-acid">
+                  Install Plugin &amp; Generate
+                </div>
+                <button
+                  type="button"
+                  data-copy="pnpm add -D @omnibuf/protoc-gen-omnibuf-es && buf generate"
+                  class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
+              </div>
+              <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add -D @omnibuf/protoc-gen-omnibuf-es
+<span class="text-paper/75 select-none">$ </span><span class="text-acid font-bold">buf generate</span></code></pre>
             </div>
 
             <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">

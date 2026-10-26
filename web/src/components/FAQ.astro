@@ -1,10 +1,19 @@
 ---
 interface FAQItem {
+  id?: string;
   question: string;
   paragraphs: string[];
 }
 
 const faqItems: FAQItem[] = [
+  {
+    id: 'status',
+    question: 'What is the current stability status? Is the v1.0 wire format frozen?',
+    paragraphs: [
+      'OmniBuf is currently <strong>experimental</strong>. Both the <a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JS</a> implementations pass a shared cross-language conformance and fuzzing suite, but the v1.0 wire specification and runtime APIs remain open to feedback before being permanently frozen.',
+      'It is ready for evaluation, benchmarking, and internal prototypes, and early adopter feedback on the wire layout or language ergonomics is actively welcome on <a href="https://github.com/sudorandom/omnibuf" target="_blank" rel="noopener noreferrer" class="doc-link">GitHub</a>.',
+    ],
+  },
   {
     question: 'Why is it named OmniBuf?',
     paragraphs: [
@@ -15,14 +24,15 @@ const faqItems: FAQItem[] = [
   {
     question: 'Why a new format?',
     paragraphs: [
-      'The main goal is simple: we want a better Protobuf, and showing a concrete re-imagining of the wire format can help push the ecosystem further.',
-      "Protobuf is generally fine, and JSON is generally fine, but both have rough edges. Protobuf's 2001 wire format is slow to decode and opaque in logs; JSON is bulky and breaks on 64-bit integers and binary data. At the same time, Protobuf's IDL methodology is genuinely great: schema-first development with explicit field numbers lets systems adapt and evolve at a much faster pace. OmniBuf keeps the <code>.proto</code> schema workflow intact and shows what becomes possible when you modernize the wire encoding underneath it.",
+      "OmniBuf started with a simple question: what would a better Protobuf wire encoding look like today? Protobuf and JSON both work well enough for most jobs, yet both carry rough edges: Protobuf's 2001 wire format is slower than it <em>could be</em> for a binary format and is opaque without the schema, while JSON is bulky and breaks on 64-bit integers and raw binary data.",
+      "At the same time, a practical philosophy for an encoding format is to decouple the wire representation from how you author your types. Protobuf's schema-first IDL is great when you want a multi-language contract, so OmniBuf keeps existing <code>.proto</code> files, <code>.pb.go</code> structs, and <code>@bufbuild/protobuf</code> descriptors working as a drop-in.",
+      'However, using the Protobuf IDL does not have to be the only way to use the format. When a service just wants to serialize native structs or objects without maintaining <code>.proto</code> files or a codegen pipeline, you can define field numbers directly in code (via <a href="/go#struct-tags" class="doc-link">Go struct tags</a> or <a href="/es#define-message" class="doc-link">TypeScript schemas</a>) and produce the exact same binary wire format.',
     ],
   },
   {
-    question: 'Do I have to rewrite my .proto files?',
+    question: 'Do I have to use or rewrite .proto files?',
     paragraphs: [
-      'No. OmniBuf uses standard proto3 and Editions (2023, 2024) field numbers, scalar types, nested messages, repeated lists, and maps without requiring a custom IDL or builder API.',
+      'Neither. If you already use <code>.proto</code> files, OmniBuf works directly with standard proto3 and Editions (2023, 2024) schemas without changes. If you prefer not to use an external IDL at all, you can serialize plain Go structs or TypeScript objects directly using field-number annotations and optionally embed Field #0 field names for JSON-like inspection.',
     ],
   },
   {
@@ -65,7 +75,10 @@ const faqJsonLd = {
 
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
     {faqItems.map((item) => (
-      <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+      <div
+        id={item.id}
+        class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
+      >
         <h3 class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug">
           {item.question}
         </h3>

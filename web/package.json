@@ -17,6 +17,7 @@
     "pages:deploy": "astro build && (wrangler pages project list | grep -q omnibuf || wrangler pages project create omnibuf --production-branch=main) && wrangler pages deploy ./dist --project-name=omnibuf --branch=main"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.4.2",
     "tailwindcss": "^3.4.19"
   },

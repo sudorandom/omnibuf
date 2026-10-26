@@ -1,6 +1,7 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { copyFile, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sitemap from '@astrojs/sitemap';
 import { defineConfig } from 'astro/config';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from './tailwind.config.mjs';
@@ -9,6 +10,30 @@ function checkInternalLinksAndAnchors() {
   return {
     name: 'check-internal-links-and-anchors',
     hooks: {
+      'astro:server:setup': ({ server }) => {
+        server.middlewares.use(async (req, res, next) => {
+          const url = req.url?.split('?')[0];
+          if (url === '/sitemap.xml' || url === '/sitemap-0.xml' || url === '/sitemap-index.xml') {
+            const pagesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'src/pages');
+            const entries = await readdir(pagesDir);
+            const urls = entries
+              .filter((name) => name.endsWith('.astro') && name !== '404.astro')
+              .map((name) => (name === 'index.astro' ? '/' : `/${name.replace(/\.astro$/, '')}/`))
+              .sort()
+              .map((route) => `<url><loc>https://omnibuf.com${route}</loc></url>`)
+              .join('');
+            const xml =
+              url === '/sitemap-index.xml'
+                ? `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>https://omnibuf.com/sitemap-0.xml</loc></sitemap></sitemapindex>`
+                : `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">${urls}</urlset>`;
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+            res.end(xml);
+            return;
+          }
+          next();
+        });
+      },
       'astro:build:done': async ({ dir, logger }) => {
         const distDir = fileURLToPath(dir);
 
@@ -103,6 +128,10 @@ function checkInternalLinksAndAnchors() {
         }
 
         logger.info(`Verified internal links and #anchors across ${htmlFiles.length} HTML pages.`);
+
+        const sitemapZero = path.join(distDir, 'sitemap-0.xml');
+        const sitemapXml = path.join(distDir, 'sitemap.xml');
+        await copyFile(sitemapZero, sitemapXml);
       },
     },
   };
@@ -110,7 +139,7 @@ function checkInternalLinksAndAnchors() {
 
 export default defineConfig({
   site: 'https://omnibuf.com',
-  integrations: [checkInternalLinksAndAnchors()],
+  integrations: [sitemap(), checkInternalLinksAndAnchors()],
   vite: {
     css: {
       postcss: {
