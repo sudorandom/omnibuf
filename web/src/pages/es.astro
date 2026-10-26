@@ -103,6 +103,7 @@ interface EsBenchmarkRow {
   name: string;
   val: number;
   ops: string;
+  ratio: string;
   sizeBytes?: number;
   highlight?: boolean;
   baseline?: boolean;
@@ -120,46 +121,52 @@ const esBenchmarkCategories: EsBenchmarkCategory[] = [
   {
     title: 'Full Message Encode Speed',
     unit: 'ns',
-    maxVal: 5000,
+    maxVal: 6000,
     methodology:
       'Serializing the 11-field PeerUpdate message (nested Location, 4 Neighbor messages, packed uint32 prefixes, string tags, and 64-bit counters) into a Uint8Array.',
     rows: [
       {
         name: 'OmniBuf',
-        val: 734,
-        ops: '1,362,684 ops/s',
+        val: 1169,
+        ops: '855,686 ops/s',
+        ratio: '1.00x (base)',
         sizeBytes: 366,
         highlight: true,
         baseline: true,
       },
       {
         name: 'protobufjs',
-        val: 1283,
-        ops: '779,696 ops/s',
+        val: 1653,
+        ops: '604,858 ops/s',
+        ratio: '1.41x slower',
         sizeBytes: 350,
       },
       {
         name: 'JSON',
-        val: 1798,
-        ops: '556,170 ops/s',
+        val: 2320,
+        ops: '430,946 ops/s',
+        ratio: '1.99x slower',
         sizeBytes: 791,
       },
       {
         name: '@bufbuild/protobuf (protobuf-es)',
-        val: 2116,
-        ops: '472,495 ops/s',
+        val: 2706,
+        ops: '369,601 ops/s',
+        ratio: '2.32x slower',
         sizeBytes: 350,
       },
       {
         name: '@msgpack/msgpack',
-        val: 3108,
-        ops: '321,709 ops/s',
+        val: 4042,
+        ops: '247,391 ops/s',
+        ratio: '3.46x slower',
         sizeBytes: 622,
       },
       {
         name: 'google-protobuf',
-        val: 4551,
-        ops: '219,719 ops/s',
+        val: 5863,
+        ops: '170,553 ops/s',
+        ratio: '5.02x slower',
         sizeBytes: 350,
       },
     ],
@@ -167,122 +174,140 @@ const esBenchmarkCategories: EsBenchmarkCategory[] = [
   {
     title: 'Full Message Decode Speed',
     unit: 'ns',
-    maxVal: 3000,
+    maxVal: 4000,
     methodology: 'Decoding the 11-field PeerUpdate packet back into a typed JavaScript object.',
     rows: [
       {
         name: 'OmniBuf',
-        val: 826,
-        ops: '1,210,766 ops/s',
+        val: 1090,
+        ops: '917,408 ops/s',
+        ratio: '1.00x (base)',
         highlight: true,
         baseline: true,
       },
       {
         name: 'protobufjs',
-        val: 1195,
-        ops: '836,811 ops/s',
+        val: 1537,
+        ops: '650,771 ops/s',
+        ratio: '1.41x slower',
       },
       {
         name: 'JSON',
-        val: 1989,
-        ops: '502,791 ops/s',
+        val: 2335,
+        ops: '428,243 ops/s',
+        ratio: '2.14x slower',
       },
       {
         name: 'google-protobuf',
-        val: 2665,
-        ops: '375,248 ops/s',
+        val: 3390,
+        ops: '295,025 ops/s',
+        ratio: '3.11x slower',
       },
       {
         name: '@msgpack/msgpack',
-        val: 2824,
-        ops: '354,064 ops/s',
+        val: 3599,
+        ops: '277,843 ops/s',
+        ratio: '3.30x slower',
       },
       {
         name: '@bufbuild/protobuf (protobuf-es)',
-        val: 2996,
-        ops: '333,786 ops/s',
+        val: 3780,
+        ops: '264,582 ops/s',
+        ratio: '3.47x slower',
       },
     ],
   },
   {
     title: 'Read a Single Nested Field (peer.location.city)',
     unit: 'ns',
-    maxVal: 3000,
+    maxVal: 4000,
     methodology:
       'Time to read peer.location.city from a packet without unpacking the rest of the message. The other JS libraries have to decode the full message first, while OmniBuf steps over the earlier field headers by adding their byte lengths.',
     rows: [
       {
         name: 'OmniBuf',
-        val: 363,
-        ops: '2,751,375 ops/s',
+        val: 389,
+        ops: '2,568,985 ops/s',
+        ratio: '1.00x (base)',
         highlight: true,
         baseline: true,
       },
       {
         name: 'protobufjs',
-        val: 1190,
-        ops: '839,984 ops/s',
+        val: 1533,
+        ops: '652,421 ops/s',
+        ratio: '3.94x slower',
       },
       {
         name: 'JSON',
-        val: 2031,
-        ops: '492,286 ops/s',
+        val: 2348,
+        ops: '425,901 ops/s',
+        ratio: '6.03x slower',
       },
       {
         name: 'google-protobuf',
-        val: 2656,
-        ops: '376,477 ops/s',
+        val: 3385,
+        ops: '295,379 ops/s',
+        ratio: '8.70x slower',
       },
       {
         name: '@msgpack/msgpack',
-        val: 2797,
-        ops: '357,494 ops/s',
+        val: 3591,
+        ops: '278,440 ops/s',
+        ratio: '9.23x slower',
       },
       {
         name: '@bufbuild/protobuf (protobuf-es)',
-        val: 3052,
-        ops: '327,632 ops/s',
+        val: 3762,
+        ops: '265,825 ops/s',
+        ratio: '9.66x slower',
       },
     ],
   },
   {
     title: 'Selective Single-Field Mutation (Update peer.sequence & Re-Serialize)',
     unit: 'ns',
-    maxVal: 7500,
+    maxVal: 10000,
     methodology:
       'Bumping the 64-bit sequence counter on an in-flight packet and returning the updated Uint8Array. OmniBuf splices the new field directly onto the raw bytes without touching the other 10 fields.',
     rows: [
       {
         name: 'OmniBuf',
-        val: 254,
-        ops: '3,929,775 ops/s',
+        val: 533,
+        ops: '1,875,474 ops/s',
+        ratio: '1.00x (base)',
         highlight: true,
         baseline: true,
       },
       {
         name: 'protobufjs',
-        val: 2818,
-        ops: '354,818 ops/s',
+        val: 3734,
+        ops: '267,791 ops/s',
+        ratio: '7.00x slower',
       },
       {
         name: 'JSON',
-        val: 3616,
-        ops: '276,567 ops/s',
+        val: 4773,
+        ops: '209,496 ops/s',
+        ratio: '8.95x slower',
       },
       {
         name: '@bufbuild/protobuf (protobuf-es)',
-        val: 5185,
-        ops: '192,877 ops/s',
+        val: 6952,
+        ops: '143,845 ops/s',
+        ratio: '13.04x slower',
       },
       {
         name: '@msgpack/msgpack',
-        val: 5894,
-        ops: '169,651 ops/s',
+        val: 7706,
+        ops: '129,761 ops/s',
+        ratio: '14.45x slower',
       },
       {
         name: 'google-protobuf',
-        val: 7175,
-        ops: '139,378 ops/s',
+        val: 9492,
+        ops: '105,351 ops/s',
+        ratio: '17.80x slower',
       },
     ],
   },
@@ -657,56 +682,43 @@ const esFaqJsonLd = {
               <p class="text-sm sm:text-base text-ink/85 leading-relaxed pb-2 max-w-[70ch]">
                 {cat.methodology}
               </p>
-              {(() => {
-                const omniVal =
-                  cat.rows.find((row) => row.baseline)?.val ??
-                  cat.rows.find((row) => row.highlight)?.val ??
-                  cat.rows[0].val;
-                return cat.rows.map((r) => {
-                  const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
-                  let ratioStr = '1.00x (base)';
-                  if (r.val !== omniVal) {
-                    ratioStr =
-                      r.val < omniVal
-                        ? `${(omniVal / r.val).toFixed(2)}x faster`
-                        : `${(r.val / omniVal).toFixed(2)}x slower`;
-                  }
-                  return (
-                    <div
-                      class:list={[
-                        'grid grid-cols-12 gap-3 items-center px-3 rounded min-w-0',
-                        r.baseline
-                          ? 'py-2.5 bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
-                          : r.highlight
-                            ? 'py-2 bg-acid/25 border-2 border-dashed border-ink font-bold'
-                            : 'py-2 border border-ink/15 bg-white',
-                      ]}
-                    >
-                      <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
-                        {r.name}
-                      </div>
-                      <div class="col-span-7 sm:col-span-5 flex items-center min-w-0">
-                        <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
-                          <div
-                            class:list={[
-                              'h-full border-r border-ink',
-                              r.highlight ? 'bench-bar-omni' : 'bench-bar-competitor',
-                            ]}
-                            style={`width: ${pct}%;`}
-                          />
-                        </div>
-                      </div>
-                      <div class="col-span-5 sm:col-span-3 text-right font-mono tabular-nums leading-tight">
-                        <span class="text-sm sm:text-base font-bold text-ink">{ratioStr}</span>
-                        <span class="block text-xs text-ink/75 font-normal">
-                          {r.val.toLocaleString('en-US')} {cat.unit} &middot; {r.ops}
-                          {r.sizeBytes !== undefined ? ` (${r.sizeBytes} B)` : ''}
-                        </span>
+              {cat.rows.map((r) => {
+                const pct = Math.max(2, Math.min(100, (r.val / cat.maxVal) * 100)).toFixed(1);
+                return (
+                  <div
+                    class:list={[
+                      'grid grid-cols-12 gap-3 items-center px-3 rounded min-w-0',
+                      r.baseline
+                        ? 'py-2.5 bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
+                        : r.highlight
+                          ? 'py-2 bg-acid/25 border-2 border-dashed border-ink font-bold'
+                          : 'py-2 border border-ink/15 bg-white',
+                    ]}
+                  >
+                    <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
+                      {r.name}
+                    </div>
+                    <div class="col-span-7 sm:col-span-5 flex items-center min-w-0">
+                      <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
+                        <div
+                          class:list={[
+                            'h-full border-r border-ink',
+                            r.highlight ? 'bench-bar-omni' : 'bench-bar-competitor',
+                          ]}
+                          style={`width: ${pct}%;`}
+                        />
                       </div>
                     </div>
-                  );
-                });
-              })()}
+                    <div class="col-span-5 sm:col-span-3 text-right font-mono tabular-nums leading-tight">
+                      <span class="text-sm sm:text-base font-bold text-ink">{r.ratio}</span>
+                      <span class="block text-xs text-ink/75 font-normal">
+                        {r.val.toLocaleString('en-US')} {cat.unit} &middot; {r.ops}
+                        {r.sizeBytes !== undefined ? ` (${r.sizeBytes} B)` : ''}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -720,7 +732,7 @@ const esFaqJsonLd = {
           </h3>
           <div class="p-4 bg-ink text-paper rounded-md border-2 border-ink space-y-1.5 font-mono text-sm mt-3">
             <div class="text-acid font-bold uppercase">Hardware &amp; Runtime</div>
-            <div>CPU: Apple Silicon (darwin/arm64)</div>
+            <div>CPU: Apple M1 Pro (darwin/arm64)</div>
             <div>Runtime: Node.js v24.22.1 (V8)</div>
             <div>
               Command: <code>pnpm run bench</code>
@@ -729,8 +741,8 @@ const esFaqJsonLd = {
         </div>
         <div class="md:col-span-8 md:pt-1 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
           <p>
-            I ran these benchmarks on an Apple Silicon Mac using Node.js v24.22.1. Each test uses
-            the same 11-field <code>PeerUpdate</code> message as the Go benchmark suite (numbers,
+            I ran these benchmarks on an Apple M1 Pro Mac using Node.js v24.22.1. Each test uses the
+            same 11-field <code>PeerUpdate</code> message as the Go benchmark suite (numbers,
             booleans, strings, a nested <code>Location</code> message, and 4 <code>Neighbor</code>{' '}
             messages).
           </p>
