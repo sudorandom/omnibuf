@@ -772,8 +772,14 @@ html.dark svg path[stroke='#111111'] {
 }
 
 html.dark svg polygon[fill='#111111'],
-html.dark svg circle[fill='#111111'] {
+html.dark svg circle[fill='#111111'],
+html.dark svg marker path[fill='#111111'] {
   fill: #c8d0e0;
+}
+
+html.dark svg text[fill='#C23000'],
+html.dark svg tspan[fill='#C23000'] {
+  fill: #ff7a4d;
 }
 
 html.dark svg path[marker-end^='url(#hop-omni'] {

@@ -76,39 +76,416 @@
           either side.
         </p>
       </div>
-      <div class="lg:col-span-6 min-w-0">
-        <div class="p-4 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono text-sm sm:text-base flex flex-wrap items-center justify-between gap-3">
-          <span>
-            <code>append(msgA, msgB...)</code>
-          </span>
-          <span class="px-2.5 py-1 bg-ink text-acid font-bold text-xs sm:text-sm rounded shrink-0">
-            Concat Merge
-          </span>
+      <div class="lg:col-span-6 font-mono text-sm min-w-0">
+        <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto">
+          <pre class="text-sm text-paper/95 leading-relaxed"><span class="text-paper/65">msgA:</span> &#123;<span class="text-acid">"id":</span> 1, <span class="text-acid">"active":</span> <span class="text-paper/70">false</span>&#125;
+<span class="text-paper/65">msgB:</span> &#123;<span class="text-acid">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>&#125;
+
+<span class="text-acid font-bold">append(msgA, msgB...)</span> &rarr; &#123;<span class="text-acid">"id":</span> 1, <span class="text-acid">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>&#125;</pre>
         </div>
       </div>
     </div>
 
-    <!-- Row 4: Native Maps & Strict Wire Safety -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-6 space-y-2.5 min-w-0">
+    <!-- Row 4: Native Maps -->
+    <div class="py-8 sm:py-10 space-y-6">
+      <div class="space-y-3 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Direct map encoding without synthetic MapEntry messages
         </h3>
-        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Maps (<code>WireMap = 9</code>) write key-value pairs directly inside one length-prefixed
-          block instead of wrapping every entry in a fake <code>MapEntry</code> sub-message.
-          Container byte lengths are validated against remaining packet bytes before allocating
-          slices, with a 32-level nesting limit.
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[75ch]">
+          Protobuf has no native map wire type. The compiler rewrites{' '}
+          <code>map&lt;string, uint64&gt; counters = 1</code> into a synthetic{' '}
+          <code>repeated CountersEntry</code> sub-message, wrapping every key-value pair in 4 bytes
+          of redundant tags and sub-message lengths (<code>0a 05</code>, <code>0a</code>,{' '}
+          <code>10</code>) and forcing the parser through a nested sub-message loop on every entry.
+        </p>
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[75ch]">
+          OmniBuf encodes maps directly as <code>WireMap = 9</code>: one header for the whole map
+          followed by untagged <code>[Key][Value]</code> pairs. That makes maps{' '}
+          <strong>less wasteful</strong> (0 tags per entry), <strong>smaller on the wire</strong> (
+          <strong>3 bytes per entry instead of 7</strong>, or 35 B vs. 70 B for 10 entries), and{' '}
+          <strong>faster to parse or skip</strong> in a single tight loop.
         </p>
       </div>
-      <div class="lg:col-span-6 min-w-0">
-        <div class="p-4 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono text-sm sm:text-base flex flex-wrap items-center justify-between gap-3">
-          <span>
-            Direct <code>WireMap</code> + verified container bounds
+
+      <!-- Clean Map Lowering & Wire Hex Diagram -->
+      <div class="os-window overflow-hidden">
+        <div class="os-titlebar bg-[#E5E0D5]">
+          <span class="font-mono text-sm sm:text-base font-bold uppercase">
+            Map Lowering &amp; Wire Hex: Protobuf vs. OmniBuf
           </span>
-          <span class="px-2.5 py-1 bg-ink text-white font-bold text-xs sm:text-sm rounded shrink-0">
-            Bounds Checked
-          </span>
+          <div class="os-stripes"></div>
+        </div>
+
+        <div class="bg-white p-3 sm:p-6">
+          <!-- DESKTOP SVG -->
+          <div class="hidden md:block">
+            <svg
+              viewBox="0 0 900 332"
+              class="w-full h-auto select-none"
+              role="img"
+              aria-label="Diagram showing map<string, uint64> counters = 1 schema and {'a': 1, 'b': 2} input joined together, then branching to Protobuf (which lowers into a synthetic CountersEntry sub-message before 14-byte wire hex) and OmniBuf (which skips Step 2 directly to 11-byte WireMap hex)."
+            >
+              <defs>
+                <marker
+                  id="map-arr-ink"
+                  viewBox="0 0 10 10"
+                  refX="7"
+                  refY="5"
+                  markerWidth="6"
+                  markerHeight="6"
+                  orient="auto"
+                >
+                  <polygon points="0,1 10,5 0,9" fill="context-stroke" />
+                </marker>
+              </defs>
+
+              <!-- Column Headers -->
+              <text
+                x="16"
+                y="24"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="12"
+                font-weight="700"
+              >
+                1. SCHEMA &amp; INPUT
+              </text>
+              <text
+                x="280"
+                y="24"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="12"
+                font-weight="700"
+              >
+                2. COMPILER LOWERING
+              </text>
+              <text
+                x="584"
+                y="24"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="12"
+                font-weight="700"
+              >
+                3. WIRE PAYLOAD HEX
+              </text>
+
+              <!-- ============================================================ -->
+              <!-- STEP 1: SEPARATE SCHEMA & INPUT BOXES                        -->
+              <!-- ============================================================ -->
+              <!-- Schema Box -->
+              <rect
+                x="16"
+                y="64"
+                width="196"
+                height="92"
+                rx="6"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="2"
+              />
+              <text
+                x="30"
+                y="104"
+                fill="#C23000"
+                font-family="IBM Plex Mono"
+                font-size="13"
+                font-weight="700"
+              >
+                map&lt;string, uint64&gt;
+              </text>
+              <text
+                x="30"
+                y="128"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="13.5"
+                font-weight="700"
+              >
+                counters = 1;
+              </text>
+
+              <!-- Input Box -->
+              <rect
+                x="16"
+                y="208"
+                width="196"
+                height="92"
+                rx="6"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="2"
+              />
+              <text
+                x="30"
+                y="259"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="13.5"
+                font-weight="700"
+              >
+                &#123;"a": 1, "b": 2&#125;
+              </text>
+
+              <!-- Join Schema & Input -> Single Trunk -> Branch to Protobuf & OmniBuf -->
+              <path
+                d="M 212 110 L 230 110 L 230 254 L 212 254"
+                fill="none"
+                stroke="#111111"
+                stroke-width="2.2"
+                stroke-linejoin="round"
+              />
+              <line x1="230" y1="182" x2="250" y2="182" stroke="#111111" stroke-width="2.2" />
+
+              <!-- ============================================================ -->
+              <!-- TOP TRACK: PROTOBUF (Step 1 -> Step 2 -> Step 3)             -->
+              <!-- ============================================================ -->
+              <text
+                x="280"
+                y="52"
+                fill="#C23000"
+                font-family="IBM Plex Mono"
+                font-size="13"
+                font-weight="700"
+              >
+                PROTOBUF
+              </text>
+
+              <!-- Branch from joined trunk -> Protobuf Step 2 -->
+              <path
+                d="M 250 182 L 250 110 L 274 110"
+                fill="none"
+                stroke="#111111"
+                stroke-width="2.2"
+                stroke-linejoin="round"
+                marker-end="url(#map-arr-ink)"
+              />
+
+              <!-- Protobuf Step 2: Synthetic CountersEntry -->
+              <rect
+                x="280"
+                y="64"
+                width="268"
+                height="92"
+                rx="6"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="2"
+              />
+              <text
+                x="294"
+                y="90"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="11.5"
+                font-weight="700"
+              >
+                message CountersEntry &#123;
+              </text>
+              <text x="306" y="110" fill="#111111" font-family="IBM Plex Mono" font-size="11.5">
+                string key = 1; uint64 value = 2;
+              </text>
+              <text
+                x="294"
+                y="128"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="11.5"
+                font-weight="700"
+              >
+                &#125;
+              </text>
+              <text
+                x="294"
+                y="146"
+                fill="#C23000"
+                font-family="IBM Plex Mono"
+                font-size="11.5"
+                font-weight="700"
+              >
+                repeated CountersEntry counters = 1;
+              </text>
+
+              <!-- Arrow: Protobuf Step 2 -> Protobuf Step 3 -->
+              <line
+                x1="548"
+                y1="110"
+                x2="578"
+                y2="110"
+                stroke="#111111"
+                stroke-width="2.2"
+                marker-end="url(#map-arr-ink)"
+              />
+
+              <!-- Protobuf Step 3: Pure Wire Hex -->
+              <rect
+                x="584"
+                y="64"
+                width="300"
+                height="92"
+                rx="6"
+                fill="#FAF8F2"
+                stroke="#111111"
+                stroke-width="2"
+              />
+              <text
+                x="600"
+                y="101"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="15"
+                font-weight="700"
+                letter-spacing="0.5"
+              >
+                <tspan fill="#FF4F18">0A 05 0A</tspan> 01 61 <tspan fill="#FF4F18">10</tspan> 01
+              </text>
+              <text
+                x="600"
+                y="134"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="15"
+                font-weight="700"
+                letter-spacing="0.5"
+              >
+                <tspan fill="#FF4F18">0A 05 0A</tspan> 01 62 <tspan fill="#FF4F18">10</tspan> 02
+              </text>
+              <text
+                x="884"
+                y="174"
+                fill="#C23000"
+                font-family="IBM Plex Mono"
+                font-size="12"
+                font-weight="700"
+                text-anchor="end"
+              >
+                14 bytes
+              </text>
+
+              <!-- ============================================================ -->
+              <!-- BOTTOM TRACK: OMNIBUF (Branch skipping Step 2 -> Step 3)     -->
+              <!-- ============================================================ -->
+              <text
+                x="280"
+                y="240"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="13"
+                font-weight="700"
+              >
+                OMNIBUF
+              </text>
+
+              <!-- Branch from joined trunk straight across Step 2 to Step 3 -->
+              <path
+                d="M 250 182 L 250 254 L 578 254"
+                fill="none"
+                stroke="#111111"
+                stroke-width="2.2"
+                stroke-linejoin="round"
+                marker-end="url(#map-arr-ink)"
+              />
+
+              <!-- OmniBuf Step 3: Pure Wire Hex -->
+              <rect
+                x="584"
+                y="208"
+                width="300"
+                height="92"
+                rx="6"
+                fill="#111111"
+                stroke="#111111"
+                stroke-width="2"
+              />
+              <text
+                x="600"
+                y="236"
+                fill="#D4FF33"
+                font-family="IBM Plex Mono"
+                font-size="15"
+                font-weight="700"
+                letter-spacing="0.5"
+              >
+                91 12 00 30 05
+              </text>
+              <text
+                x="600"
+                y="263"
+                fill="#FAF8F2"
+                font-family="IBM Plex Mono"
+                font-size="15"
+                font-weight="700"
+                letter-spacing="0.5"
+              >
+                03 61 03
+              </text>
+              <text
+                x="600"
+                y="287"
+                fill="#FAF8F2"
+                font-family="IBM Plex Mono"
+                font-size="15"
+                font-weight="700"
+                letter-spacing="0.5"
+              >
+                03 62 05
+              </text>
+              <text
+                x="884"
+                y="318"
+                fill="#111111"
+                font-family="IBM Plex Mono"
+                font-size="12"
+                font-weight="700"
+                text-anchor="end"
+              >
+                11 bytes
+              </text>
+            </svg>
+          </div>
+
+          <!-- MOBILE STACK -->
+          <div class="block md:hidden font-mono text-xs space-y-3">
+            <div class="p-3 bg-[#FAF8F2] border-2 border-ink rounded">
+              <div class="font-bold text-ink">
+                <span class="text-[#C23000]">map&lt;string, uint64&gt;</span> counters = 1;
+              </div>
+            </div>
+            <div class="p-3 bg-[#FAF8F2] border-2 border-ink rounded font-bold text-ink">
+              &#123;"a": 1, "b": 2&#125;
+            </div>
+
+            <div class="p-3 bg-[#FAF8F2] border-2 border-ink rounded space-y-2">
+              <div class="font-bold text-[#C23000] uppercase">Protobuf</div>
+              <div class="p-2.5 bg-white border border-ink/20 rounded text-[11px]">
+                <div>message CountersEntry &#123; string key = 1; uint64 value = 2; &#125;</div>
+                <div class="font-bold text-[#C23000]">repeated CountersEntry counters = 1;</div>
+              </div>
+              <div class="p-2.5 bg-white border border-ink/20 rounded text-sm font-bold leading-relaxed">
+                <div>
+                  <span class="text-[#FF4F18]">0A 05 0A</span> 01 61{' '}
+                  <span class="text-[#FF4F18]">10</span> 01
+                </div>
+                <div>
+                  <span class="text-[#FF4F18]">0A 05 0A</span> 01 62{' '}
+                  <span class="text-[#FF4F18]">10</span> 02
+                </div>
+              </div>
+              <div class="text-right font-bold text-[#C23000]">14 bytes</div>
+            </div>
+
+            <div class="p-3 bg-ink text-paper border-2 border-ink rounded space-y-2">
+              <div class="font-bold text-acid uppercase">OmniBuf</div>
+              <div class="text-sm font-bold leading-relaxed">
+                <div class="text-acid">91 12 00 30 05</div>
+                <div>03 61 03</div>
+                <div>03 62 05</div>
+              </div>
+              <div class="text-right font-bold text-acid">11 bytes</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

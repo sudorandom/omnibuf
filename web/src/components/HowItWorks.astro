@@ -31,42 +31,41 @@ const nodeSchemaCode = `message Node {
           Instead of checking continuation bits on every byte in a loop, the trailing zeros in Byte 0 tell the CPU the exact byte width (1, 2, 4, or 9 bytes) right away via <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a>, reading the whole integer at once (<strong>2x to 4x faster</strong> on single integers and <strong>~35% faster</strong> on mixed integer streams than Go's <code>protowire</code> and <code>vtprotobuf</code>). Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener noreferrer" class="doc-link">ZigZag encoding</a>.
         </p>
       </div>
-      <div class="lg:col-span-6">
-        <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base grid sm:grid-cols-2 gap-2.5">
-          <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
-            <span>
-              <span class="text-paper/75">vvvvvvv</span>
-              <strong class="text-acid">1</strong>
-            </span>
-            <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded text-xs sm:text-sm">
-              1B (7b)
-            </span>
+      <div class="lg:col-span-6 min-w-0">
+        <div class="p-4 sm:p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm space-y-4">
+          <div class="space-y-1.5">
+            <div class="text-[#FF4F18] font-bold uppercase text-xs">Protobuf LEB128</div>
+            <div class="grid grid-cols-4 gap-2 text-center text-sm sm:text-base font-bold">
+              <div class="bg-[#1F1F1F] border border-[#FF4F18]/60 rounded py-2">
+                <span class="text-[#FF4F18]">1</span>
+                <span class="text-paper/80">1000000</span>
+              </div>
+              <div class="bg-[#1F1F1F] border border-[#FF4F18]/60 rounded py-2">
+                <span class="text-[#FF4F18]">1</span>
+                <span class="text-paper/80">0010110</span>
+              </div>
+              <div class="bg-[#1F1F1F] border border-[#FF4F18]/60 rounded py-2">
+                <span class="text-[#FF4F18]">1</span>
+                <span class="text-paper/80">0110001</span>
+              </div>
+              <div class="bg-[#1F1F1F] border border-paper/30 rounded py-2">
+                <span class="text-acid">0</span>
+                <span class="text-paper/80">0000010</span>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
-            <span>
-              <span class="text-paper/75">vvvvvv</span>
-              <strong class="text-acid">10</strong>
-            </span>
-            <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded text-xs sm:text-sm">
-              2B (14b)
-            </span>
-          </div>
-          <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
-            <span>
-              <span class="text-paper/75">vvvvv</span>
-              <strong class="text-acid">100</strong>
-            </span>
-            <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded text-xs sm:text-sm">
-              4B (29b)
-            </span>
-          </div>
-          <div class="flex items-center justify-between bg-[#1F1F1F] px-3.5 py-2 rounded border border-paper/15">
-            <span>
-              <strong class="text-acid">00000000</strong>
-            </span>
-            <span class="px-2 py-0.5 bg-paper/20 text-paper font-bold rounded text-xs sm:text-sm">
-              9B (64b)
-            </span>
+
+          <div class="space-y-1.5">
+            <div class="text-acid font-bold uppercase text-xs">OmniBuf Prefix-Varint</div>
+            <div class="grid grid-cols-4 gap-2 text-center text-sm sm:text-base font-bold bg-[#1F1F1F] border-2 border-acid rounded p-2">
+              <div>
+                <span class="text-paper/80">00000</span>
+                <span class="text-acid">100</span>
+              </div>
+              <div class="text-paper/80">01011011</div>
+              <div class="text-paper/80">01100010</div>
+              <div class="text-paper/80">00000010</div>
+            </div>
           </div>
         </div>
       </div>
@@ -74,36 +73,75 @@ const nodeSchemaCode = `message Node {
 
     <!-- Row 2: Single-Pass Encoding -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-6 space-y-2.5 min-w-0">
+      <div class="lg:col-span-6 space-y-3 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Reserve 2 bytes &amp; patch after
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Protobuf requires shortest-length varints, so encoders must measure every child object
-          before writing. In OmniBuf, a 2-byte Prefix-Varint (<code>TZCNT=1</code>) is valid for any
-          length under 16 KB, so the encoder reserves 2 bytes, writes forward in one pass, and fills
-          in the length at the end (automatically expanding in place to 4 or 9 bytes if a container
-          exceeds 16 KB).
+          Protobuf requires shortest-length varints (1 byte for <code>0..127</code>, 2 bytes for{' '}
+          <code>128..16,383</code>), so an encoder cannot know how many bytes a parent length prefix
+          needs until it measures every child field first. OmniBuf explicitly permits an{' '}
+          <strong>overlong 2-byte Prefix-Varint</strong> (<code>TZCNT=1</code>) for any container
+          length from <code>0</code> to <code>16,383</code> bytes (16 KB): the encoder reserves a
+          2-byte slot, writes child fields forward in one pass, and patches the 2-byte length in{' '}
+          <code>O(1)</code> at the end.
+        </p>
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+          <strong>The common-case trade-off:</strong> On small sub-messages under 128 bytes, a
+          2-byte slot costs 1 extra byte compared to a 1-byte varint (and saves 2 bytes compared to
+          a fixed 4-byte length) to eliminate the entire pre-computation pass. If a container ever
+          exceeds 16 KB when it closes, the encoder shifts that container's contiguous payload right
+          by 2 bytes in place (<code>memmove</code>) and writes a 4-byte length.
         </p>
       </div>
-      <div class="lg:col-span-6">
-        <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm grid sm:grid-cols-2 gap-3">
-          <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
-            <div class="text-paper/75 text-xs mb-1.5">1. Reserve 2-byte blank slot</div>
-            <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
-              <span class="px-2 py-0.5 bg-paper/20 rounded">Tag #9</span>
-              <span class="px-2 py-0.5 border border-dashed border-acid text-acid font-bold rounded">
-                [00 00]
+      <div class="lg:col-span-6 min-w-0 space-y-3">
+        <div class="p-4 sm:p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm space-y-4">
+          <div class="space-y-1.5">
+            <div class="text-paper/75 text-xs uppercase font-bold">
+              1. Reserve 2B slot &amp; write payload forward
+            </div>
+            <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
+              <span class="text-paper/70">93</span>
+              <span class="px-2 py-0.5 border border-dashed border-acid text-acid rounded">
+                00 00
               </span>
-              <span class="text-paper/70">&rarr; write</span>
+              <span class="text-paper">31 07 46 52 41 40 55</span>
             </div>
           </div>
-          <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
-            <div class="text-paper/75 text-xs mb-1.5">2. Backpatch 2B length at end</div>
-            <div class="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm">
-              <span class="px-2 py-0.5 bg-paper/20 rounded">Tag #9</span>
-              <span class="px-2 py-0.5 bg-acid text-ink font-bold rounded">Len=7B</span>
-              <span class="px-2 py-0.5 bg-[#FF4F18] text-white font-bold rounded">[7B]</span>
+
+          <div class="space-y-1.5">
+            <div class="text-acid text-xs uppercase font-bold">2. Patch 2B length at end</div>
+            <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
+              <span class="text-paper/70">93</span>
+              <span class="px-2 py-0.5 bg-acid text-ink rounded">1E 00</span>
+              <span class="text-paper">31 07 46 52 41 40 55</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 sm:p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm space-y-4">
+          <div class="space-y-1.5">
+            <div class="text-paper/75 text-xs uppercase font-bold">
+              1. Payload exceeds 16 KB (2B slot too small)
+            </div>
+            <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
+              <span class="text-paper/70">93</span>
+              <span class="px-2 py-0.5 border border-dashed border-[#FF4F18] text-[#FF4F18] rounded">
+                00 00
+              </span>
+              <span class="text-paper">31 07 46 52 41 &hellip;</span>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="text-acid text-xs uppercase font-bold">
+              2. Shift payload +2B (memmove) &amp; patch 4B length
+            </div>
+            <div class="flex items-center gap-2 bg-[#1F1F1F] border border-paper/20 rounded p-2.5 text-sm sm:text-base font-bold">
+              <span class="text-paper/70">93</span>
+              <span class="px-2 py-0.5 bg-acid text-ink rounded">04 00 02 00</span>
+              <span class="text-[#FF4F18]">&rarr;</span>
+              <span class="text-paper">31 07 46 52 41 &hellip;</span>
             </div>
           </div>
         </div>
