@@ -1280,37 +1280,8 @@ const tocSections = sectionTitles.map((title, index) => ({
     });
   }
 
-  // Copy buttons for reference code blocks
-  const specLiveRegion = document.getElementById('spec-copy-live');
-  const copyBtns = document.querySelectorAll<HTMLButtonElement>('.copy-snippet-btn');
-  const copyTimers = new WeakMap<HTMLButtonElement, number>();
-  for (const btn of copyBtns) {
-    btn.addEventListener('click', () => {
-      const text = btn.getAttribute('data-copy') || '';
-      if (!text) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        void navigator.clipboard.writeText(text);
-      }
-      if (!btn.dataset.origText) {
-        btn.dataset.origText = btn.textContent?.trim() || 'Copy';
-      }
-      const prevTimer = copyTimers.get(btn);
-      if (prevTimer !== undefined) {
-        window.clearTimeout(prevTimer);
-      }
-      btn.textContent = 'Copied!';
-      if (specLiveRegion) {
-        specLiveRegion.textContent = 'Copied code snippet to clipboard';
-      }
-      const timerId = window.setTimeout(() => {
-        btn.textContent = btn.dataset.origText || 'Copy';
-        copyTimers.delete(btn);
-      }, 1500);
-      copyTimers.set(btn, timerId);
-    });
-  }
-
   // Add pilcrow (¶) copy-link anchors to every section heading in the specification
+  const specLiveRegion = document.getElementById('spec-copy-live');
   const anchorTimers = new WeakMap<HTMLAnchorElement, number>();
   const specHeadings = Array.from(
     document.querySelectorAll<HTMLElement>(

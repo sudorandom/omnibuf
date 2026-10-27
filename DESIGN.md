@@ -104,7 +104,7 @@ OmniBuf's visual identity combines the clarity of a printed Swiss technical manu
 
 Instead of pretending to be an abstract cloud service, the interface treats data structures as physical objects you can inspect and measure. Containers use crisp 2px ink borders, striped classic OS title bars, and hard zero-blur offset shadows. Geometric grotesque headlines pair with italic editorial serif counterpoints and dense monospace byte tables so engineers can scan high-level claims and immediately drill down into exact bit layouts.
 
-The system explicitly rejects dark-mode neon SaaS gradients, frosted glassmorphism, diffuse drop shadows, and sterile corporate documentation templates. Every visual element is tactile, high-contrast, and mechanical.
+The system explicitly rejects neon SaaS gradients, frosted glassmorphism, diffuse drop shadows, and sterile corporate documentation templates. Every visual element is tactile, high-contrast, and mechanical, with an optional "Night Workstation Manual" dark theme (`html.dark`) that maps the paper canvas to deep slate (`#0F1115`) while preserving crisp borders, offset shadows, and Signal Orange / Acid Lime accents.
 
 **Key Characteristics:**
 - Warm drafting-paper background with a 32px technical coordinate grid (`rgba(17, 17, 17, 0.05)` lines).

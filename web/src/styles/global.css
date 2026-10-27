@@ -584,6 +584,8 @@ html.dark .bg-acid.text-ink,
 html.dark .bg-acid .text-ink,
 html.dark .hover\:bg-acid:hover,
 html.dark .hover\:bg-acid:hover.hover\:text-ink,
+html.dark .group:hover .group-hover\:bg-acid,
+html.dark .group:hover .group-hover\:bg-acid .text-ink,
 html.dark details[open] > summary.group-open\:bg-acid,
 html.dark a[data-spec-link][data-active='true'] {
   background-color: #d4ff33 !important;
@@ -791,6 +793,7 @@ html.dark svg marker#hop-omni-m path {
   fill: #d4ff33;
 }
 
+html.dark svg text[fill='#00805A'],
 html.dark svg tspan[fill='#00805A'] {
   fill: #10b981;
 }
@@ -800,8 +803,10 @@ html.dark svg text[fill='#111111'] {
 }
 
 html.dark svg text[fill='#555'],
-html.dark svg text[fill='#666'] {
-  fill: rgba(244, 240, 230, 0.75);
+html.dark svg text[fill='#666'],
+html.dark svg tspan[fill='#555'],
+html.dark svg tspan[fill='#666'] {
+  fill: #b8c2d1;
 }
 
 html.dark svg rect[fill='#D4FF33'] + text[fill='#111111'],

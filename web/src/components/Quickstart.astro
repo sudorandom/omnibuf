@@ -216,29 +216,4 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
       </div>
     </div>
   </div>
-  <div id="copy-live-region" class="sr-only" aria-live="polite"></div>
 </section>
-
-<script>
-  const liveRegion = document.getElementById('copy-live-region');
-  const timers = new WeakMap<HTMLButtonElement, number>();
-  document.querySelectorAll<HTMLButtonElement>('.copy-snippet-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const text = btn.getAttribute('data-copy');
-      if (!text) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-      }
-      const orig =
-        btn.dataset.origText || (btn.dataset.origText = btn.textContent?.trim() || 'Copy');
-      const prevTimer = timers.get(btn);
-      if (prevTimer) window.clearTimeout(prevTimer);
-      btn.textContent = 'Copied!';
-      if (liveRegion) liveRegion.textContent = 'Copied code snippet to clipboard.';
-      const timerId = window.setTimeout(() => {
-        btn.textContent = orig;
-      }, 1500);
-      timers.set(btn, timerId);
-    });
-  });
-</script>

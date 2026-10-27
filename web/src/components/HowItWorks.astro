@@ -1990,36 +1990,4 @@ const nodeSchemaCode = `message Node {
       </div>
     </div>
   </div>
-  <div id="howitworks-copy-live" class="sr-only" aria-live="polite"></div>
 </section>
-
-<script>
-  const copyBtns = document.querySelectorAll<HTMLButtonElement>('#how-it-works .copy-snippet-btn');
-  const liveRegion = document.getElementById('howitworks-copy-live');
-  const copyTimers = new WeakMap<HTMLButtonElement, number>();
-  for (const btn of copyBtns) {
-    btn.addEventListener('click', () => {
-      const text = btn.getAttribute('data-copy') || '';
-      if (!text) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        void navigator.clipboard.writeText(text);
-      }
-      if (!btn.dataset.origText) {
-        btn.dataset.origText = btn.textContent?.trim() || 'Copy';
-      }
-      const prevTimer = copyTimers.get(btn);
-      if (prevTimer !== undefined) {
-        window.clearTimeout(prevTimer);
-      }
-      btn.textContent = 'Copied!';
-      if (liveRegion) {
-        liveRegion.textContent = 'Copied code snippet to clipboard';
-      }
-      const timerId = window.setTimeout(() => {
-        btn.textContent = btn.dataset.origText || 'Copy';
-        copyTimers.delete(btn);
-      }, 1500);
-      copyTimers.set(btn, timerId);
-    });
-  }
-</script>

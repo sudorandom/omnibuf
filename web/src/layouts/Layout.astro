@@ -59,5 +59,35 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? 'https://omnibuf.
       Skip to main content
     </a>
     <slot />
+    <div id="copy-live-region" class="sr-only" aria-live="polite"></div>
+    <script>
+      const liveRegion = document.getElementById('copy-live-region');
+      const copyTimers = new WeakMap<HTMLButtonElement, number>();
+      document.querySelectorAll<HTMLButtonElement>('.copy-snippet-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const text = btn.getAttribute('data-copy') || '';
+          if (!text) return;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            void navigator.clipboard.writeText(text);
+          }
+          if (!btn.dataset.origText) {
+            btn.dataset.origText = btn.textContent?.trim() || 'Copy';
+          }
+          const prevTimer = copyTimers.get(btn);
+          if (prevTimer !== undefined) {
+            window.clearTimeout(prevTimer);
+          }
+          btn.textContent = 'Copied!';
+          if (liveRegion) {
+            liveRegion.textContent = 'Copied code snippet to clipboard.';
+          }
+          const timerId = window.setTimeout(() => {
+            btn.textContent = btn.dataset.origText || 'Copy';
+            copyTimers.delete(btn);
+          }, 1500);
+          copyTimers.set(btn, timerId);
+        });
+      });
+    </script>
   </body>
 </html>

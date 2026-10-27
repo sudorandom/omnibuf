@@ -206,49 +206,49 @@ const esFaqJsonLd = {
           </div>
         </div>
 
-        <div class="lg:col-span-5 space-y-3 min-w-0">
-          <div class="p-4 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink shadow-[4px_4px_0px_#111111]">
-            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-paper/15">
-              <div class="text-xs font-bold uppercase text-acid">Core Runtime (Universal)</div>
-              <button
-                type="button"
-                data-copy="pnpm add @omnibuf/core"
-                class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-              >
-                Copy
-              </button>
-            </div>
-            <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add @omnibuf/core</code></pre>
-          </div>
-
-          <div class="p-4 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink shadow-[4px_4px_0px_#111111]">
-            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-paper/15">
-              <div class="text-xs font-bold uppercase text-acid">
-                Browser &amp; Edge (@omnibuf/web)
+        <div class="lg:col-span-5 min-w-0">
+          <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink shadow-[4px_4px_0px_#111111] space-y-3">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-paper/15">
+                <div class="text-xs font-bold uppercase text-acid">Core Runtime (Universal)</div>
+                <button
+                  type="button"
+                  data-copy="pnpm add @omnibuf/core"
+                  class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
               </div>
-              <button
-                type="button"
-                data-copy="pnpm add @omnibuf/web"
-                class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-              >
-                Copy
-              </button>
+              <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add @omnibuf/core</code></pre>
             </div>
-            <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add @omnibuf/web</code></pre>
-          </div>
 
-          <div class="p-4 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink shadow-[4px_4px_0px_#111111]">
-            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-paper/15">
-              <div class="text-xs font-bold uppercase text-acid">Node.js (@omnibuf/node)</div>
-              <button
-                type="button"
-                data-copy="pnpm add @omnibuf/node"
-                class="copy-snippet-btn min-w-[4.75rem] text-center px-2.5 py-1 text-xs font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
-              >
-                Copy
-              </button>
+            <div class="pt-2.5 border-t border-paper/15 space-y-1.5 text-xs">
+              <div class="text-paper/70 uppercase font-bold">Optional Runtime Helpers</div>
+              <div class="flex items-center justify-between gap-2">
+                <code class="text-paper/90">
+                  <span class="text-paper/65 select-none">$ </span>pnpm add @omnibuf/web
+                </code>
+                <button
+                  type="button"
+                  data-copy="pnpm add @omnibuf/web"
+                  class="copy-snippet-btn min-w-[4.25rem] text-center px-2 py-0.5 text-[11px] font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <code class="text-paper/90">
+                  <span class="text-paper/65 select-none">$ </span>pnpm add @omnibuf/node
+                </code>
+                <button
+                  type="button"
+                  data-copy="pnpm add @omnibuf/node"
+                  class="copy-snippet-btn min-w-[4.25rem] text-center px-2 py-0.5 text-[11px] font-bold uppercase bg-paper/15 hover:bg-acid hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-acid text-paper border border-paper/30 rounded shrink-0 transition"
+                >
+                  Copy
+                </button>
+              </div>
             </div>
-            <pre class="leading-relaxed whitespace-pre"><code><span class="text-paper/75 select-none">$ </span>pnpm add @omnibuf/node</code></pre>
           </div>
         </div>
       </div>
@@ -436,7 +436,6 @@ const esFaqJsonLd = {
           </div>
         </div>
       </div>
-      <div id="copy-live-region" class="sr-only" aria-live="polite"></div>
     </section>
 
     <!-- TypeScript & JS Benchmarks -->
@@ -619,27 +618,3 @@ const esFaqJsonLd = {
 
   <Footer />
 </Layout>
-
-<script>
-  const liveRegion = document.getElementById('copy-live-region');
-  const timers = new WeakMap<HTMLButtonElement, number>();
-  document.querySelectorAll<HTMLButtonElement>('.copy-snippet-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const text = btn.getAttribute('data-copy');
-      if (!text) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-      }
-      const orig =
-        btn.dataset.origText || (btn.dataset.origText = btn.textContent?.trim() || 'Copy');
-      const prevTimer = timers.get(btn);
-      if (prevTimer) window.clearTimeout(prevTimer);
-      btn.textContent = 'Copied!';
-      if (liveRegion) liveRegion.textContent = 'Copied code snippet to clipboard.';
-      const timerId = window.setTimeout(() => {
-        btn.textContent = orig;
-      }, 1500);
-      timers.set(btn, timerId);
-    });
-  });
-</script>

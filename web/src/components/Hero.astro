@@ -27,7 +27,7 @@
     <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
       I built OmniBuf because I wanted a binary format that fixes the parts of <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> that have aged poorly since 2001 (like <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a> and two-pass encoding), while also working as a fast, compact replacement for <strong>JSON</strong> on normal structs.
     </p>
-    <p class="text-base sm:text-xl font-mono text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md">
+    <p class="text-base sm:text-xl font-medium text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md">
       You can use <strong>OmniBuf</strong> with your existing <code>.proto</code> files, or skip{' '}
       <code>.proto</code> files altogether and use it directly on Go structs and TypeScript objects.
       In Go benchmarks on our 11-field test message, it runs{' '}
@@ -833,7 +833,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          5x–11x faster &amp; 55% smaller
+          5x to 11x faster &amp; 55% smaller
         </text>
       </svg>
 
@@ -1013,7 +1013,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          5x–11x faster &amp; 55% smaller
+          5x to 11x faster &amp; 55% smaller
         </text>
         <text
           x="80"
