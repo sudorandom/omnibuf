@@ -1542,4 +1542,3 @@ func LookupAvroNestedCity(b []byte) (string, bool) {
 	}
 	return city, true
 }
-
