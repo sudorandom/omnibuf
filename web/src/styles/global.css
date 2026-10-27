@@ -805,6 +805,11 @@ html.dark svg tspan[fill='#C23000'] {
   fill: #ff7a4d;
 }
 
+html.dark svg text[fill='#00805A'],
+html.dark svg tspan[fill='#00805A'] {
+  fill: #34d399;
+}
+
 html.dark svg path[marker-end^='url(#hop-omni'] {
   stroke: #d4ff33;
 }

@@ -140,8 +140,15 @@ const wireTypeRows: WireTypeRow[] = [
             number in the upper bits and a <strong>4-bit wire type (0..15)</strong> in the low 4
             bits:
           </p>
-          <div class="p-3.5 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono text-sm sm:text-base font-bold">
-            Tag = (FieldNumber &lt;&lt; 4) | WireType
+          <div class="p-3.5 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono space-y-1">
+            <div class="text-sm sm:text-base font-bold">
+              Tag = (FieldNumber &lt;&lt; 4) | WireType
+            </div>
+            <div class="text-xs text-ink/75">
+              1-byte Prefix-Varints encode <code>x</code> as <code>(x &lt;&lt; 1) | 1</code>, so
+              Field #1 (<code>0x10</code>) is <code>0x21</code> on the wire and value <code>1</code>{' '}
+              is <code>0x03</code>.
+            </div>
           </div>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
             That 4-bit wire type tells the decoder both the data type and how many bytes follow the

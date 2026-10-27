@@ -58,14 +58,14 @@ spacing:
   2xl: "48px"
 components:
   button-primary:
-    backgroundColor: "{colors.signal-orange}"
-    textColor: "{colors.pure-white}"
+    backgroundColor: "{colors.acid-lime}"
+    textColor: "{colors.carbon-ink}"
     typography: "{typography.label}"
     rounded: "{rounded.md}"
     padding: "12px 20px"
-  button-acid:
-    backgroundColor: "{colors.acid-lime}"
-    textColor: "{colors.carbon-ink}"
+  button-signal:
+    backgroundColor: "{colors.signal-orange}"
+    textColor: "{colors.pure-white}"
     typography: "{typography.label}"
     rounded: "{rounded.md}"
     padding: "12px 20px"
@@ -117,10 +117,10 @@ The system explicitly rejects neon SaaS gradients, frosted glassmorphism, diffus
 The palette contrasts warm, archival paper neutrals against pitch-black printer's ink and two high-visibility industrial signal accents.
 
 ### Primary
-- **Signal Orange** (`#FF4F18`): Used for primary CTA buttons, italic serif headline counterpoints, OmniBuf's primary data series in benchmark charts, and key architectural callout labels.
+- **Signal Orange** (`#FF4F18`): Used for italic serif headline counterpoints, OmniBuf's primary data series in benchmark charts, length-prefix byte tokens, and key architectural callout labels.
 
 ### Secondary
-- **Acid Lime** (`#D4FF33`): Used for active navigation pills, secondary CTA buttons (`Benchmarks`), highlighted OmniBuf benchmark rows (at 30% opacity over cream), link hover highlights, and high-contrast status badges on dark ink surfaces.
+- **Acid Lime** (`#D4FF33`): Used for primary CTA buttons (`.os-btn`), active navigation pills, highlighted OmniBuf benchmark rows (at 30% to 45% opacity over cream), link hover highlights, and high-contrast status badges on dark ink surfaces.
 
 ### Tertiary
 - **Cobalt Blue** (`#1E40AF`): Used for structural byte-diagram accents, secondary protocol comparisons, and wire-layout field annotations.
@@ -187,9 +187,9 @@ Components feel tactile and mechanical: classic OS window panels with striped ti
 
 ### Buttons (`.os-btn`)
 - **Shape:** Slightly rounded corners (`6px` radius) with a `2px solid #111111` border.
-- **Primary:** Signal Orange background (`#FF4F18`), Pure White text (`#FFFFFF`), `IBM Plex Mono` bold (`14px` to `16px`), `12px 20px` padding, resting `4px 4px 0px #111111` shadow.
+- **Primary:** Acid Lime background (`#D4FF33`), Carbon Ink text (`#111111`), `IBM Plex Mono` bold (`14px` to `16px`), `12px 20px` padding, resting `4px 4px 0px #111111` shadow.
 - **Hover / Focus:** Translates `(-2px, -2px)` with shadow expanding to `6px 6px 0px #111111` over `0.12s ease`. On `:active`, translates `(2px, 2px)` with shadow collapsing to `1px 1px 0px #111111`.
-- **Secondary / Acid / Ink Variants:** Acid Lime (`#D4FF33` bg, `#111111` text), Warm Cream (`#FAF8F2` bg, `#111111` text), and Carbon Ink (`#111111` bg, `#F4F0E6` text) share identical geometry and press physics.
+- **Secondary / Ink / Signal Variants:** Warm Cream (`#FAF8F2` bg, `#111111` text), Carbon Ink (`#111111` bg, `#F4F0E6` text), and Signal Orange (`#FF4F18` bg, `#FFFFFF` text) share identical geometry and press physics.
 
 ### Cards / Containers (`.os-window`)
 - **Corner Style:** `6px` border radius (`8px` for `.os-window-lg`).

@@ -64,56 +64,64 @@ const miniLanguagePreviews = [
       const maxEnc = Math.max(...preview.encodeRows.map((r) => r.val), 1);
       const maxDec = Math.max(...preview.decodeRows.map((r) => r.val), 1);
       return (
-        <a
-          href={preview.href}
-          class="os-window overflow-hidden block group hover:-translate-y-0.5 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          <div class="os-titlebar bg-[#E5E0D5] group-hover:bg-acid transition-colors">
+        <div class="os-window overflow-hidden flex flex-col">
+          <div class="os-titlebar bg-[#E5E0D5]">
             <span class="font-mono text-xs sm:text-sm font-bold uppercase text-ink">
               {preview.lang} Speed Overview
             </span>
-            <span class="font-mono text-xs font-bold uppercase text-ink underline decoration-ink/50 underline-offset-2">
-              {preview.cta} &rarr;
-            </span>
+            <div class="os-stripes" />
           </div>
 
-          <div class="p-4 sm:p-5 bg-[#FAF8F2] grid grid-cols-2 gap-4 sm:gap-6">
-            {[
-              { label: 'Encode', rows: preview.encodeRows, max: maxEnc },
-              { label: 'Decode', rows: preview.decodeRows, max: maxDec },
-            ].map((col) => (
-              <div class="space-y-2 min-w-0">
-                <div class="flex items-baseline justify-between border-b border-ink/15 pb-1">
-                  <span class="font-mono text-xs font-bold uppercase text-ink">{col.label}</span>
-                  <span class="font-mono text-[10px] uppercase text-ink/60">Shorter = Faster</span>
+          <div class="p-4 sm:p-5 bg-[#FAF8F2] flex-1 flex flex-col justify-between gap-3.5">
+            <div class="grid grid-cols-2 gap-4 sm:gap-6">
+              {[
+                { label: 'Encode', rows: preview.encodeRows, max: maxEnc },
+                { label: 'Decode', rows: preview.decodeRows, max: maxDec },
+              ].map((col) => (
+                <div class="space-y-2 min-w-0">
+                  <div class="flex items-baseline justify-between border-b border-ink/15 pb-1">
+                    <span class="font-mono text-xs font-bold uppercase text-ink">{col.label}</span>
+                    <span class="font-mono text-[10px] uppercase text-ink/60">
+                      Shorter = Faster
+                    </span>
+                  </div>
+                  <div class="space-y-1.5 pt-0.5">
+                    {col.rows.map((r) => {
+                      const pct = Math.max(4, Math.min(100, (r.val / col.max) * 100)).toFixed(1);
+                      return r.baseline ? (
+                        <div class="flex items-center gap-2 min-w-0" title="OmniBuf">
+                          <div
+                            class="h-3.5 bench-bar-omni border border-ink rounded-sm shadow-[1px_1px_0px_#111111] shrink-0"
+                            style={`width: ${pct}%;`}
+                          />
+                          <span class="font-mono text-[11px] font-bold uppercase px-1.5 py-0.5 bg-acid border border-ink text-ink leading-none rounded-sm shrink-0">
+                            OmniBuf
+                          </span>
+                        </div>
+                      ) : (
+                        <div class="w-full" title={r.name}>
+                          <div
+                            class="h-2.5 bench-bar-competitor border border-ink/60 rounded-sm opacity-75"
+                            style={`width: ${pct}%;`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div class="space-y-1.5 pt-0.5">
-                  {col.rows.map((r) => {
-                    const pct = Math.max(4, Math.min(100, (r.val / col.max) * 100)).toFixed(1);
-                    return r.baseline ? (
-                      <div class="flex items-center gap-2 min-w-0" title="OmniBuf">
-                        <div
-                          class="h-3.5 bench-bar-omni border border-ink rounded-sm shadow-[1px_1px_0px_#111111] shrink-0"
-                          style={`width: ${pct}%;`}
-                        />
-                        <span class="font-mono text-[11px] font-bold uppercase px-1.5 py-0.5 bg-acid border border-ink text-ink leading-none rounded-sm shrink-0">
-                          OmniBuf
-                        </span>
-                      </div>
-                    ) : (
-                      <div class="w-full" title={r.name}>
-                        <div
-                          class="h-2.5 bench-bar-competitor border border-ink/60 rounded-sm opacity-75"
-                          style={`width: ${pct}%;`}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            <div class="pt-2.5 border-t border-ink/15 flex items-center justify-end font-mono text-xs font-bold uppercase">
+              <a
+                href={preview.href}
+                class="text-ink underline decoration-ink/50 underline-offset-2 hover:text-[#FF4F18]"
+              >
+                {preview.cta} &rarr;
+              </a>
+            </div>
           </div>
-        </a>
+        </div>
       );
     })}
   </div>
