@@ -63,7 +63,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'Protobuf',
     url: 'https://protobuf.dev/',
     verdict:
-      'On our populated 11-field PeerUpdate message, OmniBuf is 7% larger than Protobuf (366 B vs 341 B). Against standard google.golang.org/protobuf, OmniBuf encodes 5.9x faster with generated code (or 2.3x faster on existing .pb.go structs) and decodes 2.3x to 7.3x faster depending on whether you allocate fresh structs or reuse buffers.',
+      'On our populated 11-field PeerUpdate message, OmniBuf is 7% larger than Protobuf (366 B vs 341 B). Against standard google.golang.org/protobuf, OmniBuf encodes 5.9x faster with generated code (or 2.4x faster on existing .pb.go structs) and decodes 2.3x to 7.3x faster depending on whether you allocate fresh structs or reuse buffers.',
     omniWinsList: [
       'Single-pass encoding avoids walking the message tree first to compute nested byte lengths (123 ns with protoc-gen-omnibuf or 300 ns with struct tags, vs 726 ns for standard Go Protobuf).',
       'Prefix-Varints decode in one width lookup instead of a byte-by-byte continuation-bit loop.',
@@ -88,15 +88,15 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'FlatBuffers',
     url: 'https://flatbuffers.dev/',
     verdict:
-      'OmniBuf is 40% smaller on the wire and up to 6x faster when you are working with normal Go structs or TypeScript objects instead of FlatBuffers builder APIs.',
+      'OmniBuf is 39% smaller on the wire and up to 6x faster when you are working with normal Go structs or TypeScript objects instead of FlatBuffers builder APIs.',
     omniWinsList: [
-      'No VTables or alignment padding, so packets are 40% smaller on the wire.',
+      'No VTables or alignment padding, so packets are 39% smaller on the wire.',
       'Encoding from a normal Go struct is up to 6x faster than building a FlatBuffers table.',
       'Unpacking a full message into a native struct is faster, and you can merge packets with append(msgA, msgB...).',
       'Uses standard .proto files or plain structs instead of a separate .fbs schema.',
     ],
     oppWinsList: [
-      'Reading a single field out of a large message is faster (13 ns) because VTable offsets point straight at the field.',
+      'Reading a single field out of a large message is faster (16 ns) because VTable offsets point straight at the field.',
       'Fixed-size scalars can be mutated in place inside an existing buffer.',
     ],
     stats: [
@@ -112,9 +112,9 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: "Cap'n Proto",
     url: 'https://capnproto.org/',
     verdict:
-      "OmniBuf packets are 36% smaller than Cap'n Proto messages and much faster when converting to and from normal language structs.",
+      "OmniBuf packets are 35% smaller than Cap'n Proto messages and much faster when converting to and from normal language structs.",
     omniWinsList: [
-      'No 64-bit struct/list pointers or 8-byte word padding, which cuts packet size by 36%.',
+      'No 64-bit struct/list pointers or 8-byte word padding, which cuts packet size by 35%.',
       'Much faster when marshaling and unmarshaling normal Go structs or TypeScript objects.',
       'Works with .proto schemas or struct tags and supports raw byte concatenation.',
     ],
@@ -136,11 +136,11 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'MessagePack',
     url: 'https://msgpack.org/',
     verdict:
-      'OmniBuf is 45% smaller than MessagePack (and still 5% smaller even if you turn on Field #0 names) and encodes 7x to 16x faster.',
+      'OmniBuf is 44% smaller than MessagePack (and still 4% smaller even if you turn on Field #0 names) and runs 7x to 16x faster.',
     omniWinsList: [
-      '45% smaller in normal mode, and 5% smaller even when Field #0 field names are included.',
+      '44% smaller in normal mode, and 4% smaller even when Field #0 field names are included.',
       '16x faster to encode with generated code, or ~7x faster on plain structs with struct tags.',
-      'Over 20x faster to decode with generated code, and 4x to 6x faster into tagged structs.',
+      '16x faster to decode with generated code, and ~7x faster into tagged structs.',
       'Nested child field names are stored once in Field #0 instead of repeated inside every array element.',
     ],
     oppWinsList: [
@@ -160,12 +160,12 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'JSON',
     url: 'https://www.json.org/',
     verdict:
-      'OmniBuf is less than half the size of JSON and 18x to 32x faster with generated code (or 5x to 11x faster on plain structs).',
+      'OmniBuf is less than half the size of JSON and 18x to 25x faster with generated code (or 7x to 11x faster on plain structs).',
     omniWinsList: [
-      '55% smaller on the wire, and still 23% smaller with Field #0 field names turned on.',
+      '54% smaller on the wire, and still 22% smaller with Field #0 field names turned on.',
       'Encodes 18x faster with generated code, and over 7x faster on plain structs than both encoding/json and encoding/json/v2.',
-      'Decodes 23x to 32x faster with generated code, and 5x to 11x faster on plain structs.',
-      'Reads a single nested field out of a packet 50x faster since it does not have to scan quotes and braces.',
+      'Decodes 20x to 25x faster with generated code, and 9x to 11x faster on plain structs.',
+      'Reads a single nested field out of a packet 34x to 43x faster since it does not have to scan quotes and braces.',
     ],
     oppWinsList: ['Readable as plain text in curl and browser devtools with no extra tools.'],
     stats: [

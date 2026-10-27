@@ -1,4 +1,17 @@
 ---
+import { benchmarkCategories } from '../data/benchmarks';
+
+const goEncodeCat = benchmarkCategories.find((cat) => cat.title === 'Full Message Encode Speed');
+const goDecodeCat = benchmarkCategories.find((cat) => cat.title === 'Full Message Decode Speed');
+
+const heroEncodeRows = (goEncodeCat?.rows ?? []).filter(
+  (r) => (r.baseline || !r.highlight) && r.name !== 'JSON (encoding/json/v2)',
+);
+const heroDecodeRows = (goDecodeCat?.rows ?? []).filter(
+  (r) => (r.baseline || !r.highlight) && r.name !== 'JSON (encoding/json/v2)',
+);
+const maxHeroEnc = Math.max(...heroEncodeRows.map((r) => r.val), 1);
+const maxHeroDec = Math.max(...heroDecodeRows.map((r) => r.val), 1);
 ---
 
 <section class="relative pt-10 pb-14 sm:pt-16 sm:pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -22,19 +35,89 @@
     </span>
   </h1>
 
-  <div class="mt-8 max-w-4xl space-y-5">
+  <div class="mt-8 space-y-5">
     <!-- prettier-ignore -->
-    <p class="text-lg sm:text-2xl font-medium leading-snug text-ink/90">
+    <p class="max-w-4xl text-lg sm:text-2xl font-medium leading-snug text-ink/90">
       I built OmniBuf because I wanted a binary format that fixes the parts of <a href="https://protobuf.dev/programming-guides/encoding/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a> that have aged poorly since 2001 (like <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128 varints</a> and two-pass encoding), while also working as a fast, compact replacement for <strong>JSON</strong> on normal structs.
     </p>
-    <p class="text-base sm:text-xl font-medium text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md">
-      You can use <strong>OmniBuf</strong> with your existing <code>.proto</code> files, or skip{' '}
-      <code>.proto</code> files altogether and use it directly on Go structs and TypeScript objects.
-      In Go benchmarks on our 11-field test message, it runs{' '}
-      <strong>6x faster on encode and up to 7x faster on decode than standard Go Protobuf</strong>,
-      runs <strong>7x to 17x faster than JSON</strong>, and keeps explicit wire types on the wire so
-      you can inspect raw packets <i>without the schema</i>.
-    </p>
+
+    <div class="grid lg:grid-cols-12 gap-5 items-stretch">
+      <p class="lg:col-span-7 text-base sm:text-xl font-medium text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[4px_4px_0px_#111] rounded-md flex items-center">
+        <span>
+          You can use <strong>OmniBuf</strong> with your existing <code>.proto</code> files, or skip{' '}
+          <code>.proto</code> files altogether and use it directly on Go structs and TypeScript
+          objects. In Go benchmarks on our 11-field test message, it runs{' '}
+          <strong>
+            6x faster on encode and up to 7x faster on decode than standard Go Protobuf
+          </strong>
+          , runs <strong>7x to 25x faster than JSON</strong>, and keeps explicit wire types on the
+          wire so you can inspect raw packets <i>without the schema</i>.
+        </span>
+      </p>
+
+      <div class="lg:col-span-5 os-window overflow-hidden flex flex-col">
+        <div class="os-titlebar bg-[#E5E0D5]">
+          <span class="font-mono text-xs sm:text-sm font-bold uppercase text-ink">
+            Ludicrous Speed
+          </span>
+          <div class="os-stripes"></div>
+        </div>
+
+        <div class="p-4 sm:p-5 bg-[#FAF8F2] flex-1 flex flex-col justify-between gap-3.5">
+          <div class="grid grid-cols-2 gap-4 sm:gap-5">
+            {[
+              { label: 'Encode', rows: heroEncodeRows, max: maxHeroEnc },
+              { label: 'Decode', rows: heroDecodeRows, max: maxHeroDec },
+            ].map((col) => (
+              <div class="space-y-2 min-w-0">
+                <div class="flex items-baseline justify-between border-b border-ink/15 pb-1">
+                  <span class="font-mono text-xs font-bold uppercase text-ink">{col.label}</span>
+                  <span class="font-mono text-[10px] uppercase text-ink/60">Shorter = Faster</span>
+                </div>
+                <div class="space-y-1.5 pt-0.5">
+                  {col.rows.map((r) => {
+                    const pct = Math.max(4, Math.min(100, (r.val / col.max) * 100)).toFixed(1);
+                    return r.baseline ? (
+                      <div class="flex items-center gap-2 min-w-0" title="OmniBuf">
+                        <div
+                          class="h-3.5 bench-bar-omni border border-ink rounded-sm shadow-[1px_1px_0px_#111111] shrink-0"
+                          style={`width: ${pct}%;`}
+                        />
+                        <span class="font-mono text-[11px] font-bold uppercase px-1.5 py-0.5 bg-acid border border-ink text-ink leading-none rounded-sm shrink-0">
+                          OmniBuf
+                        </span>
+                      </div>
+                    ) : (
+                      <div class="w-full" title={r.name}>
+                        <div
+                          class="h-2.5 bench-bar-competitor border border-ink/60 rounded-sm opacity-75"
+                          style={`width: ${pct}%;`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div class="pt-2.5 border-t border-ink/15 flex flex-wrap items-center justify-between gap-2 font-mono text-xs font-bold uppercase">
+            <a
+              href="/go#benchmarks"
+              class="text-ink underline decoration-ink/50 underline-offset-2 hover:text-[#FF4F18]"
+            >
+              Go Benchmarks &rarr;
+            </a>
+            <a
+              href="/es#benchmarks"
+              class="text-ink underline decoration-ink/50 underline-offset-2 hover:text-[#FF4F18]"
+            >
+              TS / JS Benchmarks &rarr;
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="flex flex-wrap gap-3.5 pt-2 no-print">
       <a
@@ -362,7 +445,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          6x to 8x faster &amp; near-Protobuf size
+          6x to 7x faster &amp; near-Protobuf size
         </text>
       </svg>
 
@@ -590,7 +673,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          6x to 8x faster
+          6x to 7x faster
         </text>
         <text
           x="80"
@@ -830,7 +913,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          5x to 11x faster &amp; 55% smaller
+          7x to 11x faster &amp; 54% smaller
         </text>
       </svg>
 
@@ -1010,7 +1093,7 @@
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          5x to 11x faster &amp; 55% smaller
+          7x to 11x faster &amp; 54% smaller
         </text>
         <text
           x="80"

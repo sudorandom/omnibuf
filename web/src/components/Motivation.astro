@@ -86,13 +86,13 @@
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          A lot of services use JSON simply because defining a <a href="/go#struct-tags" class="doc-link">Go struct</a> or a <a href="/es#define-message" class="doc-link">TypeScript type</a> is easier than setting up <code>.proto</code> files and a code generator. OmniBuf lets you do the same thing with <code>omnibuf:"1"</code> struct tags in Go or <code>defineMessage()</code> in TypeScript. The encoded bytes are less than half the size of JSON and 5x to 11x faster to encode, 64-bit integers and byte slices don't need special string encoding, and you can enable <strong>Field #0</strong> if you still want field names included in the packet.
+          A lot of services use JSON simply because defining a <a href="/go#struct-tags" class="doc-link">Go struct</a> or a <a href="/es#define-message" class="doc-link">TypeScript type</a> is easier than setting up <code>.proto</code> files and a code generator. OmniBuf lets you do the same thing with <code>omnibuf:"1"</code> struct tags in Go or <code>defineMessage()</code> in TypeScript. The encoded bytes are less than half the size of JSON and 7x to 11x faster on plain structs, 64-bit integers and byte slices don't need special string encoding, and you can enable <strong>Field #0</strong> if you still want field names included in the packet.
         </p>
       </div>
       <div class="lg:col-span-4">
         <div class="p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
           <div class="text-acid font-bold">No .proto or codegen required</div>
-          <div class="text-white font-bold">5x to 11x faster than struct JSON</div>
+          <div class="text-white font-bold">7x to 11x faster than struct JSON</div>
           <div class="text-paper/75 text-sm">
             Go <code>omnibuf:"1"</code> &bull; TS <code>defineMessage</code>
           </div>
