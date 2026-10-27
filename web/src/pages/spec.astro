@@ -802,11 +802,11 @@ const tocSections = sectionTitles.map((title, index) => ({
         <h3 id="sec-6-16">6.16 WireExtended (15)</h3>
         <pre><code>[ByteLen: Prefix-Varint][ExtType: 1 byte][Extension payload]</code></pre>
         <p>
-          <code>WireExtended = 15</code> reserves an escape hatch for future value types. ByteLen
-          MUST be at least one and includes <code>ExtType</code>. This draft assigns no extension
-          subtypes. Unknown extensions remain skippable by their outer byte length. A reader asked
-          to interpret an unknown extension MUST return an unsupported-type error rather than guess
-          its meaning. Each extension value in an array or map includes its own length and subtype.
+          <code>WireExtended = 15</code> is reserved for future value types. ByteLen MUST be at
+          least one and includes <code>ExtType</code>. This draft assigns no extension subtypes.
+          Unknown extensions remain skippable by their outer byte length. A reader asked to
+          interpret an unknown extension MUST return an unsupported-type error rather than guess its
+          meaning. Each extension value in an array or map includes its own length and subtype.
         </p>
 
         <h2 id="sec-7">7. Field Lookup &amp; Validation</h2>

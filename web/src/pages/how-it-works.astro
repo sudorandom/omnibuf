@@ -5,6 +5,100 @@ import HowItWorks from '../components/HowItWorks.astro';
 import Capabilities from '../components/Capabilities.astro';
 import Comparisons from '../components/Comparisons.astro';
 import Footer from '../components/Footer.astro';
+
+interface WirePart {
+  label: string;
+  tone: 'tag' | 'len' | 'meta' | 'val';
+}
+
+interface WireTypeRow {
+  ids: string;
+  title: string;
+  names: string;
+  protoTypes: string;
+  parts: WirePart[];
+  behavior: string;
+}
+
+const wireTypeRows: WireTypeRow[] = [
+  {
+    ids: 'Types 2 & 3',
+    title: 'Booleans (0 Bytes)',
+    names: 'WireBoolFalse · WireBoolTrue',
+    protoTypes: 'bool',
+    parts: [{ label: 'Tag (includes false / true)', tone: 'tag' }],
+    behavior:
+      'Booleans write zero bytes after the tag. Because false (Type 2) and true (Type 3) have their own wire types inside the tag byte itself, the very next byte in the stream is already the next field tag.',
+  },
+  {
+    ids: 'Types 4..9',
+    title: 'Fixed Width',
+    names: 'WireFixed32/64 · WireSfixed32/64 · WireFloat32/64',
+    protoTypes: 'fixed32, fixed64, sfixed32, sfixed64, float, double',
+    parts: [
+      { label: 'Tag', tone: 'tag' },
+      { label: '4 or 8 Bytes (Little-Endian)', tone: 'val' },
+    ],
+    behavior:
+      "Always writes 4 bytes (Types 4, 6, 8) or 8 bytes (Types 5, 7, 9) in little-endian order with no length prefix. Unsigned ints, signed two's-complement ints, and IEEE-754 floats each get their own wire type so a schema-less reader knows whether to print an unsigned int, a negative int, or a float.",
+  },
+  {
+    ids: 'Types 0 & 1',
+    title: 'Dynamic Width',
+    names: 'WireUint · WireSint',
+    protoTypes: 'uint32, uint64, int32, int64, sint32, sint64, enum',
+    parts: [
+      { label: 'Tag', tone: 'tag' },
+      { label: '1, 2, 4, or 9-Byte Prefix-Varint', tone: 'val' },
+    ],
+    behavior:
+      'Variable-width integers where the lowest bits of the first value byte tell the CPU whether to read 1, 2, 4, or 9 bytes in a single load instead of looping byte by byte. WireUint (0) stores unsigned integers directly, while WireSint (1) ZigZag-encodes signed integers and enums so small negative numbers like -1 take 1 byte.',
+  },
+  {
+    ids: 'Types 10..12 & 15',
+    title: 'Length-Delimited',
+    names: 'WireString · WireBytes · WireSubMsg · WireExtended',
+    protoTypes: 'string, bytes, message, extensions',
+    parts: [
+      { label: 'Tag', tone: 'tag' },
+      { label: 'Byte Length', tone: 'len' },
+      { label: 'Payload Bytes', tone: 'val' },
+    ],
+    behavior:
+      'Every variable-length value starts with its byte length so a reader can skip past it in one step (pos += ByteLen). Instead of lumping strings, byte slices, and sub-messages into a single wire type, OmniBuf gives UTF-8 text (10), raw bytes (11), nested [Tag][Value] messages (12), and future extended types (15) distinct tags.',
+  },
+  {
+    ids: 'Type 13',
+    title: 'Arrays',
+    names: 'WireArray',
+    protoTypes: 'repeated T',
+    parts: [
+      { label: 'Tag', tone: 'tag' },
+      { label: 'Byte Length', tone: 'len' },
+      { label: 'Element Type (1B)', tone: 'meta' },
+      { label: 'Element Count', tone: 'meta' },
+      { label: 'Elements...', tone: 'val' },
+    ],
+    behavior:
+      'Starts with the total byte length, a 1-byte wire type (0..12) for the elements, and the element count upfront so decoders can allocate the slice in one call. Elements are written back-to-back without repeating field tags, and boolean arrays (Element Type = 2) pack 8 booleans into each byte.',
+  },
+  {
+    ids: 'Type 14',
+    title: 'Maps',
+    names: 'WireMap',
+    protoTypes: 'map<K, V>',
+    parts: [
+      { label: 'Tag', tone: 'tag' },
+      { label: 'Byte Length', tone: 'len' },
+      { label: 'Key Type (1B)', tone: 'meta' },
+      { label: 'Value Type (1B)', tone: 'meta' },
+      { label: 'Entry Count', tone: 'meta' },
+      { label: 'Key, Value...', tone: 'val' },
+    ],
+    behavior:
+      'Starts with the total byte length, a 1-byte key wire type, a 1-byte value wire type, and the entry count, followed by alternating keys and values with no synthetic MapEntry wrapper messages.',
+  },
+];
 ---
 
 <Layout
@@ -24,8 +118,8 @@ import Footer from '../components/Footer.astro';
         </span>
       </h1>
       <p class="mt-6 max-w-3xl text-lg sm:text-2xl text-ink/85 font-medium leading-snug">
-        An OmniBuf packet is a flat stream of <code>[Tag][Value]</code> fields with no file header
-        or offset table.
+        OmniBuf is a binary encoding format. A serialized message is a flat stream of{' '}
+        <code>[Tag][Value]</code> fields with no file header or offset table.
       </p>
     </section>
 
@@ -50,34 +144,13 @@ import Footer from '../components/Footer.astro';
             Tag = (FieldNumber &lt;&lt; 4) | WireType
           </div>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
-            Because Protobuf only uses 3 bits for its wire type, strings, byte slices, nested
-            messages, and arrays all share the same wire type on the wire. Using 4 bits lets the tag
-            tell the decoder what kind of value follows:
+            That 4-bit wire type tells the decoder both the data type and how many bytes follow the
+            tag. Booleans live right inside the tag (<strong>0 value bytes</strong>), integers and
+            floats use either a 1, 2, 4, or 9-byte Prefix-Varint or a fixed 4 or 8-byte word, and
+            every variable-length value (strings, byte slices, sub-messages, arrays, and maps)
+            starts with its total byte length so a reader can either decode it or skip past it in
+            one step.
           </p>
-          <ul class="space-y-2 text-sm sm:text-base text-ink/85 leading-relaxed list-disc pl-5">
-            <li>
-              Unsigned integers (Type 0) and ZigZag-signed integers (Type 1) are encoded as 1, 2, 4,
-              or 9-byte Prefix-Varints.
-            </li>
-            <li>
-              Booleans (Types 2 &amp; 3) put <code>false</code> or <code>true</code> right in the
-              tag, so they take <strong>0 value bytes</strong>.
-            </li>
-            <li>
-              Unsigned fixed-width ints (Types 4 &amp; 5), signed fixed-width ints (Types 6 &amp;
-              7), and IEEE-754 floats (Types 8 &amp; 9) are written as 4 or 8 little-endian bytes.
-            </li>
-            <li>
-              Strings (Type 10) and raw byte slices (Type 11) write their byte length followed by
-              the bytes.
-            </li>
-            <li>
-              Sub-messages (Type 12), arrays (Type 13), and maps (Type 14) always start with their
-              total <code>ByteLen</code>. Arrays include a 1-byte element type and maps include a
-              2-byte key/value type header. If a decoder doesn't need a container field, it adds{' '}
-              <code>ByteLen</code> to its position and moves on to the next tag.
-            </li>
-          </ul>
         </div>
 
         <!-- Concrete Wire Breakdown Example -->
@@ -171,6 +244,69 @@ import Footer from '../components/Footer.astro';
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Full-Width Grouped Wire Type Reference (0..15) -->
+      <div id="wire-types" class="pt-6 sm:pt-8 space-y-6 scroll-mt-16">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <div class="max-w-3xl">
+            <h3 class="text-2xl sm:text-4xl font-bold uppercase tracking-tight leading-none">
+              The 16{' '}
+              <span class="font-serif italic font-normal normal-case text-[#FF4F18]">
+                wire types.
+              </span>
+            </h3>
+            <p class="mt-2.5 text-base sm:text-lg text-ink/80 leading-relaxed">
+              Every field tag carries one of 16 wire types (<code>0..15</code>), grouped below by
+              how the value bytes are framed on the wire. See{' '}
+              <a href="/spec#sec-6" class="doc-link">
+                Section 6 of the specification
+              </a>{' '}
+              for full byte-level rules.
+            </p>
+          </div>
+        </div>
+
+        <div class="border-2 border-ink rounded-md overflow-hidden bg-[#FAF8F2] divide-y-2 divide-ink/15">
+          {wireTypeRows.map((row) => (
+            <div class="p-4 sm:p-5 grid lg:grid-cols-12 gap-4 lg:gap-6 items-start">
+              <div class="lg:col-span-4 space-y-1.5 min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-mono px-2 py-0.5 bg-acid text-ink border border-ink text-xs font-bold uppercase rounded">
+                    {row.ids}
+                  </span>
+                  <span class="text-base sm:text-lg font-bold text-ink">{row.title}</span>
+                </div>
+                <div class="font-mono text-xs text-ink/75 font-bold">{row.names}</div>
+                <div class="font-mono text-xs text-ink/70">
+                  Schema: <code>{row.protoTypes}</code>
+                </div>
+              </div>
+
+              <div class="lg:col-span-8 space-y-2.5 min-w-0">
+                <div class="flex flex-wrap items-center gap-1.5 font-mono text-xs font-bold">
+                  {row.parts.map((part) => (
+                    <span
+                      class:list={[
+                        'px-2 py-1 rounded border',
+                        part.tone === 'tag'
+                          ? 'bg-acid text-ink border-ink'
+                          : part.tone === 'len'
+                            ? 'bg-[#FF4F18] text-white border-ink'
+                            : part.tone === 'meta'
+                              ? 'bg-ink text-paper border-ink'
+                              : 'bg-white text-ink border-ink/40',
+                      ]}
+                    >
+                      {part.label}
+                    </span>
+                  ))}
+                </div>
+                <p class="text-sm sm:text-base text-ink/90 leading-relaxed">{row.behavior}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

@@ -21,6 +21,17 @@
     text-wrap: balance;
   }
 
+  strong,
+  b {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .bg-ink strong,
+  .bg-ink b {
+    color: #ffffff;
+  }
+
   body {
     background-color: var(--bg-paper);
     color: var(--ink);
@@ -576,6 +587,16 @@ html.dark .text-ink\/50 {
 
 html.dark .text-\[\#C23000\] {
   color: #ff7a4d !important;
+}
+
+html.dark strong,
+html.dark b {
+  color: #ffffff;
+}
+
+html.dark .bg-acid strong,
+html.dark .bg-acid b {
+  color: #111111;
 }
 
 /* Preserve Dark Ink Text on Bright Signal Surfaces & Active/Hover States */
