@@ -28,7 +28,7 @@ const nodeSchemaCode = `message Node {
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          When Protobuf reads a varint, it has to check bit 7 of every byte in a loop until it finds a byte that starts with <code>0</code>. OmniBuf moves those length bits into the low bits of the first byte. A single <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a> (trailing zero count) instruction tells the CPU whether the integer is 1, 2, 4, or 9 bytes long, so it can load the whole number at once. Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener noreferrer" class="doc-link">ZigZag encoding</a> just like Protobuf's <code>sint32</code> and <code>sint64</code>.
+          When Protobuf reads a varint, it has to check bit 7 of every byte in a loop until it finds a byte that starts with <code>0</code>. OmniBuf moves those length bits into the low bits of the first byte. The number of trailing <code>0</code>s before the first <code>1</code> (counted by a single <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a> instruction) tells the CPU whether the integer is 1, 2, 4, or 9 bytes long, while the remaining upper bits of that first byte hold the start of the number. Signed integers use <a href="https://protobuf.dev/programming-guides/encoding/#signed-ints" target="_blank" rel="noopener noreferrer" class="doc-link">ZigZag encoding</a> just like Protobuf's <code>sint32</code> and <code>sint64</code>.
         </p>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
           The tradeoff is byte density for medium-large integers. Because Prefix-Varints only use 1,
@@ -38,14 +38,50 @@ const nodeSchemaCode = `message Node {
           large 64-bit counters, <code>WireFixed64</code> (8 bytes) is a better fit.
         </p>
       </div>
-      <div class="lg:col-span-6 min-w-0">
+      <div class="lg:col-span-6 min-w-0 space-y-3">
         <div class="p-4 sm:p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm space-y-4">
           <div class="space-y-1.5">
-            <div class="text-[#FF4F18] font-bold uppercase text-xs">Protobuf LEB128</div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[#FF4F18] font-bold uppercase text-xs">Protobuf LEB128</span>
+              <span class="text-paper/65 text-xs">Value: 300 (2 bytes)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-center text-sm sm:text-base font-bold max-w-xs">
+              <div class="bg-[#1F1F1F] border border-[#FF4F18]/60 rounded py-2">
+                <span class="text-[#FF4F18]">1</span>
+                <span class="text-paper/80">0101100</span>
+              </div>
+              <div class="bg-[#1F1F1F] border border-paper/30 rounded py-2">
+                <span class="text-acid">0</span>
+                <span class="text-paper/80">0000010</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-acid font-bold uppercase text-xs">OmniBuf Prefix-Varint</span>
+              <span class="text-paper/65 text-xs">Value: 300 (2 bytes)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-center text-sm sm:text-base font-bold bg-[#1F1F1F] border-2 border-acid rounded p-2 max-w-xs">
+              <div>
+                <span class="text-paper/80">101100</span>
+                <span class="text-acid">10</span>
+              </div>
+              <div class="text-paper/80">00000100</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 sm:p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-xs sm:text-sm space-y-4">
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[#FF4F18] font-bold uppercase text-xs">Protobuf LEB128</span>
+              <span class="text-paper/65 text-xs">Value: 5,000,013 (4 bytes)</span>
+            </div>
             <div class="grid grid-cols-4 gap-2 text-center text-sm sm:text-base font-bold">
               <div class="bg-[#1F1F1F] border border-[#FF4F18]/60 rounded py-2">
                 <span class="text-[#FF4F18]">1</span>
-                <span class="text-paper/80">1000000</span>
+                <span class="text-paper/80">1001101</span>
               </div>
               <div class="bg-[#1F1F1F] border border-[#FF4F18]/60 rounded py-2">
                 <span class="text-[#FF4F18]">1</span>
@@ -63,13 +99,16 @@ const nodeSchemaCode = `message Node {
           </div>
 
           <div class="space-y-1.5">
-            <div class="text-acid font-bold uppercase text-xs">OmniBuf Prefix-Varint</div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-acid font-bold uppercase text-xs">OmniBuf Prefix-Varint</span>
+              <span class="text-paper/65 text-xs">Value: 5,000,013 (4 bytes)</span>
+            </div>
             <div class="grid grid-cols-4 gap-2 text-center text-sm sm:text-base font-bold bg-[#1F1F1F] border-2 border-acid rounded p-2">
               <div>
-                <span class="text-paper/80">00000</span>
+                <span class="text-paper/80">01101</span>
                 <span class="text-acid">100</span>
               </div>
-              <div class="text-paper/80">01011011</div>
+              <div class="text-paper/80">01011010</div>
               <div class="text-paper/80">01100010</div>
               <div class="text-paper/80">00000010</div>
             </div>
