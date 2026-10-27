@@ -1,19 +1,121 @@
 ---
-import { benchmarkCategories, formatProfiles, opponentKeys } from '../data/benchmarks';
+import {
+  benchmarkCategories,
+  esBenchmarkCategories,
+  formatProfiles,
+  opponentKeys,
+} from '../data/benchmarks';
 import RadarChart from './RadarChart.astro';
 
 const packetSizeCat = benchmarkCategories.find((cat) => cat.unit === 'B');
+const goEncodeCat = benchmarkCategories.find((cat) => cat.title === 'Full Message Encode Speed');
+const goDecodeCat = benchmarkCategories.find((cat) => cat.title === 'Full Message Decode Speed');
+const esEncodeCat = esBenchmarkCategories.find((cat) => cat.title === 'Full Message Encode Speed');
+const esDecodeCat = esBenchmarkCategories.find((cat) => cat.title === 'Full Message Decode Speed');
+
+const miniLanguagePreviews = [
+  {
+    lang: 'Go',
+    href: '/go#benchmarks',
+    cta: 'Go Benchmarks',
+    encodeRows: (goEncodeCat?.rows ?? []).filter(
+      (r) => (r.baseline || !r.highlight) && r.name !== 'JSON (encoding/json/v2)',
+    ),
+    decodeRows: (goDecodeCat?.rows ?? []).filter(
+      (r) => (r.baseline || !r.highlight) && r.name !== 'JSON (encoding/json/v2)',
+    ),
+  },
+  {
+    lang: 'TypeScript & JS',
+    href: '/es#benchmarks',
+    cta: 'TS / JS Benchmarks',
+    encodeRows: esEncodeCat?.rows ?? [],
+    decodeRows: esDecodeCat?.rows ?? [],
+  },
+];
 ---
 
 <section
   id="comparisons"
   class="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t-2 border-ink/15"
 >
-  <div class="max-w-3xl mb-12">
+  <div class="max-w-3xl mb-10">
     <h2 class="text-3xl sm:text-5xl font-bold tracking-tight uppercase leading-none">
       How OmniBuf compares to{' '}
       <span class="font-serif italic font-normal normal-case text-[#FF4F18]">other formats.</span>
     </h2>
+    <p class="mt-3 text-lg sm:text-xl text-ink/80 font-medium leading-relaxed">
+      Wire size is fixed by the specification, while encode and decode speed depend on each language
+      implementation. Check the full{' '}
+      <a href="/go#benchmarks" class="doc-link">
+        Go benchmarks
+      </a>{' '}
+      and{' '}
+      <a href="/es#benchmarks" class="doc-link">
+        TypeScript &amp; JS benchmarks
+      </a>{' '}
+      for exact numbers and methodology.
+    </p>
+  </div>
+
+  <!-- Compact Language Encode/Decode Spark Previews -->
+  <div class="grid md:grid-cols-2 gap-6 mb-10">
+    {miniLanguagePreviews.map((preview) => {
+      const maxEnc = Math.max(...preview.encodeRows.map((r) => r.val), 1);
+      const maxDec = Math.max(...preview.decodeRows.map((r) => r.val), 1);
+      return (
+        <a
+          href={preview.href}
+          class="os-window overflow-hidden block group hover:-translate-y-0.5 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <div class="os-titlebar bg-[#E5E0D5] group-hover:bg-acid transition-colors">
+            <span class="font-mono text-xs sm:text-sm font-bold uppercase text-ink">
+              {preview.lang} Speed Overview
+            </span>
+            <span class="font-mono text-xs font-bold uppercase text-ink underline decoration-ink/50 underline-offset-2">
+              {preview.cta} &rarr;
+            </span>
+          </div>
+
+          <div class="p-4 sm:p-5 bg-[#FAF8F2] grid grid-cols-2 gap-4 sm:gap-6">
+            {[
+              { label: 'Encode', rows: preview.encodeRows, max: maxEnc },
+              { label: 'Decode', rows: preview.decodeRows, max: maxDec },
+            ].map((col) => (
+              <div class="space-y-2 min-w-0">
+                <div class="flex items-baseline justify-between border-b border-ink/15 pb-1">
+                  <span class="font-mono text-xs font-bold uppercase text-ink">{col.label}</span>
+                  <span class="font-mono text-[10px] uppercase text-ink/60">Shorter = Faster</span>
+                </div>
+                <div class="space-y-1.5 pt-0.5">
+                  {col.rows.map((r) => {
+                    const pct = Math.max(4, Math.min(100, (r.val / col.max) * 100)).toFixed(1);
+                    return r.baseline ? (
+                      <div class="flex items-center gap-2 min-w-0" title="OmniBuf">
+                        <div
+                          class="h-3.5 bench-bar-omni border border-ink rounded-sm shadow-[1px_1px_0px_#111111] shrink-0"
+                          style={`width: ${pct}%;`}
+                        />
+                        <span class="font-mono text-[11px] font-bold uppercase px-1.5 py-0.5 bg-acid border border-ink text-ink leading-none rounded-sm shrink-0">
+                          OmniBuf
+                        </span>
+                      </div>
+                    ) : (
+                      <div class="w-full" title={r.name}>
+                        <div
+                          class="h-2.5 bench-bar-competitor border border-ink/60 rounded-sm opacity-75"
+                          style={`width: ${pct}%;`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </a>
+      );
+    })}
   </div>
 
   {packetSizeCat && (
