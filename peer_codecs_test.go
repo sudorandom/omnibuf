@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"unsafe"
 
 	capnp "capnproto.org/go/capnp/v3"
 	flatbuffers "github.com/google/flatbuffers/go"
+	"github.com/hamba/avro/v2"
+	"github.com/hamba/avro/v2/ocf"
 	. "github.com/sudorandom/omnibuf"
 	. "github.com/sudorandom/omnibuf/wire"
 	"github.com/vmihailenco/msgpack/v5"
@@ -18,33 +21,33 @@ import (
 // Canonical benchmark schema types matching proto/omnibuf/bench/peer.proto and testdata/schemas/peer.{fbs,capnp}.
 
 type Location struct {
-	Region     string  `omnibuf:"1,name=region" protobuf:"bytes,1,opt,name=region,proto3" json:"region" msgpack:"region"`
-	Datacenter string  `omnibuf:"2,name=datacenter" protobuf:"bytes,2,opt,name=datacenter,proto3" json:"datacenter" msgpack:"datacenter"`
-	City       string  `omnibuf:"3,name=city" protobuf:"bytes,3,opt,name=city,proto3" json:"city" msgpack:"city"`
-	Rack       uint32  `omnibuf:"4,name=rack" protobuf:"varint,4,opt,name=rack,proto3" json:"rack" msgpack:"rack"`
-	Latitude   float32 `omnibuf:"5,name=latitude" protobuf:"fixed32,5,opt,name=latitude,proto3" json:"latitude" msgpack:"latitude"`
-	Longitude  float32 `omnibuf:"6,name=longitude" protobuf:"fixed32,6,opt,name=longitude,proto3" json:"longitude" msgpack:"longitude"`
+	Region     string  `omnibuf:"1,name=region" protobuf:"bytes,1,opt,name=region,proto3" json:"region" msgpack:"region" avro:"region"`
+	Datacenter string  `omnibuf:"2,name=datacenter" protobuf:"bytes,2,opt,name=datacenter,proto3" json:"datacenter" msgpack:"datacenter" avro:"datacenter"`
+	City       string  `omnibuf:"3,name=city" protobuf:"bytes,3,opt,name=city,proto3" json:"city" msgpack:"city" avro:"city"`
+	Rack       uint32  `omnibuf:"4,name=rack" protobuf:"varint,4,opt,name=rack,proto3" json:"rack" msgpack:"rack" avro:"rack"`
+	Latitude   float32 `omnibuf:"5,name=latitude" protobuf:"fixed32,5,opt,name=latitude,proto3" json:"latitude" msgpack:"latitude" avro:"latitude"`
+	Longitude  float32 `omnibuf:"6,name=longitude" protobuf:"fixed32,6,opt,name=longitude,proto3" json:"longitude" msgpack:"longitude" avro:"longitude"`
 }
 
 type Neighbor struct {
-	PeerASN     uint32 `omnibuf:"1,name=peer_asn" protobuf:"varint,1,opt,name=peer_asn,proto3" json:"peer_asn" msgpack:"peer_asn"`
-	Router      string `omnibuf:"2,name=router" protobuf:"bytes,2,opt,name=router,proto3" json:"router" msgpack:"router"`
-	LatencyUS   uint32 `omnibuf:"3,name=latency_us" protobuf:"varint,3,opt,name=latency_us,proto3" json:"latency_us" msgpack:"latency_us"`
-	Established bool   `omnibuf:"4,name=established" protobuf:"varint,4,opt,name=established,proto3" json:"established" msgpack:"established"`
+	PeerASN     uint32 `omnibuf:"1,name=peer_asn" protobuf:"varint,1,opt,name=peer_asn,proto3" json:"peer_asn" msgpack:"peer_asn" avro:"peer_asn"`
+	Router      string `omnibuf:"2,name=router" protobuf:"bytes,2,opt,name=router,proto3" json:"router" msgpack:"router" avro:"router"`
+	LatencyUS   uint32 `omnibuf:"3,name=latency_us" protobuf:"varint,3,opt,name=latency_us,proto3" json:"latency_us" msgpack:"latency_us" avro:"latency_us"`
+	Established bool   `omnibuf:"4,name=established" protobuf:"varint,4,opt,name=established,proto3" json:"established" msgpack:"established" avro:"established"`
 }
 
 type PeerUpdate struct {
-	ASN       uint32     `omnibuf:"1,name=asn" protobuf:"varint,1,opt,name=asn,proto3" json:"asn" msgpack:"asn"`
-	RouterID  string     `omnibuf:"2,name=router_id" protobuf:"bytes,2,opt,name=router_id,proto3" json:"router_id" msgpack:"router_id"`
-	Active    bool       `omnibuf:"3,name=active" protobuf:"varint,3,opt,name=active,proto3" json:"active" msgpack:"active"`
-	UptimeSec uint64     `omnibuf:"4,name=uptime_sec" protobuf:"varint,4,opt,name=uptime_sec,proto3" json:"uptime_sec" msgpack:"uptime_sec"`
-	RssiDbm   int32      `omnibuf:"5,name=rssi_dbm" protobuf:"zigzag32,5,opt,name=rssi_dbm,proto3" json:"rssi_dbm" msgpack:"rssi_dbm"`
-	CPULoad   float64    `omnibuf:"6,name=cpu_load" protobuf:"fixed64,6,opt,name=cpu_load,proto3" json:"cpu_load" msgpack:"cpu_load"`
-	Tags      []string   `omnibuf:"7,name=tags" protobuf:"bytes,7,rep,name=tags,proto3" json:"tags" msgpack:"tags"`
-	Prefixes  []uint32   `omnibuf:"8,name=prefixes" protobuf:"varint,8,rep,packed,name=prefixes,proto3" json:"prefixes" msgpack:"prefixes"`
-	Location  Location   `omnibuf:"9,name=location" protobuf:"bytes,9,opt,name=location,proto3" json:"location" msgpack:"location"`
-	Neighbors []Neighbor `omnibuf:"10,name=neighbors" protobuf:"bytes,10,rep,name=neighbors,proto3" json:"neighbors" msgpack:"neighbors"`
-	Sequence  uint64     `omnibuf:"11,name=sequence" protobuf:"varint,11,opt,name=sequence,proto3" json:"sequence" msgpack:"sequence"`
+	ASN       uint32     `omnibuf:"1,name=asn" protobuf:"varint,1,opt,name=asn,proto3" json:"asn" msgpack:"asn" avro:"asn"`
+	RouterID  string     `omnibuf:"2,name=router_id" protobuf:"bytes,2,opt,name=router_id,proto3" json:"router_id" msgpack:"router_id" avro:"router_id"`
+	Active    bool       `omnibuf:"3,name=active" protobuf:"varint,3,opt,name=active,proto3" json:"active" msgpack:"active" avro:"active"`
+	UptimeSec uint64     `omnibuf:"4,name=uptime_sec" protobuf:"varint,4,opt,name=uptime_sec,proto3" json:"uptime_sec" msgpack:"uptime_sec" avro:"uptime_sec"`
+	RssiDbm   int32      `omnibuf:"5,name=rssi_dbm" protobuf:"zigzag32,5,opt,name=rssi_dbm,proto3" json:"rssi_dbm" msgpack:"rssi_dbm" avro:"rssi_dbm"`
+	CPULoad   float64    `omnibuf:"6,name=cpu_load" protobuf:"fixed64,6,opt,name=cpu_load,proto3" json:"cpu_load" msgpack:"cpu_load" avro:"cpu_load"`
+	Tags      []string   `omnibuf:"7,name=tags" protobuf:"bytes,7,rep,name=tags,proto3" json:"tags" msgpack:"tags" avro:"tags"`
+	Prefixes  []uint32   `omnibuf:"8,name=prefixes" protobuf:"varint,8,rep,packed,name=prefixes,proto3" json:"prefixes" msgpack:"prefixes" avro:"prefixes"`
+	Location  Location   `omnibuf:"9,name=location" protobuf:"bytes,9,opt,name=location,proto3" json:"location" msgpack:"location" avro:"location"`
+	Neighbors []Neighbor `omnibuf:"10,name=neighbors" protobuf:"bytes,10,rep,name=neighbors,proto3" json:"neighbors" msgpack:"neighbors" avro:"neighbors"`
+	Sequence  uint64     `omnibuf:"11,name=sequence" protobuf:"varint,11,opt,name=sequence,proto3" json:"sequence" msgpack:"sequence" avro:"sequence"`
 }
 
 // Field numbers in PeerUpdate, Location, and Neighbor.
@@ -1412,3 +1415,131 @@ func MarshalJSON(p *PeerUpdate) ([]byte, error) {
 func UnmarshalJSON(b []byte, out *PeerUpdate) error {
 	return json.Unmarshal(b, out)
 }
+
+// ============================================================================
+// 6. Apache Avro (github.com/hamba/avro/v2) & Apache Parquet (parquet-go)
+// ============================================================================
+
+// Avro has no unsigned integer types (uint32/uint64) in its specification, only signed 32-bit int and 64-bit long.
+// These struct types have the exact same memory layout as Location, Neighbor, and PeerUpdate so we can cast with zero copy.
+type avroLocation struct {
+	Region     string  `avro:"region"`
+	Datacenter string  `avro:"datacenter"`
+	City       string  `avro:"city"`
+	Rack       int32   `avro:"rack"`
+	Latitude   float32 `avro:"latitude"`
+	Longitude  float32 `avro:"longitude"`
+}
+
+type avroNeighbor struct {
+	PeerASN     int32  `avro:"peer_asn"`
+	Router      string `avro:"router"`
+	LatencyUS   int32  `avro:"latency_us"`
+	Established bool   `avro:"established"`
+}
+
+type avroPeerUpdate struct {
+	ASN       int32          `avro:"asn"`
+	RouterID  string         `avro:"router_id"`
+	Active    bool           `avro:"active"`
+	UptimeSec int64          `avro:"uptime_sec"`
+	RssiDbm   int32          `avro:"rssi_dbm"`
+	CPULoad   float64        `avro:"cpu_load"`
+	Tags      []string       `avro:"tags"`
+	Prefixes  []int32        `avro:"prefixes"`
+	Location  avroLocation   `avro:"location"`
+	Neighbors []avroNeighbor `avro:"neighbors"`
+	Sequence  int64          `avro:"sequence"`
+}
+
+var peerAvroSchema = avro.MustParse(`{
+  "type": "record",
+  "name": "PeerUpdate",
+  "namespace": "omnibuf.bench.v1",
+  "fields": [
+    {"name": "asn", "type": "int"},
+    {"name": "router_id", "type": "string"},
+    {"name": "active", "type": "boolean"},
+    {"name": "uptime_sec", "type": "long"},
+    {"name": "rssi_dbm", "type": "int"},
+    {"name": "cpu_load", "type": "double"},
+    {"name": "tags", "type": {"type": "array", "items": "string"}},
+    {"name": "prefixes", "type": {"type": "array", "items": "int"}},
+    {"name": "location", "type": {
+      "type": "record",
+      "name": "Location",
+      "fields": [
+        {"name": "region", "type": "string"},
+        {"name": "datacenter", "type": "string"},
+        {"name": "city", "type": "string"},
+        {"name": "rack", "type": "int"},
+        {"name": "latitude", "type": "float"},
+        {"name": "longitude", "type": "float"}
+      ]
+    }},
+    {"name": "neighbors", "type": {"type": "array", "items": {
+      "type": "record",
+      "name": "Neighbor",
+      "fields": [
+        {"name": "peer_asn", "type": "int"},
+        {"name": "router", "type": "string"},
+        {"name": "latency_us", "type": "int"},
+        {"name": "established", "type": "boolean"}
+      ]
+    }}},
+    {"name": "sequence", "type": "long"}
+  ]
+}`)
+
+// MarshalAvro encodes PeerUpdate using raw schema-dependent Avro binary.
+func MarshalAvro(p *PeerUpdate) ([]byte, error) {
+	return avro.Marshal(peerAvroSchema, (*avroPeerUpdate)(unsafe.Pointer(p)))
+}
+
+// UnmarshalAvro decodes raw schema-dependent Avro binary into out.
+func UnmarshalAvro(b []byte, out *PeerUpdate) error {
+	return avro.Unmarshal(peerAvroSchema, b, (*avroPeerUpdate)(unsafe.Pointer(out)))
+}
+
+// MarshalAvroOCF encodes PeerUpdate into a self-describing Avro Object Container File (with embedded JSON schema header).
+func MarshalAvroOCF(p *PeerUpdate) ([]byte, error) {
+	var buf bytes.Buffer
+	enc, err := ocf.NewEncoderWithSchema(peerAvroSchema, &buf)
+	if err != nil {
+		return nil, err
+	}
+	if err := enc.Encode((*avroPeerUpdate)(unsafe.Pointer(p))); err != nil {
+		return nil, err
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// LookupAvroNestedCity reads location.city from an Avro binary payload using avro.Reader to skip preceding fields.
+func LookupAvroNestedCity(b []byte) (string, bool) {
+	r := avro.NewReader(bytes.NewReader(b), len(b))
+	r.SkipInt()    // asn
+	r.SkipString() // router_id
+	r.SkipBool()   // active
+	r.SkipLong()   // uptime_sec
+	r.SkipInt()    // rssi_dbm
+	r.SkipDouble() // cpu_load
+	r.ReadArrayCB(func(r *avro.Reader) bool {
+		r.SkipString()
+		return true
+	})
+	r.ReadArrayCB(func(r *avro.Reader) bool {
+		r.SkipInt()
+		return true
+	})
+	r.SkipString() // location.region
+	r.SkipString() // location.datacenter
+	city := r.ReadString()
+	if r.Error != nil {
+		return "", false
+	}
+	return city, true
+}
+

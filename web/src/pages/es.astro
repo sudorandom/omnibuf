@@ -102,35 +102,31 @@ import { writeFrame, readFrames } from '@omnibuf/node';`;
 
 const esFaqItems = [
   {
-    question: 'How does omnibuf-es fit into a protobuf-es (@bufbuild/protobuf) codebase?',
+    question: 'Does this work with @bufbuild/protobuf?',
     paragraphs: [
-      'I modeled the TypeScript API after <code>@bufbuild/protobuf</code> v2 so it feels familiar if you already use Connect or <code>protobuf-es</code>. Messages are plain objects with a <code>$typeName</code> property, optional <code>$unknown</code> bytes, and normal <code>camelCase</code> field names.',
-      'The top-level functions (<code>create</code>, <code>toBinary</code>, <code>fromBinary</code>, <code>mergeFromBinary</code>, <code>clone</code>, and <code>equals</code>) accept <code>protoc-gen-es</code> descriptors, <code>protoc-gen-omnibuf-es</code> schemas, or schemas defined with <code>defineMessage</code>.',
+      'Yes. <code>create</code>, <code>toBinary</code>, and <code>fromBinary</code> accept standard <code>protoc-gen-es</code> descriptors directly, and messages are plain objects with normal <code>camelCase</code> properties.',
     ],
   },
   {
-    question: 'When should I use Opaque views instead of fromBinary?',
+    question: 'When should I use Opaque views?',
     paragraphs: [
-      'Most of the time you should just call <code>fromBinary</code>. If your code reads most of the fields on a message anyway, decoding the whole object up front is the simplest option.',
-      'I built the <code>Opaque</code> wrapper for things like Cloudflare Workers or WebSocket proxies that only inspect one or two fields on an incoming packet before forwarding it. Calling <code>view.getRouterId()</code> steps over the earlier field headers to read that one string, and <code>view.marshal()</code> tacks any updated fields onto the end of the existing <code>Uint8Array</code>.',
+      'Use <code>fromBinary</code> when your code reads most of the object. Use <code>Opaque</code> in edge workers or WebSocket proxies when you only need to inspect or update one or two fields before forwarding the packet.',
     ],
     codeBlock: opaqueSpliceEsCode,
     codeLabel: 'Example',
   },
   {
-    question: 'How do I enable Field #0 inline field names or decode without a schema?',
+    question: 'How do I decode without a schema?',
     paragraphs: [
-      'Even when field names are left off the wire, you can call <code>decodeBlind(pkt)</code> on any packet to get back a plain object keyed by field number.',
-      'If you want the actual field names written into the packet too, pass <code>{ selfDescribing: true }</code> to <code>toBinary(schema, msg, options)</code>. That writes a Field #0 header at the start of the packet so <code>decodeBlind(pkt)</code> can key the returned object by field name.',
+      'Call <code>decodeBlind(pkt)</code> to get back a plain object keyed by field number. Pass <code>{ selfDescribing: true }</code> to <code>toBinary</code> if you want Field #0 field names included too.',
     ],
     codeBlock: field0BlindEsCode,
     codeLabel: 'Example',
   },
   {
-    question: 'What is the difference between @omnibuf/core, @omnibuf/web, and @omnibuf/node?',
+    question: 'What are @omnibuf/web and @omnibuf/node?',
     paragraphs: [
-      '<code>@omnibuf/core</code> has no dependencies and works in any JavaScript runtime (browsers, Node.js, Deno, Bun, and edge workers).',
-      "The other two packages are optional helpers for specific runtimes. <code>@omnibuf/web</code> includes Web Streams (<code>TransformStream</code>) adapters and a browser packet inspector, while <code>@omnibuf/node</code> uses Node's native <code>Buffer</code> for faster UTF-8 string decoding and adds length-prefixed stream helpers.",
+      "<code>@omnibuf/core</code> has zero dependencies and runs in any JS runtime. <code>@omnibuf/web</code> adds Web Streams and packet inspection helpers, and <code>@omnibuf/node</code> uses Node's native <code>Buffer</code> for faster UTF-8 strings.",
     ],
     codeBlock: runtimeAdaptersCode,
     codeLabel: 'Example',

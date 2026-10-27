@@ -8,56 +8,66 @@
       <span class="font-serif italic font-normal normal-case text-[#FF4F18]">and spliceable.</span>
     </h2>
     <p class="mt-4 text-lg sm:text-xl text-ink/80 font-medium">
-      I started this project to see how much faster Protobuf's wire format could be on modern CPUs,
-      and ended up making it work directly on Go structs and TypeScript objects too.
+      I started this project to see how much faster Protobuf's wire format could be on modern CPUs
+      (see{' '}
+      <a href="/how-it-works" class="doc-link">
+        how it works
+      </a>
+      ), and ended up making it work directly on Go structs and TypeScript objects too.
     </p>
   </div>
 
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
-    <!-- 1. FASTER -->
+    <!-- 1. INSPECTABLE WITHOUT A SCHEMA -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-8 space-y-3">
+      <div class="lg:col-span-7 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          No byte-by-byte varint loops. No two-pass encoding
+          Decode values without a schema
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          When Protobuf reads a <a href="https://en.wikipedia.org/wiki/LEB128" target="_blank" rel="noopener noreferrer" class="doc-link">LEB128</a> varint, it has to check the top bit of every single byte in a loop until it finds the end of the number. And when it writes a nested message, it has to walk the whole struct tree twice: once to add up the byte sizes, and a second time to write the bytes out. OmniBuf changes the integer encoding so the first byte tells the CPU how many bytes to read (using a single <a href="https://en.wikipedia.org/wiki/Find_first_set" target="_blank" rel="noopener noreferrer" class="doc-link"><code>TZCNT</code></a> instruction), and encoders reserve a 2-byte length slot for nested messages so they only have to walk the struct once.
+          Protobuf jams strings, byte slices, nested messages, maps, and packed arrays into a single wire type (<code>Wire Type 2</code>), and mixes booleans, unsigned ints, and signed ints together. Without the <code>.proto</code> file, you can't even parse a packet into the right types. OmniBuf uses 16 explicit wire types so a reader can always decode the exact values from raw bytes.
         </p>
-      </div>
-      <div class="lg:col-span-4">
-        <div class="p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
-          <div class="text-acid font-bold">5.9x faster encode vs Go Protobuf</div>
-          <div class="text-white font-bold">Up to 7.3x faster decode (2.3x fresh alloc)</div>
-          <div class="text-paper/75 text-sm">Single-pass forward encoding</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 2. INSPECTABLE WITHOUT A SCHEMA -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-8 space-y-3">
-        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Inspect packets without a schema &amp; use normal structs
-        </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          Protobuf only has a handful of wire types, so strings, byte slices, nested messages, and packed arrays all get serialized as <code>Wire Type 2 (LEN)</code>. If you inspect a raw Protobuf packet without the <code>.proto</code> file, a tool like <code>protoscope</code> has to guess what each field actually is. OmniBuf uses a 4-bit wire type (16 types instead of 6) plus 1-byte collection headers, which adds about 7% to our 11-field test packet so a decoder can recover the exact wire type and value of every present field (though enum label names, omitted defaults, and inactive oneof branches still require a schema).
+          If you also want the string field names on the wire, turning on <strong>Field #0</strong> writes the field-name table once at the top of the packet. For an array or map of nested messages, those child field names are defined only once on the parent field instead of repeating string keys on every item like JSON or MessagePack.
         </p>
       </div>
-      <div class="lg:col-span-4">
-        <div class="p-5 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
-          <div class="font-bold text-ink">Schema-less value decoding</div>
-          <div class="text-ink/80 text-sm">
-            + Optional Field #0 field names for named JSON output
+      <div class="lg:col-span-5 min-w-0">
+        <div class="os-window overflow-hidden font-mono text-xs sm:text-sm">
+          <div class="os-titlebar bg-[#E5E0D5]">
+            <span class="font-bold uppercase text-ink text-xs">
+              Inspecting Raw Bytes (No Schema)
+            </span>
+            <div class="os-stripes"></div>
+          </div>
+          <div class="bg-ink text-paper p-4 space-y-3">
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+              <div class="text-[11px] uppercase font-bold text-[#FF4F18] mb-1.5">
+                Protobuf (Ambiguous Wire Types)
+              </div>
+              <pre class="leading-relaxed overflow-x-auto"><code>1: 1          <span class="text-paper/55"># true? 1? -1 (sint)? enum?</span>
+2: 3          <span class="text-paper/55"># +3 (uint/int)? or -2 (sint)?</span>
+3: &#123;"FRA"&#125;    <span class="text-paper/55"># string? bytes? sub-msg?</span>
+4: "\x0a\x14" <span class="text-paper/55"># bytes? string? packed array?</span></code></pre>
+            </div>
+            <div class="bg-[#1F1F1F] p-3 rounded border border-acid/40">
+              <div class="text-[11px] uppercase font-bold text-acid mb-1.5">
+                OmniBuf (Explicit Wire Types)
+              </div>
+              <pre class="leading-relaxed overflow-x-auto"><code>1: true       <span class="text-acid/80"># bool (0 value bytes)</span>
+2: -2         <span class="text-acid/80"># sint (signed int)</span>
+3: "FRA"      <span class="text-acid/80"># string (UTF-8)</span>
+4: [10, 20]   <span class="text-acid/80"># array&lt;uint&gt; (count=2)</span></code></pre>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 3. READ OR SPLICE WITHOUT DECODING -->
+    <!-- 2. READ OR SPLICE WITHOUT DECODING -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-8 space-y-3">
+      <div class="lg:col-span-7 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Read, drop, or replace individual fields on raw bytes
         </h3>
@@ -65,59 +75,75 @@
           Since every integer and container starts with its byte length, a decoder can skip over
           fields it doesn't care about by adding the byte length and jumping to the next tag. If you
           use the generated <code>Opaque</code> wrapper in a proxy or router, you can read one field
-          out of a packet or update a field in place without unpacking the rest of the message.
+          out of a packet or update a field in place without unpacking the rest of the message or
+          dropping unknown fields.
         </p>
       </div>
-      <div class="lg:col-span-4">
-        <div class="p-5 bg-[#FAF8F2] border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
-          <div class="font-bold text-ink">Header-hop field skipping</div>
-          <div class="text-ink/80 text-sm">
-            <code>LocateField</code> &bull; <code>SpliceFields</code> &bull; 0 allocs
+      <div class="lg:col-span-5 min-w-0">
+        <div class="os-window overflow-hidden font-mono text-xs sm:text-sm">
+          <div class="os-titlebar bg-[#E5E0D5]">
+            <span class="font-bold uppercase text-ink text-xs">
+              Skip Unneeded Fields &amp; Splice in Place
+            </span>
+            <div class="os-stripes"></div>
+          </div>
+          <div class="bg-ink text-paper p-4">
+            <!-- Code example -->
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+              <pre class="leading-relaxed overflow-x-auto"><code>view := pb.NodeOpaque(pkt)
+city, _ := view.City()      <span class="text-acid/80">// skips #1 and #2</span>
+pkt = view.SetActive(false) <span class="text-acid/80">// updates raw bytes</span></code></pre>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 4. REPLACE STRUCT-DERIVED JSON WITHOUT .PROTO -->
+    <!-- 3. PROTOBUF + GRPC OR PLAIN STRUCTS -->
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-8 space-y-3">
+      <div class="lg:col-span-7 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Replace struct-derived JSON without a .proto build step
+          Works with your existing .proto files, or just plain structs
         </h3>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          A lot of services use JSON simply because defining a <a href="/go#struct-tags" class="doc-link">Go struct</a> or a <a href="/es#define-message" class="doc-link">TypeScript type</a> is easier than setting up <code>.proto</code> files and a code generator. OmniBuf lets you do the same thing with <code>omnibuf:"1"</code> struct tags in Go or <code>defineMessage()</code> in TypeScript. The encoded bytes are less than half the size of JSON and 7x to 11x faster on plain structs, 64-bit integers and byte slices don't need special string encoding, and you can enable <strong>Field #0</strong> if you still want field names included in the packet.
+          If you already use Protobuf, keep your <code>.proto</code> files and generated structs. OmniBuf is strictly a message serialization format (not a new RPC protocol), and because almost every <a href="https://grpc.io/" target="_blank" rel="noopener noreferrer" class="doc-link">gRPC</a> and <a href="https://connectrpc.com/" target="_blank" rel="noopener noreferrer" class="doc-link">Connect</a> implementation decouples transport and service stubs from wire encoding, you can register OmniBuf as a custom codec in a few lines of code.
         </p>
-      </div>
-      <div class="lg:col-span-4">
-        <div class="p-5 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm sm:text-base space-y-1.5">
-          <div class="text-acid font-bold">No .proto or codegen required</div>
-          <div class="text-white font-bold">7x to 11x faster than struct JSON</div>
-          <div class="text-paper/75 text-sm">
-            Go <code>omnibuf:"1"</code> &bull; TS <code>defineMessage</code>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 5. ALL THE BENEFITS OF PROTOBUF -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-      <div class="lg:col-span-8 space-y-3">
-        <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Keep your .proto files, schema evolution, and compact payloads
-        </h3>
+        <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          If you already have a Protobuf workflow, you can keep using your existing{' '}
-          <code>.proto</code> files and generated structs. Field numbers, adding and deprecating
-          fields over time, and merging two messages by concatenating their bytes (
-          <code>append(msgA, msgB...)</code>) all work the same way as Protobuf.
+          If you usually reach for JSON because you don't want to maintain <code>.proto</code> files and a code generator, put <code>omnibuf:"1"</code> tags on a <a href="/go#struct-tags" class="doc-link">Go struct</a> or use <code>defineMessage()</code> in <a href="/es#define-message" class="doc-link">TypeScript</a> just like <code>json:"host"</code> tags. You get packets that are less than half the size of JSON and 7x to 11x faster on plain structs.
         </p>
       </div>
-      <div class="lg:col-span-4">
-        <div class="p-5 bg-acid text-ink border-2 border-ink rounded-md font-mono text-sm sm:text-base font-bold space-y-1">
-          <div>✓ Existing .proto schemas</div>
-          <div>✓ Safe field evolution</div>
-          <div>✓ append(msgA, msgB...) merge</div>
+      <div class="lg:col-span-5 min-w-0">
+        <div class="os-window overflow-hidden font-mono text-xs sm:text-sm">
+          <div class="os-titlebar bg-[#E5E0D5]">
+            <span class="font-bold uppercase text-ink text-xs">
+              Two Ways In &rarr; Identical Wire Bytes
+            </span>
+            <div class="os-stripes"></div>
+          </div>
+          <div class="bg-ink text-paper p-4 space-y-3">
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+              <div class="text-[11px] uppercase font-bold text-paper/65 mb-1">
+                1. Existing .pb.go Struct (From .proto)
+              </div>
+              <pre class="leading-relaxed overflow-x-auto"><code>pkt, _ := omnibuf.Marshal(&amp;pb.Node&#123;Id: 1, City: "FRA"&#125;)</code></pre>
+            </div>
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+              <div class="text-[11px] uppercase font-bold text-paper/65 mb-1">
+                2. Plain Go Struct (No .proto)
+              </div>
+              <pre class="leading-relaxed overflow-x-auto"><code>type Node struct &#123;
+  ID   uint32 `omnibuf:"1"`
+  City string `omnibuf:"2"`
+&#125;
+pkt, _ := omnibuf.Marshal(&amp;Node&#123;ID: 1, City: "FRA"&#125;)</code></pre>
+            </div>
+            <div class="flex items-center justify-between px-3 py-2 rounded bg-acid text-ink font-bold text-xs border border-ink">
+              <span class="uppercase">Same Wire Output (7B)</span>
+              <span>21 03 55 07 46 52 41</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

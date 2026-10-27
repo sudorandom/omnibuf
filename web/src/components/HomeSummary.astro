@@ -62,9 +62,9 @@
             <td class="p-3.5 sm:p-4 text-ink">
               <code>.proto</code> or Structs
             </td>
-            <td class="p-3.5 sm:p-4">Baseline (366 B)</td>
-            <td class="p-3.5 sm:p-4">Yes (123 ns)</td>
-            <td class="p-3.5 sm:p-4">Yes (+ opt Field #0)</td>
+            <td class="p-3.5 sm:p-4">Baseline (1x)</td>
+            <td class="p-3.5 sm:p-4">Yes</td>
+            <td class="p-3.5 sm:p-4">Yes (+ optional names)</td>
             <td class="p-3.5 sm:p-4">Yes</td>
           </tr>
           <tr class="bg-white">
@@ -72,9 +72,9 @@
             <td class="p-3.5 sm:p-4">
               <code>.proto</code> only
             </td>
-            <td class="p-3.5 sm:p-4">7% smaller (341 B)</td>
-            <td class="p-3.5 sm:p-4 text-ink/70">No (2-pass Size)</td>
-            <td class="p-3.5 sm:p-4 text-ink/70">No (Opaque Type 2)</td>
+            <td class="p-3.5 sm:p-4">7% smaller</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No (2 passes)</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
             <td class="p-3.5 sm:p-4">Yes</td>
           </tr>
           <tr class="bg-[#FAF8F2]">
@@ -82,8 +82,8 @@
             <td class="p-3.5 sm:p-4 text-ink/70">
               <code>.fbs</code> only
             </td>
-            <td class="p-3.5 sm:p-4">+64% larger (600 B)</td>
-            <td class="p-3.5 sm:p-4">Yes (Bottom-up Builder)</td>
+            <td class="p-3.5 sm:p-4">+64% larger</td>
+            <td class="p-3.5 sm:p-4">Yes (Builder API)</td>
             <td class="p-3.5 sm:p-4 text-ink/70">No</td>
             <td class="p-3.5 sm:p-4 text-ink/70">No</td>
           </tr>
@@ -92,25 +92,35 @@
             <td class="p-3.5 sm:p-4 text-ink/70">
               <code>.capnp</code> only
             </td>
-            <td class="p-3.5 sm:p-4">+53% larger (560 B)</td>
-            <td class="p-3.5 sm:p-4">Yes (In-place Arena)</td>
+            <td class="p-3.5 sm:p-4">+53% larger</td>
+            <td class="p-3.5 sm:p-4">Yes (Pointer API)</td>
             <td class="p-3.5 sm:p-4 text-ink/70">No</td>
             <td class="p-3.5 sm:p-4 text-ink/70">No</td>
           </tr>
           <tr class="bg-[#FAF8F2]">
-            <td class="p-3.5 sm:p-4 font-bold">MessagePack</td>
-            <td class="p-3.5 sm:p-4">Structs / Maps</td>
-            <td class="p-3.5 sm:p-4">+79% larger (656 B)</td>
-            <td class="p-3.5 sm:p-4">Yes (Slow)</td>
-            <td class="p-3.5 sm:p-4">Yes (Repeated Keys)</td>
-            <td class="p-3.5 sm:p-4 text-ink/75">No</td>
+            <td class="p-3.5 sm:p-4 font-bold">Avro (Raw / OCF)</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">
+              <code>.avsc</code> JSON Schema
+            </td>
+            <td class="p-3.5 sm:p-4">14% smaller / 4x larger</td>
+            <td class="p-3.5 sm:p-4">Yes</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No (Needs Schema)</td>
+            <td class="p-3.5 sm:p-4 text-ink/70">No</td>
           </tr>
           <tr class="bg-white">
+            <td class="p-3.5 sm:p-4 font-bold">MessagePack</td>
+            <td class="p-3.5 sm:p-4">Structs / Maps</td>
+            <td class="p-3.5 sm:p-4">+79% larger</td>
+            <td class="p-3.5 sm:p-4">Yes (Slow)</td>
+            <td class="p-3.5 sm:p-4">Yes (Repeats Keys)</td>
+            <td class="p-3.5 sm:p-4 text-ink/75">No</td>
+          </tr>
+          <tr class="bg-[#FAF8F2]">
             <td class="p-3.5 sm:p-4 font-bold">JSON</td>
             <td class="p-3.5 sm:p-4">Structs or ProtoJSON</td>
-            <td class="p-3.5 sm:p-4">+119% larger (803 B)</td>
+            <td class="p-3.5 sm:p-4">+119% larger</td>
             <td class="p-3.5 sm:p-4">Yes (Slow)</td>
-            <td class="p-3.5 sm:p-4">Yes (Repeated Keys)</td>
+            <td class="p-3.5 sm:p-4">Yes (Repeats Keys)</td>
             <td class="p-3.5 sm:p-4 text-ink/75">No</td>
           </tr>
         </tbody>

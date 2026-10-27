@@ -123,7 +123,7 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
           OmniBuf uses the protobuf descriptor and cached struct offsets to support the full
           Protobuf feature set, including <code>oneof</code> fields, explicit <code>optional</code>{' '}
           presence, maps, and field numbers up to <code>536,870,911</code>. Even without our
-          compiler plugin, this runs <strong>~2.4x faster</strong> than standard Go Protobuf.
+          compiler plugin, this runs <strong>~2x faster</strong> than standard Go Protobuf.
         </p>
       </div>
 
@@ -161,8 +161,8 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
         </p>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed">
           With buffer and struct reuse, the generated methods run{' '}
-          <strong>5.9x faster on encode</strong> and <strong>7.3x faster on decode</strong> than
-          standard Go Protobuf (or <strong>2.3x faster on decode</strong> when allocating a fresh
+          <strong>6x faster on encode</strong> and <strong>7x faster on decode</strong> than
+          standard Go Protobuf (or <strong>2x faster on decode</strong> when allocating a fresh
           struct and copying every string). The plugin targets flat proto3 messages (fields{' '}
           <code>1..65535</code>, or <code>1..15</code> for <code>Opaque</code> views). For messages
           with <code>oneof</code>, maps, or explicit <code>optional</code> presence, use{' '}

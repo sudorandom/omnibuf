@@ -195,44 +195,43 @@ const nodeSchemaCode = `message Node {
       </div>
     </div>
 
-    <!-- Row 3: 4-Bit Self-Describing Tags + Header Hopping (Merged with Skip Containers in One Step) -->
+    <!-- Row 3: Skip Fields in One Step (Header Hopping) -->
     <div class="py-8 sm:py-10 space-y-6">
       <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         <div class="lg:col-span-6 space-y-2.5 min-w-0">
           <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-            0-byte bools, explicit types &amp; 1-step skipping
+            Skip fields in one step
           </h3>
           <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-            Widening the wire type from 3 bits to 4 bits (<code>0..15</code>) means 1-byte tags
-            cover fields <code>1..7</code> (compared to <code>1..15</code> in Protobuf), while
-            giving each value category its own wire type. Booleans are stored right in the tag byte
-            (<strong>0 value bytes</strong>). Unsigned ints (<code>WireUint</code>), ZigZag-signed
-            ints (<code>WireSint</code>), floats (<code>WireFloat32</code>, <code>WireFloat64</code>
-            ), and fixed-width ints get separate wire types, while arrays (<code>WireArray</code>)
-            carry a 1-byte element type header and maps (<code>WireMap</code>) carry a 2-byte
-            key/value type header. Every array, map, and sub-message starts with its total byte
-            length, so a reader can skip over any field in one addition (<code>pos += byteLen</code>
-            ). Lookup still walks linearly through preceding field headers in the message, so
-            skipping is constant time per field examined rather than an <code>O(1)</code> offset
-            table lookup.
+            Every field header tells the reader how many bytes to advance without decoding the
+            payload. Booleans add <code>0</code> bytes, fixed-width numbers add <code>4</code> or{' '}
+            <code>8</code> bytes, dynamic integers encode their width (<code>1</code>,{' '}
+            <code>2</code>, <code>4</code>, or <code>9</code> bytes) in the first byte, and every
+            string, byte slice, sub-message, array, or map starts with its total{' '}
+            <code>byteLen</code>. A reader can hop over any field in one addition (
+            <code>pos += byteLen</code>) instead of scanning every varint byte. Lookup still walks
+            linearly through preceding field headers in the message, so skipping is constant time
+            per field examined rather than an <code>O(1)</code> offset table lookup.
           </p>
         </div>
         <div class="lg:col-span-6 min-w-0">
           <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md font-mono text-sm space-y-3">
-            <div class="grid grid-cols-12 text-center text-xs sm:text-sm font-bold rounded overflow-hidden border border-paper/30">
-              <div class="col-span-5 bg-paper/15 py-2 text-paper border-r border-paper/30">
-                Field #
-              </div>
-              <div class="col-span-5 bg-acid text-ink py-2 border-r border-ink">4-Bit Type</div>
-              <div class="col-span-2 bg-[#FF4F18] text-white font-bold py-2">TZ</div>
+            <div class="text-xs uppercase font-bold text-acid">
+              How the reader advances past a field
             </div>
-            <div class="flex flex-wrap justify-between gap-2 text-xs sm:text-sm text-paper/90">
-              <span>
-                <code>Type 2, 3</code> (Bool): <strong class="text-acid">0 Value Bytes</strong>
-              </span>
-              <span>
-                Skip Container: <strong class="text-acid">pos += byteLen</strong>
-              </span>
+            <div class="grid sm:grid-cols-3 gap-2 text-xs sm:text-sm">
+              <div class="p-2.5 bg-[#1F1F1F] rounded border border-paper/20">
+                <div class="text-paper/65 text-[11px] uppercase">Bool (Types 2..3)</div>
+                <div class="font-bold text-acid mt-0.5">pos += 0</div>
+              </div>
+              <div class="p-2.5 bg-[#1F1F1F] rounded border border-paper/20">
+                <div class="text-paper/65 text-[11px] uppercase">Scalar (Types 0..1, 4..9)</div>
+                <div class="font-bold text-acid mt-0.5">pos += width</div>
+              </div>
+              <div class="p-2.5 bg-[#1F1F1F] rounded border border-paper/20">
+                <div class="text-paper/65 text-[11px] uppercase">Container (Types 10..15)</div>
+                <div class="font-bold text-acid mt-0.5">pos += byteLen</div>
+              </div>
             </div>
           </div>
         </div>

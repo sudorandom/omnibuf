@@ -157,6 +157,18 @@ func BenchmarkMarshal_JSON(b *testing.B) {
 	}
 }
 
+func BenchmarkMarshal_Avro(b *testing.B) {
+	orig := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pkt, err := MarshalAvro(&orig)
+		if err != nil || len(pkt) == 0 {
+			b.Fatal(err)
+		}
+	}
+}
+
 // ============================================================================
 // BENCHMARKS: 2. Full Unmarshal / Decode
 // ============================================================================
@@ -343,6 +355,32 @@ func BenchmarkUnmarshal_JSON_Reuse(b *testing.B) {
 	}
 }
 
+func BenchmarkUnmarshal_Avro(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalAvro(&orig)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var out PeerUpdate
+		if err := UnmarshalAvro(pkt, &out); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUnmarshal_Avro_Reuse(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalAvro(&orig)
+	out := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := UnmarshalAvro(pkt, &out); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // ============================================================================
 // BENCHMARKS: 3. Single Nested Field Lookup (peer.location.city & peer.neighbors[2].router)
 // ============================================================================
@@ -463,6 +501,19 @@ func BenchmarkLookup_LocationCity_JSON_Unmarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var out PeerUpdate
 		if err := UnmarshalJSON(pkt, &out); err != nil || len(out.Location.City) != 9 {
+			b.Fatal("lookup failed")
+		}
+	}
+}
+
+func BenchmarkLookup_LocationCity_Avro_SkipScan(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalAvro(&orig)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s, ok := LookupAvroNestedCity(pkt)
+		if !ok || len(s) != 9 {
 			b.Fatal("lookup failed")
 		}
 	}

@@ -299,7 +299,28 @@ func TestAllCodecsRoundTripAndWireSize(t *testing.T) {
 		t.Fatalf("JSON mismatch:\ngot:  %#v\nwant: %#v", jsonDec, orig)
 	}
 
+	// 8. Apache Avro (Binary & OCF)
+	avroBytes, err := MarshalAvro(&orig)
+	if err != nil {
+		t.Fatalf("MarshalAvro error: %v", err)
+	}
+	var avroDec PeerUpdate
+	if err := UnmarshalAvro(avroBytes, &avroDec); err != nil {
+		t.Fatalf("UnmarshalAvro error: %v", err)
+	}
+	if !reflect.DeepEqual(orig, avroDec) {
+		t.Fatalf("Avro mismatch:\ngot:  %#v\nwant: %#v", avroDec, orig)
+	}
+	if city, ok := LookupAvroNestedCity(avroBytes); !ok || city != "Frankfurt" {
+		t.Fatalf("LookupAvroNestedCity = %q, %v", city, ok)
+	}
+	avroOCFBytes, err := MarshalAvroOCF(&orig)
+	if err != nil {
+		t.Fatalf("MarshalAvroOCF error: %v", err)
+	}
+
 	t.Logf("\n=== WIRE SIZE COMPARISON (PeerUpdate Payload) ===")
+	t.Logf("  Avro (Raw Binary, No Field Tags):     %4d bytes", len(avroBytes))
 	t.Logf("  Protobuf (proto.Marshal / protowire): %4d bytes", len(pbOfficialBytes))
 	t.Logf("  OmniBuf (Shared-Schema):              %4d bytes (%+d B vs Protobuf)", len(omniBytes), len(omniBytes)-len(pbOfficialBytes))
 	t.Logf("  OmniBuf (Self-Describing Field #0):   %4d bytes (includes all field names inline)", len(omniSelfBytes))
@@ -307,5 +328,6 @@ func TestAllCodecsRoundTripAndWireSize(t *testing.T) {
 	t.Logf("  FlatBuffers (VTables + Alignment):    %4d bytes", len(fbBytes))
 	t.Logf("  Cap'n Proto (64-bit Words + Ptrs):    %4d bytes", len(capnpBytes))
 	t.Logf("  Standard JSON (encoding/json):        %4d bytes", len(jsonBytes))
+	t.Logf("  Avro OCF (Self-Describing w/ Schema): %4d bytes", len(avroOCFBytes))
 	fmt.Printf("")
 }

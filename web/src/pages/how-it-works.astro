@@ -6,97 +6,56 @@ import Capabilities from '../components/Capabilities.astro';
 import Comparisons from '../components/Comparisons.astro';
 import Footer from '../components/Footer.astro';
 
-interface WirePart {
-  label: string;
-  tone: 'tag' | 'len' | 'meta' | 'val';
-}
-
 interface WireTypeRow {
   ids: string;
   title: string;
-  names: string;
   protoTypes: string;
-  parts: WirePart[];
-  behavior: string;
+  onTheWire: string;
 }
 
 const wireTypeRows: WireTypeRow[] = [
   {
-    ids: 'Types 2 & 3',
-    title: 'Booleans (0 Bytes)',
-    names: 'WireBoolFalse · WireBoolTrue',
-    protoTypes: 'bool',
-    parts: [{ label: 'Tag (includes false / true)', tone: 'tag' }],
-    behavior:
-      'Booleans write zero bytes after the tag. Because false (Type 2) and true (Type 3) have their own wire types inside the tag byte itself, the very next byte in the stream is already the next field tag.',
-  },
-  {
-    ids: 'Types 4..9',
-    title: 'Fixed Width',
-    names: 'WireFixed32/64 · WireSfixed32/64 · WireFloat32/64',
-    protoTypes: 'fixed32, fixed64, sfixed32, sfixed64, float, double',
-    parts: [
-      { label: 'Tag', tone: 'tag' },
-      { label: '4 or 8 Bytes (Little-Endian)', tone: 'val' },
-    ],
-    behavior:
-      "Always writes 4 bytes (Types 4, 6, 8) or 8 bytes (Types 5, 7, 9) in little-endian order with no length prefix. Unsigned ints, signed two's-complement ints, and IEEE-754 floats each get their own wire type so a schema-less reader knows whether to print an unsigned int, a negative int, or a float.",
-  },
-  {
-    ids: 'Types 0 & 1',
-    title: 'Dynamic Width',
-    names: 'WireUint · WireSint',
+    ids: '0, 1',
+    title: 'Dynamic Ints',
     protoTypes: 'uint32, uint64, int32, int64, sint32, sint64, enum',
-    parts: [
-      { label: 'Tag', tone: 'tag' },
-      { label: '1, 2, 4, or 9-Byte Prefix-Varint', tone: 'val' },
-    ],
-    behavior:
-      'Variable-width integers where the lowest bits of the first value byte tell the CPU whether to read 1, 2, 4, or 9 bytes in a single load instead of looping byte by byte. WireUint (0) stores unsigned integers directly, while WireSint (1) ZigZag-encodes signed integers and enums so small negative numbers like -1 take 1 byte.',
+    onTheWire: '1, 2, 4, or 9-byte Prefix-Varint (0 = unsigned, 1 = ZigZag signed).',
   },
   {
-    ids: 'Types 10..12 & 15',
-    title: 'Length-Delimited',
-    names: 'WireString · WireBytes · WireSubMsg · WireExtended',
-    protoTypes: 'string, bytes, message, extensions',
-    parts: [
-      { label: 'Tag', tone: 'tag' },
-      { label: 'Byte Length', tone: 'len' },
-      { label: 'Payload Bytes', tone: 'val' },
-    ],
-    behavior:
-      'Every variable-length value starts with its byte length so a reader can skip past it in one step (pos += ByteLen). Instead of lumping strings, byte slices, and sub-messages into a single wire type, OmniBuf gives UTF-8 text (10), raw bytes (11), nested [Tag][Value] messages (12), and future extended types (15) distinct tags.',
+    ids: '2, 3',
+    title: 'Booleans',
+    protoTypes: 'bool',
+    onTheWire: '0 value bytes. False (2) and true (3) live inside the tag byte itself.',
   },
   {
-    ids: 'Type 13',
+    ids: '4..9',
+    title: 'Fixed Numbers',
+    protoTypes: 'fixed32/64, sfixed32/64, float, double',
+    onTheWire: '4 or 8 bytes little-endian, with distinct types for unsigned, signed, and float.',
+  },
+  {
+    ids: '10..12',
+    title: 'Length-Prefixed',
+    protoTypes: 'string, bytes, message',
+    onTheWire: 'Byte length followed by UTF-8 text (10), raw bytes (11), or a sub-message (12).',
+  },
+  {
+    ids: '13',
     title: 'Arrays',
-    names: 'WireArray',
     protoTypes: 'repeated T',
-    parts: [
-      { label: 'Tag', tone: 'tag' },
-      { label: 'Byte Length', tone: 'len' },
-      { label: 'Element Type (1B)', tone: 'meta' },
-      { label: 'Element Count', tone: 'meta' },
-      { label: 'Elements...', tone: 'val' },
-    ],
-    behavior:
-      'Starts with the total byte length, a 1-byte wire type (0..12) for the elements, and the element count upfront so decoders can allocate the slice in one call. Elements are written back-to-back without repeating field tags, and boolean arrays (Element Type = 2) pack 8 booleans into each byte.',
+    onTheWire:
+      'Byte length, 1-byte element type, element count, and packed elements (bools pack 8 per byte).',
   },
   {
-    ids: 'Type 14',
+    ids: '14',
     title: 'Maps',
-    names: 'WireMap',
     protoTypes: 'map<K, V>',
-    parts: [
-      { label: 'Tag', tone: 'tag' },
-      { label: 'Byte Length', tone: 'len' },
-      { label: 'Key Type (1B)', tone: 'meta' },
-      { label: 'Value Type (1B)', tone: 'meta' },
-      { label: 'Entry Count', tone: 'meta' },
-      { label: 'Key, Value...', tone: 'val' },
-    ],
-    behavior:
-      'Starts with the total byte length, a 1-byte key wire type, a 1-byte value wire type, and the entry count, followed by alternating keys and values with no synthetic MapEntry wrapper messages.',
+    onTheWire: 'Byte length, 1-byte key & value types, entry count, and alternating keys/values.',
+  },
+  {
+    ids: '15',
+    title: 'Extended',
+    protoTypes: 'extensions',
+    onTheWire: 'Byte length, extended type ID, and payload bytes.',
   },
 ];
 ---
@@ -275,45 +234,30 @@ const wireTypeRows: WireTypeRow[] = [
           </div>
         </div>
 
-        <div class="border-2 border-ink rounded-md overflow-hidden bg-[#FAF8F2] divide-y-2 divide-ink/15">
-          {wireTypeRows.map((row) => (
-            <div class="p-4 sm:p-5 grid lg:grid-cols-12 gap-4 lg:gap-6 items-start">
-              <div class="lg:col-span-4 space-y-1.5 min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="font-mono px-2 py-0.5 bg-acid text-ink border border-ink text-xs font-bold uppercase rounded">
-                    {row.ids}
-                  </span>
-                  <span class="text-base sm:text-lg font-bold text-ink">{row.title}</span>
-                </div>
-                <div class="font-mono text-xs text-ink/75 font-bold">{row.names}</div>
-                <div class="font-mono text-xs text-ink/70">
-                  Schema: <code>{row.protoTypes}</code>
-                </div>
-              </div>
-
-              <div class="lg:col-span-8 space-y-2.5 min-w-0">
-                <div class="flex flex-wrap items-center gap-1.5 font-mono text-xs font-bold">
-                  {row.parts.map((part) => (
-                    <span
-                      class:list={[
-                        'px-2 py-1 rounded border',
-                        part.tone === 'tag'
-                          ? 'bg-acid text-ink border-ink'
-                          : part.tone === 'len'
-                            ? 'bg-[#FF4F18] text-white border-ink'
-                            : part.tone === 'meta'
-                              ? 'bg-ink text-paper border-ink'
-                              : 'bg-white text-ink border-ink/40',
-                      ]}
-                    >
-                      {part.label}
-                    </span>
-                  ))}
-                </div>
-                <p class="text-sm sm:text-base text-ink/90 leading-relaxed">{row.behavior}</p>
-              </div>
-            </div>
-          ))}
+        <div class="overflow-x-auto border-2 border-ink rounded-md bg-[#FAF8F2]">
+          <table class="w-full text-left border-collapse text-sm sm:text-base">
+            <thead>
+              <tr class="border-b-2 border-ink bg-[#E5E0D5] font-mono text-xs sm:text-sm uppercase">
+                <th class="p-3.5 sm:p-4 font-bold">Wire Type</th>
+                <th class="p-3.5 sm:p-4 font-bold">Schema Types</th>
+                <th class="p-3.5 sm:p-4 font-bold">On the Wire</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-ink/15">
+              {wireTypeRows.map((row, idx) => (
+                <tr class={idx % 2 === 0 ? 'bg-white' : 'bg-[#FAF8F2]'}>
+                  <td class="p-3.5 sm:p-4 whitespace-nowrap">
+                    <span class="font-mono font-bold text-ink">{row.ids}</span>
+                    <span class="text-ink/75 ml-2 font-medium">{row.title}</span>
+                  </td>
+                  <td class="p-3.5 sm:p-4 font-mono text-xs sm:text-sm text-ink/80">
+                    {row.protoTypes}
+                  </td>
+                  <td class="p-3.5 sm:p-4 text-ink/90">{row.onTheWire}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </section>

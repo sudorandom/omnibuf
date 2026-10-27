@@ -19,37 +19,33 @@ err := out.UnmarshalOmniBuf(buf, true)`;
 
 const goFaqItems = [
   {
-    question: 'When should I use Opaque lazy views instead of Unmarshal?',
+    question: 'When should I use Opaque views?',
     paragraphs: [
-      'Most of the time you should just use <code>Unmarshal</code>. It is simpler, and if your code ends up reading most of the fields on the struct anyway, unpacking the whole message at once is plenty fast.',
-      'I added the <code>Opaque</code> wrapper for services like proxies or routers that sit in the middle of a stream and only care about one or two fields on a packet. Calling <code>view.Router()</code> walks the field headers to find that specific field and leaves the rest of the byte slice alone. You can also call setters like <code>view.SetActive(false)</code> to tack an updated value onto the end of the slice.',
+      'Use <code>Unmarshal</code> when your code reads most of the struct. Use <code>Opaque</code> in proxies or routers when you only need to read or update one or two fields on a packet without unpacking the rest of the message.',
     ],
     codeBlock: opaqueSpliceCode,
     codeLabel: 'Example',
   },
   {
-    question: 'How do I enable Field #0 inline field names or decode without a schema?',
+    question: 'How do I decode without a schema?',
     paragraphs: [
-      'By default, OmniBuf leaves field names off the wire just like Protobuf does. Even when field names are omitted, <code>omnibuf.DecodeBlind(pkt)</code> can still read the values and wire types out of any packet and give you back a map keyed by field number.',
-      'If you want the actual field names included in the binary payload, set <code>SelfDescribing: true</code> on <code>omnibuf.MarshalOptions</code> when you encode the message. That puts a Field #0 header at the front of the packet so <code>DecodeBlind</code> can key the returned map by field name instead of number.',
+      'Call <code>omnibuf.DecodeBlind(pkt)</code> to decode any packet into a map keyed by field number. If you also want field names in that map, encode with <code>MarshalOptions{SelfDescribing: true}</code> to include Field #0.',
     ],
     codeBlock: field0BlindCode,
     codeLabel: 'Example',
   },
   {
-    question: 'What does the zeroCopy flag do, and how do I pool buffers?',
+    question: 'What does zeroCopy do?',
     paragraphs: [
-      "In Go, converting a <code>[]byte</code> into a <code>string</code> normally allocates new memory and copies the bytes over. When you pass <code>true</code> as the second argument to <code>UnmarshalOmniBuf(pkt, true)</code>, the decoder skips that copy and points the Go string header straight at the underlying <code>pkt</code> slice. Only do this if you know <code>pkt</code> won't be modified while you're still using the struct. If you're reusing a network read buffer for the next request, pass <code>false</code>.",
-      'On the write side, <code>MarshalOmniBufAppend</code> takes an existing byte slice so you can reuse buffers from a <code>sync.Pool</code> by passing <code>buf[:0]</code>.',
+      'Passing <code>true</code> to <code>UnmarshalOmniBuf(pkt, true)</code> points Go strings straight at the <code>pkt</code> slice instead of allocating and copying. Only use <code>true</code> if <code>pkt</code> will not be overwritten while the struct is still in use.',
     ],
     codeBlock: zeroCopyBufferCode,
     codeLabel: 'Example',
   },
   {
-    question: 'When do I need protoc-gen-omnibuf instead of omnibuf.Marshal?',
+    question: 'Do I need protoc-gen-omnibuf?',
     paragraphs: [
-      'For most services, <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> are already plenty fast. They cache a field offset table once per struct type and encode our 11-field test message in ~300 ns (more than twice as fast as standard <code>proto.Marshal</code>) without needing a code generation step.',
-      'Reach for <code>protoc-gen-omnibuf</code> when serialization shows up in your CPU profile and you want generated switch dispatch (~123 ns encode and ~176 ns zero-copy decode) or lazy <code>Opaque</code> getters. Keep in mind that the code generator targets flat proto3 structs, while <code>omnibuf.Marshal</code> handles the full feature set including maps and <code>oneof</code> wrappers.',
+      'Usually no. <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> already run ~2x faster than <code>proto.Marshal</code> with no build step. Add <code>protoc-gen-omnibuf</code> when you want ~6x faster generated methods or <code>Opaque</code> views on flat proto3 messages.',
     ],
   },
 ];

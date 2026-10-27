@@ -8,36 +8,45 @@ interface FAQItem {
 const faqItems: FAQItem[] = [
   {
     id: 'status',
-    question: 'What is the current stability status? Is the v1.0 wire format frozen?',
+    question: 'Is the wire format frozen?',
     paragraphs: [
-      'OmniBuf is still <strong>experimental</strong>. The <a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JS</a> implementations both pass the same conformance test suite, so they produce identical bytes, but I haven\'t frozen the v1.0 wire specification yet.',
-      'If you try it out and find something in the wire format or library APIs that should be changed before v1.0 is locked down, please open an issue on <a href="https://github.com/sudorandom/omnibuf" target="_blank" rel="noopener noreferrer" class="doc-link">GitHub</a>.',
+      'Not yet. OmniBuf is at <strong>v0.1 (experimental)</strong> while I gather feedback on the wire format before locking down v1.0. If you spot something that should change, please open an issue on <a href="https://github.com/sudorandom/omnibuf" target="_blank" rel="noopener noreferrer" class="doc-link">GitHub</a>.',
     ],
   },
   {
-    question: 'Why is it named OmniBuf?',
+    question: 'Do I need a .proto file?',
     paragraphs: [
-      "The name comes from wanting a more complete version of Protobuf. When Protobuf encodes a message, it throws away enough type information that you can't reliably decode the binary without the original <code>.proto</code> file, and there is no option to include field names when you want them.",
-      'In OmniBuf, the wire types are specific enough that you can always decode the values in a packet without a schema. You can also opt into writing the field names into Field #0 at the start of the message when you want self-describing packets.',
+      'No. You can put <code>omnibuf:"1"</code> tags on Go structs (just like <code>json:"id"</code> tags) or use <code>defineMessage()</code> in TypeScript. If the reader does not even have your struct definition, OmniBuf\'s 16 explicit wire types still let it decode the values, and turning on <strong>Field #0</strong> includes the field names in the packet (written once per type, not repeated on every array item).',
     ],
   },
   {
-    question: 'Why a new format?',
+    question: 'Can I use OmniBuf with gRPC or Connect?',
     paragraphs: [
-      "I spend a lot of time working with Protobuf and JSON, and I wanted to see how much faster a binary format could be if we fixed a few of Protobuf's 2001 design choices while keeping its good parts.",
-      'I also wanted a format that doesn\'t care how you define your types. If you like <code>.proto</code> files for sharing schemas across languages, you can use <code>.proto</code> files. If you just have a <a href="/go#struct-tags" class="doc-link">Go struct</a> or a <a href="/es#define-message" class="doc-link">TypeScript type</a> and want to serialize it without setting up a code generator, you can do that too, and both produce the same wire format.',
+      'Yes. OmniBuf is a serialization format only, not an RPC framework. Almost every <a href="https://grpc.io/" target="_blank" rel="noopener noreferrer" class="doc-link">gRPC</a> implementation (and <a href="https://connectrpc.com/" target="_blank" rel="noopener noreferrer" class="doc-link">Connect</a>) lets you register a custom wire codec (such as <code>encoding.RegisterCodec</code> in <code>grpc-go</code>), so you can swap in OmniBuf without changing your generated service stubs.',
     ],
   },
   {
-    question: 'Do I have to use or rewrite .proto files?',
+    question: 'How does field presence work?',
     paragraphs: [
-      "No. If you already have proto3 or Editions (2023, 2024) <code>.proto</code> files, they work as-is. If you don't use <code>.proto</code> files, you can use struct tags in Go or <code>defineMessage()</code> in TypeScript.",
+      "With <code>.proto</code> files, OmniBuf follows Protobuf's rules, including <code>proto3</code> <code>optional</code> and Editions (2023 and 2024). On plain Go structs, pointer fields track explicit presence and <code>omitempty</code> skips zero values.",
+    ],
+  },
+  {
+    question: 'What happens to unknown fields?',
+    paragraphs: [
+      'Go structs skip over unknown fields without storing them (so re-marshaling that struct drops them), while TypeScript keeps them in <code>$unknown</code>. If you are building a proxy that forwards packets, use <code>Opaque</code> views or <code>SpliceFields</code> to read or update fields directly on the raw byte slice without losing unknown fields.',
+    ],
+  },
+  {
+    question: 'Is the encoding deterministic?',
+    paragraphs: [
+      'Normal encoding is not canonical because Go randomizes map order. When you need reproducible bytes for hashing or tests, use <code>omnibuf.MarshalDeterministic</code> to sort fields and map keys.',
     ],
   },
   {
     question: 'What languages are supported?',
     paragraphs: [
-      'Right now there are libraries for <a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JavaScript</a>. Both support all three usage modes (plain structs/objects, existing Protobuf types, and code generation). Once the v1.0 wire specification is finalized, I plan to add Rust, C++, and Python.',
+      '<a href="/go" class="doc-link">Go</a> and <a href="/es" class="doc-link">TypeScript / JavaScript</a> today, with Rust, C++, and Python planned once v1.0 of the wire spec is finalized.',
     ],
   },
 ];

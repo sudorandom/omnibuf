@@ -49,13 +49,17 @@
     <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
       <div class="lg:col-span-6 space-y-2.5 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Optional inline field names (Field #0)
+          Optional inline field names (written once in Field #0)
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          By default, packets only carry field numbers to stay small. If you want field names on the
+          By default, packets only carry field numbers to stay small. If you want string keys on the
           wire too, turn on <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>). That writes
-          the field-name table once at the top of the packet so <code>omnibuf decode</code> prints
-          named JSON without needing a schema file.
+          the field-name table once at the top of the packet, and for arrays or maps of nested
+          messages it records the child field names only once on the parent field instead of
+          repeating key strings inside every item like JSON or MessagePack. Even with Field #0
+          enabled, our 11-field test packet (with 4 nested <code>Neighbor</code> messages) is{' '}
+          <code>630 B</code>, which is smaller than both MessagePack (<code>656 B</code>) and JSON (
+          <code>803 B</code>).
         </p>
       </div>
       <div class="lg:col-span-6 font-mono text-sm min-w-0">
