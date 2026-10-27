@@ -21,7 +21,10 @@ const nodeSchemaCode = `message Node {
 
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
     <!-- Row 1: Read integers without byte-by-byte loops -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+    <div
+      id="prefix-varints"
+      class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
+    >
       <div class="lg:col-span-6 space-y-3 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Read integers without byte-by-byte loops
@@ -118,7 +121,10 @@ const nodeSchemaCode = `message Node {
     </div>
 
     <!-- Row 2: Single-Pass Encoding -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+    <div
+      id="single-pass"
+      class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
+    >
       <div class="lg:col-span-6 space-y-3 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Reserve 2 bytes &amp; patch after
@@ -196,7 +202,7 @@ const nodeSchemaCode = `message Node {
     </div>
 
     <!-- Row 3: Skip Fields in One Step (Header Hopping) -->
-    <div class="py-8 sm:py-10 space-y-6">
+    <div id="skip-fields" class="scroll-mt-16 py-8 sm:py-10 space-y-6">
       <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         <div class="lg:col-span-6 space-y-2.5 min-w-0">
           <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">

@@ -1,10 +1,102 @@
-import { copyFile, readdir, readFile } from 'node:fs/promises';
+import { copyFile, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig } from 'astro/config';
 import tailwindcss from 'tailwindcss';
 import tailwindConfig from './tailwind.config.mjs';
+
+const PAGE_LABELS = {
+  '/': 'Overview',
+  '/how-it-works': 'How It Works',
+  '/spec': 'Specification',
+  '/go': 'Go',
+  '/es': 'TypeScript / JS',
+};
+
+const PAGE_ORDER = ['/', '/how-it-works', '/spec', '/go', '/es'];
+
+function decodeEntities(str) {
+  return str
+    .replace(/&rarr;/g, '→')
+    .replace(/&larr;/g, '←')
+    .replace(/&hellip;/g, '…')
+    .replace(/&bull;/g, '•')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+function cleanHtmlText(html) {
+  return decodeEntities(
+    html
+      .replace(/<a\b[^>]*class="[^"]*spec-anchor[^"]*"[^>]*>[\s\S]*?<\/a>/gi, ' ')
+      .replace(/<button\b[^>]*class="[^"]*copy-snippet-btn[^"]*"[^>]*>[\s\S]*?<\/button>/gi, ' ')
+      .replace(/<[^>]+>/g, ' '),
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractSearchEntries(route, html) {
+  const page = PAGE_LABELS[route];
+  if (!page) return [];
+  const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  if (!mainMatch) return [];
+
+  const mainHtml = mainMatch[1]
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, ' ');
+
+  const headingRegex = /<(h[1-3])\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+  const matches = [...mainHtml.matchAll(headingRegex)];
+  const entries = [];
+  let currentH2Title = '';
+  let currentH2Id = '';
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    const tag = m[1].toLowerCase();
+    const attrs = m[2];
+    const title = cleanHtmlText(m[3]).replace(/\.$/, '');
+
+    let id = (attrs.match(/\bid="([^"]+)"/i) || [])[1] || '';
+    if (!id && tag !== 'h1') {
+      const prevStart = Math.max(0, m.index - 450);
+      const beforeSlice = mainHtml.slice(prevStart, m.index);
+      const containerIds = [...beforeSlice.matchAll(/<(?:section|div)\b[^>]*?\bid="([^"]+)"/gi)];
+      if (containerIds.length > 0) {
+        id = containerIds[containerIds.length - 1][1];
+      } else if (tag === 'h3' && currentH2Id) {
+        id = currentH2Id;
+      }
+    }
+
+    if (tag === 'h2') {
+      currentH2Title = title;
+      currentH2Id = id;
+    }
+
+    const bodyStart = m.index + m[0].length;
+    const bodyEnd = i + 1 < matches.length ? matches[i + 1].index : mainHtml.length;
+    const text = cleanHtmlText(mainHtml.slice(bodyStart, bodyEnd));
+    const url = id ? `${route === '/' ? '/' : route}#${id}` : route;
+
+    entries.push({
+      page,
+      section: tag === 'h3' ? currentH2Title : '',
+      title,
+      url,
+      text,
+    });
+  }
+
+  return entries;
+}
 
 function checkInternalLinksAndAnchors() {
   return {
@@ -13,6 +105,28 @@ function checkInternalLinksAndAnchors() {
       'astro:server:setup': ({ server }) => {
         server.middlewares.use(async (req, res, next) => {
           const url = req.url?.split('?')[0];
+          if (url === '/search-index.json') {
+            try {
+              const host = req.headers.host || 'localhost:4321';
+              const entries = [];
+              for (const route of PAGE_ORDER) {
+                const resp = await globalThis.fetch(`http://${host}${route}`);
+                if (resp.ok) {
+                  const html = await resp.text();
+                  entries.push(...extractSearchEntries(route, html));
+                }
+              }
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify(entries));
+              return;
+            } catch (err) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ error: String(err) }));
+              return;
+            }
+          }
           if (url === '/sitemap.xml' || url === '/sitemap-0.xml' || url === '/sitemap-index.xml') {
             const pagesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'src/pages');
             const entries = await readdir(pagesDir);
@@ -54,6 +168,7 @@ function checkInternalLinksAndAnchors() {
         const htmlFiles = await collectHtmlFiles(distDir);
         const pageIds = new Map();
         const pageLinks = new Map();
+        const pageHtmlByRoute = new Map();
 
         const normalizeRoute = (routePath) => {
           const clean = routePath.replace(/\/index\.html$/, '').replace(/\.html$/, '');
@@ -65,6 +180,7 @@ function checkInternalLinksAndAnchors() {
           const relPath = '/' + path.relative(distDir, file).split(path.sep).join('/');
           const route = normalizeRoute(relPath);
           const html = await readFile(file, 'utf8');
+          pageHtmlByRoute.set(route, html);
 
           const ids = new Set();
           for (const match of html.matchAll(/\bid=(?:"([^"]+)"|'([^']+)')/g)) {
@@ -128,6 +244,17 @@ function checkInternalLinksAndAnchors() {
         }
 
         logger.info(`Verified internal links and #anchors across ${htmlFiles.length} HTML pages.`);
+
+        const searchEntries = [];
+        for (const route of PAGE_ORDER) {
+          const html = pageHtmlByRoute.get(route);
+          if (html) {
+            searchEntries.push(...extractSearchEntries(route, html));
+          }
+        }
+        const searchIndexPath = path.join(distDir, 'search-index.json');
+        await writeFile(searchIndexPath, JSON.stringify(searchEntries), 'utf8');
+        logger.info(`Generated search-index.json with ${searchEntries.length} sections.`);
 
         const sitemapZero = path.join(distDir, 'sitemap-0.xml');
         const sitemapXml = path.join(distDir, 'sitemap.xml');

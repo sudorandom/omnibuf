@@ -102,12 +102,14 @@ import { writeFrame, readFrames } from '@omnibuf/node';`;
 
 const esFaqItems = [
   {
+    id: 'es-faq-bufbuild',
     question: 'Does this work with @bufbuild/protobuf?',
     paragraphs: [
       'Yes. <code>create</code>, <code>toBinary</code>, and <code>fromBinary</code> accept standard <code>protoc-gen-es</code> descriptors directly, and messages are plain objects with normal <code>camelCase</code> properties.',
     ],
   },
   {
+    id: 'es-faq-opaque',
     question: 'When should I use Opaque views?',
     paragraphs: [
       'Use <code>fromBinary</code> when your code reads most of the object. Use <code>Opaque</code> in edge workers or WebSocket proxies when you only need to inspect or update one or two fields before forwarding the packet.',
@@ -116,6 +118,7 @@ const esFaqItems = [
     codeLabel: 'Example',
   },
   {
+    id: 'es-faq-blind',
     question: 'How do I decode without a schema?',
     paragraphs: [
       'Call <code>decodeBlind(pkt)</code> to get back a plain object keyed by field number. Pass <code>{ selfDescribing: true }</code> to <code>toBinary</code> if you want Field #0 field names included too.',
@@ -124,6 +127,7 @@ const esFaqItems = [
     codeLabel: 'Example',
   },
   {
+    id: 'es-faq-packages',
     question: 'What are @omnibuf/web and @omnibuf/node?',
     paragraphs: [
       "<code>@omnibuf/core</code> has zero dependencies and runs in any JS runtime. <code>@omnibuf/web</code> adds Web Streams and packet inspection helpers, and <code>@omnibuf/node</code> uses Node's native <code>Buffer</code> for faster UTF-8 strings.",
@@ -558,7 +562,10 @@ const esFaqJsonLd = {
 
       <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
         {esFaqItems.map((item) => (
-          <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          <div
+            id={item.id}
+            class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
+          >
             <h3 class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug">
               {item.question}
             </h3>

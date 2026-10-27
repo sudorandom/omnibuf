@@ -608,9 +608,35 @@ html.dark .hover\:bg-acid:hover.hover\:text-ink,
 html.dark .group:hover .group-hover\:bg-acid,
 html.dark .group:hover .group-hover\:bg-acid .text-ink,
 html.dark details[open] > summary.group-open\:bg-acid,
-html.dark a[data-spec-link][data-active='true'] {
+html.dark a[data-spec-link][data-active='true'],
+html.dark a[data-search-item][data-active='true'],
+html.dark a[data-search-item][data-active='true'] * {
   background-color: #d4ff33 !important;
   color: #111111 !important;
+}
+
+dialog#search-dialog::backdrop {
+  background-color: rgba(17, 17, 17, 0.62);
+}
+
+html.dark dialog#search-dialog::backdrop {
+  background-color: rgba(5, 6, 8, 0.76);
+}
+
+a[data-search-item][data-active='true'],
+a[data-search-item][data-active='true'] * {
+  background-color: #d4ff33;
+  color: #111111 !important;
+}
+
+a[data-search-item][data-active='true'] {
+  border-color: #111111 !important;
+  box-shadow: 2px 2px 0px #111111;
+}
+
+html.dark a[data-search-item][data-active='true'] {
+  border-color: #454d5e !important;
+  box-shadow: 2px 2px 0px #050608;
 }
 
 html.dark a[data-spec-h3][data-active='true'],

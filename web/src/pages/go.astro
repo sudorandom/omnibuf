@@ -19,6 +19,7 @@ err := out.UnmarshalOmniBuf(buf, true)`;
 
 const goFaqItems = [
   {
+    id: 'go-faq-opaque',
     question: 'When should I use Opaque views?',
     paragraphs: [
       'Use <code>Unmarshal</code> when your code reads most of the struct. Use <code>Opaque</code> in proxies or routers when you only need to read or update one or two fields on a packet without unpacking the rest of the message.',
@@ -27,6 +28,7 @@ const goFaqItems = [
     codeLabel: 'Example',
   },
   {
+    id: 'go-faq-blind',
     question: 'How do I decode without a schema?',
     paragraphs: [
       'Call <code>omnibuf.DecodeBlind(pkt)</code> to decode any packet into a map keyed by field number. If you also want field names in that map, encode with <code>MarshalOptions{SelfDescribing: true}</code> to include Field #0.',
@@ -35,6 +37,7 @@ const goFaqItems = [
     codeLabel: 'Example',
   },
   {
+    id: 'go-faq-zerocopy',
     question: 'What does zeroCopy do?',
     paragraphs: [
       'Passing <code>true</code> to <code>UnmarshalOmniBuf(pkt, true)</code> points Go strings straight at the <code>pkt</code> slice instead of allocating and copying. Only use <code>true</code> if <code>pkt</code> will not be overwritten while the struct is still in use.',
@@ -43,6 +46,7 @@ const goFaqItems = [
     codeLabel: 'Example',
   },
   {
+    id: 'go-faq-plugin',
     question: 'Do I need protoc-gen-omnibuf?',
     paragraphs: [
       'Usually no. <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> already run ~2x faster than <code>proto.Marshal</code> with no build step. Add <code>protoc-gen-omnibuf</code> when you want ~6x faster generated methods or <code>Opaque</code> views on flat proto3 messages.',
@@ -162,7 +166,10 @@ const goFaqJsonLd = {
 
       <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
         {goFaqItems.map((item) => (
-          <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          <div
+            id={item.id}
+            class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-start"
+          >
             <h3 class="lg:col-span-5 text-xl sm:text-2xl font-bold uppercase tracking-tight text-ink leading-snug">
               {item.question}
             </h3>

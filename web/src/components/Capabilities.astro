@@ -14,7 +14,10 @@
 
   <div class="border-t-2 border-ink divide-y-2 divide-ink/20">
     <!-- Row 1: Schema-Less Wire Inspection -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+    <div
+      id="explicit-wire-types"
+      class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
+    >
       <div class="lg:col-span-6 space-y-2.5 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Every wire type is explicit
@@ -46,7 +49,10 @@
     </div>
 
     <!-- Row 2: Optional Field #0 Inline Field Names -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+    <div
+      id="field-0-names"
+      class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
+    >
       <div class="lg:col-span-6 space-y-2.5 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Optional inline field names (written once in Field #0)
@@ -74,7 +80,10 @@
     </div>
 
     <!-- Row 3: Raw Concatenation Merge -->
-    <div class="py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+    <div
+      id="raw-concatenation"
+      class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
+    >
       <div class="lg:col-span-6 space-y-2.5 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Merge messages by appending raw bytes
@@ -97,7 +106,7 @@
     </div>
 
     <!-- Row 4: Native Maps -->
-    <div class="py-8 sm:py-10 space-y-6">
+    <div id="native-maps" class="scroll-mt-16 py-8 sm:py-10 space-y-6">
       <div class="space-y-3 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Native map wire type

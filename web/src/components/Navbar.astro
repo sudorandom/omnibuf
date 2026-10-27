@@ -80,9 +80,7 @@ const activePageLabel =
           </div>
         </details>
       </nav>
-    </div>
 
-    <div class="flex items-center gap-2 shrink-0">
       <!-- Mobile Hamburger / Dropdown Selector -->
       <details id="mobile-nav-menu" class="relative lg:hidden group">
         <summary
@@ -107,7 +105,7 @@ const activePageLabel =
 
         <nav
           aria-label="Mobile page navigation"
-          class="absolute right-0 mt-2 w-52 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#111111] py-1.5 z-50 divide-y divide-ink/15"
+          class="absolute left-0 mt-2 w-52 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#111111] py-1.5 z-50 divide-y divide-ink/15"
         >
           {pages.map((p) => {
             const isActive = currentPage === p.key;
@@ -144,6 +142,35 @@ const activePageLabel =
           })}
         </nav>
       </details>
+    </div>
+
+    <div class="flex items-center gap-2 shrink-0">
+      <button
+        type="button"
+        id="search-trigger"
+        aria-label="Search documentation (Command+K or /)"
+        aria-haspopup="dialog"
+        aria-controls="search-dialog"
+        title="Search documentation (⌘K or /)"
+        class="p-1.5 sm:px-2.5 sm:py-1.5 bg-[#FAF8F2] text-ink border-2 border-ink font-bold shadow-[2px_2px_0px_#111111] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#111111] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink transition text-xs sm:text-sm rounded flex items-center gap-1.5 cursor-pointer"
+      >
+        <svg
+          class="w-4 h-4 stroke-current shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="20" y1="20" x2="16.2" y2="16.2"></line>
+        </svg>
+        <span class="hidden sm:inline">Search</span>
+        <kbd class="hidden md:inline-block px-1.5 py-0.5 text-[10px] font-bold bg-[#E5E0D5] text-ink border border-ink rounded leading-none">
+          /
+        </kbd>
+      </button>
 
       <a
         href="https://github.com/sudorandom/omnibuf"
@@ -203,6 +230,152 @@ const activePageLabel =
     </div>
   </div>
 </header>
+
+<dialog
+  id="search-dialog"
+  aria-label="Search documentation and wire specification"
+  class="fixed inset-0 z-[70] m-auto mt-8 sm:mt-16 w-[calc(100%-1.5rem)] max-w-2xl max-h-[82vh] p-0 bg-[#FAF8F2] text-ink border-2 border-ink rounded-md shadow-[6px_6px_0px_#111111] font-mono overflow-hidden open:flex open:flex-col no-print"
+>
+  <div class="os-titlebar bg-[#E5E0D5] shrink-0">
+    <span class="font-bold uppercase text-ink text-xs sm:text-sm">
+      Search Documentation &amp; Spec
+    </span>
+    <div class="os-stripes"></div>
+    <button
+      type="button"
+      id="search-close"
+      aria-label="Close search"
+      class="px-2 py-0.5 bg-[#FAF8F2] text-ink border border-ink rounded text-xs font-bold hover:bg-acid focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink transition cursor-pointer"
+    >
+      ESC
+    </button>
+  </div>
+
+  <div class="p-3 sm:p-3.5 border-b-2 border-ink bg-white flex items-center gap-2.5 shrink-0">
+    <svg
+      class="w-4 h-4 stroke-current text-ink/70 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7"></circle>
+      <line x1="20" y1="20" x2="16.2" y2="16.2"></line>
+    </svg>
+    <input
+      id="search-input"
+      type="search"
+      autocomplete="off"
+      spellcheck="false"
+      placeholder="Search wire types, Prefix-Varint, Opaque, Avro, Go, TypeScript..."
+      aria-label="Search documentation"
+      aria-controls="search-results"
+      class="w-full bg-transparent text-ink placeholder:text-ink/55 text-sm sm:text-base font-mono focus:outline-none"
+    />
+    <button
+      type="button"
+      id="search-clear"
+      class="hidden px-2 py-0.5 text-xs font-bold uppercase bg-[#E5E0D5] text-ink border border-ink rounded hover:bg-acid focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink cursor-pointer shrink-0"
+    >
+      Clear
+    </button>
+  </div>
+
+  <div
+    id="search-results"
+    role="listbox"
+    aria-label="Search results"
+    class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5"
+  >
+    <div id="search-default-links" class="space-y-3">
+      <div class="text-[11px] font-bold uppercase text-ink/65 px-1">Quick Jump</div>
+      <div class="grid sm:grid-cols-2 gap-2">
+        <a
+          href="/how-it-works#wire-types"
+          data-search-item
+          data-active="true"
+          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+        >
+          <div class="text-[10px] font-bold uppercase text-ink/65">How It Works</div>
+          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">The 16 Wire Types</div>
+        </a>
+        <a
+          href="/how-it-works#prefix-varints"
+          data-search-item
+          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+        >
+          <div class="text-[10px] font-bold uppercase text-ink/65">How It Works</div>
+          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">Prefix-Varints &amp; TZCNT</div>
+        </a>
+        <a
+          href="/how-it-works#comparisons"
+          data-search-item
+          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+        >
+          <div class="text-[10px] font-bold uppercase text-ink/65">How It Works</div>
+          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">Format Comparisons</div>
+        </a>
+        <a
+          href="/spec"
+          data-search-item
+          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+        >
+          <div class="text-[10px] font-bold uppercase text-ink/65">Specification</div>
+          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
+            Wire Format Specification v0.1
+          </div>
+        </a>
+        <a
+          href="/go"
+          data-search-item
+          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+        >
+          <div class="text-[10px] font-bold uppercase text-ink/65">Go</div>
+          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
+            Go Structs, .pb.go &amp; Benchmarks
+          </div>
+        </a>
+        <a
+          href="/es"
+          data-search-item
+          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+        >
+          <div class="text-[10px] font-bold uppercase text-ink/65">TypeScript / JS</div>
+          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
+            TypeScript Schemas &amp; Benchmarks
+          </div>
+        </a>
+      </div>
+    </div>
+    <div id="search-dynamic-results" class="hidden space-y-1.5"></div>
+  </div>
+
+  <div class="px-3 sm:px-4 py-2 bg-[#E5E0D5] border-t-2 border-ink flex items-center justify-between gap-2 text-[11px] text-ink/80 shrink-0">
+    <span id="search-status">Type to search all 5 pages</span>
+    <div class="hidden sm:flex items-center gap-3">
+      <span>
+        <kbd class="px-1 py-0.5 bg-[#FAF8F2] border border-ink rounded text-[10px] font-bold">
+          &uarr;&darr;
+        </kbd>{' '}
+        Navigate
+      </span>
+      <span>
+        <kbd class="px-1 py-0.5 bg-[#FAF8F2] border border-ink rounded text-[10px] font-bold">
+          &crarr;
+        </kbd>{' '}
+        Open
+      </span>
+      <span>
+        <kbd class="px-1 py-0.5 bg-[#FAF8F2] border border-ink rounded text-[10px] font-bold">
+          ESC
+        </kbd>{' '}
+        Close
+      </span>
+    </div>
+  </div>
+</dialog>
 
 <script>
   const navMenus = [
@@ -265,4 +438,335 @@ const activePageLabel =
       syncThemeIcons();
     });
   }
+
+  interface SearchEntry {
+    page: string;
+    section: string;
+    title: string;
+    url: string;
+    text: string;
+  }
+
+  const searchDialog = document.getElementById('search-dialog') as HTMLDialogElement | null;
+  const searchTrigger = document.getElementById('search-trigger') as HTMLButtonElement | null;
+  const searchClose = document.getElementById('search-close') as HTMLButtonElement | null;
+  const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+  const searchClear = document.getElementById('search-clear') as HTMLButtonElement | null;
+  const searchDefaultLinks = document.getElementById('search-default-links');
+  const searchDynamicResults = document.getElementById('search-dynamic-results');
+  const searchStatus = document.getElementById('search-status');
+
+  let searchIndexPromise: Promise<SearchEntry[]> | null = null;
+  let searchEntries: SearchEntry[] | null = null;
+  let activeIndex = 0;
+
+  function loadSearchIndex(): Promise<SearchEntry[]> {
+    if (searchEntries) return Promise.resolve(searchEntries);
+    if (!searchIndexPromise) {
+      searchIndexPromise = fetch('/search-index.json')
+        .then((res) => (res.ok ? (res.json() as Promise<SearchEntry[]>) : []))
+        .then((data) => {
+          searchEntries = data;
+          return data;
+        })
+        .catch(() => []);
+    }
+    return searchIndexPromise;
+  }
+
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function escapeRegExp(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function highlightMatches(text: string, tokens: string[]): string {
+    if (tokens.length === 0) return escapeHtml(text);
+    const pattern = tokens
+      .slice()
+      .sort((a, b) => b.length - a.length)
+      .map(escapeRegExp)
+      .join('|');
+    if (!pattern) return escapeHtml(text);
+    const regex = new RegExp(`(${pattern})`, 'gi');
+    const parts = text.split(regex);
+    return parts
+      .map((part, i) =>
+        i % 2 === 1
+          ? `<mark class="underline decoration-[#FF4F18] decoration-2 underline-offset-2 font-bold bg-transparent text-inherit">${escapeHtml(part)}</mark>`
+          : escapeHtml(part),
+      )
+      .join('');
+  }
+
+  function buildSnippet(text: string, tokens: string[]): string {
+    if (!text) return '';
+    const lower = text.toLowerCase();
+    let firstPos = -1;
+    for (const token of tokens) {
+      const idx = lower.indexOf(token);
+      if (idx !== -1 && (firstPos === -1 || idx < firstPos)) {
+        firstPos = idx;
+      }
+    }
+    const maxLen = 145;
+    if (firstPos === -1 || text.length <= maxLen) {
+      const slice = text.slice(0, maxLen);
+      return highlightMatches(slice + (text.length > maxLen ? '…' : ''), tokens);
+    }
+    const start = Math.max(0, firstPos - 42);
+    const end = Math.min(text.length, start + maxLen);
+    const prefix = start > 0 ? '…' : '';
+    const suffix = end < text.length ? '…' : '';
+    return highlightMatches(prefix + text.slice(start, end) + suffix, tokens);
+  }
+
+  function getVisibleItems(): HTMLAnchorElement[] {
+    if (!searchDialog) return [];
+    const container =
+      searchDynamicResults && !searchDynamicResults.classList.contains('hidden')
+        ? searchDynamicResults
+        : searchDefaultLinks;
+    if (!container) return [];
+    return Array.from(container.querySelectorAll<HTMLAnchorElement>('a[data-search-item]'));
+  }
+
+  function updateActiveItem(nextIndex: number) {
+    const items = getVisibleItems();
+    if (items.length === 0) {
+      activeIndex = 0;
+      return;
+    }
+    activeIndex = ((nextIndex % items.length) + items.length) % items.length;
+    items.forEach((el, idx) => {
+      const isSelected = idx === activeIndex;
+      el.setAttribute('data-active', isSelected ? 'true' : 'false');
+      if (isSelected) {
+        el.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }
+
+  async function runSearch(rawQuery: string) {
+    const query = rawQuery.trim();
+    if (searchClear) {
+      searchClear.classList.toggle('hidden', query.length === 0);
+    }
+
+    if (!query) {
+      searchDefaultLinks?.classList.remove('hidden');
+      searchDynamicResults?.classList.add('hidden');
+      if (searchStatus) searchStatus.textContent = 'Type to search all 5 pages';
+      updateActiveItem(0);
+      return;
+    }
+
+    const entries = await loadSearchIndex();
+    const lowerQuery = query.toLowerCase();
+    const tokens = lowerQuery.split(/\s+/).filter(Boolean);
+
+    const scored: { entry: SearchEntry; score: number }[] = [];
+    for (const entry of entries) {
+      const titleLower = entry.title.toLowerCase();
+      const sectionLower = entry.section.toLowerCase();
+      const pageLower = entry.page.toLowerCase();
+      const textLower = entry.text.toLowerCase();
+      const combined = `${titleLower} ${sectionLower} ${pageLower} ${textLower}`;
+
+      let matchedTokens = 0;
+      let score = 0;
+
+      if (titleLower === lowerQuery) score += 150;
+      else if (titleLower.startsWith(lowerQuery)) score += 90;
+      else if (titleLower.includes(lowerQuery)) score += 60;
+
+      if (textLower.includes(lowerQuery)) score += 35;
+
+      for (const token of tokens) {
+        if (!combined.includes(token)) continue;
+        matchedTokens++;
+        if (titleLower.includes(token)) score += 45;
+        if (sectionLower.includes(token) || pageLower.includes(token)) score += 18;
+        if (textLower.includes(token)) score += 12;
+      }
+
+      if (matchedTokens === tokens.length) {
+        scored.push({ entry, score: score + 50 });
+      } else if (matchedTokens > 0 && tokens.length > 1) {
+        scored.push({ entry, score: score - 20 });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    const topResults = scored.slice(0, 15);
+
+    searchDefaultLinks?.classList.add('hidden');
+    if (searchDynamicResults) {
+      searchDynamicResults.classList.remove('hidden');
+      if (topResults.length === 0) {
+        const suggestions = [
+          'Prefix-Varint',
+          'WireArray',
+          'Opaque',
+          'Field #0',
+          'Avro',
+          'FlatBuffers',
+        ];
+        searchDynamicResults.innerHTML = `
+          <div class="p-4 text-center space-y-3">
+            <div class="text-sm font-bold text-ink">No sections matched &ldquo;${escapeHtml(query)}&rdquo;</div>
+            <div class="text-xs text-ink/70">Try one of these topics:</div>
+            <div class="flex flex-wrap justify-center gap-1.5 pt-1">
+              ${suggestions
+                .map(
+                  (s) =>
+                    `<button type="button" data-search-suggest="${escapeHtml(s)}" class="px-2.5 py-1 text-xs font-bold bg-[#E5E0D5] text-ink border border-ink rounded hover:bg-acid cursor-pointer">${escapeHtml(s)}</button>`,
+                )
+                .join('')}
+            </div>
+          </div>
+        `;
+        searchDynamicResults
+          .querySelectorAll<HTMLButtonElement>('button[data-search-suggest]')
+          .forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const val = btn.getAttribute('data-search-suggest') || '';
+              if (searchInput) {
+                searchInput.value = val;
+                searchInput.focus();
+                void runSearch(val);
+              }
+            });
+          });
+      } else {
+        searchDynamicResults.innerHTML = topResults
+          .map(({ entry }, idx) => {
+            const breadcrumb = entry.section
+              ? `${escapeHtml(entry.page)} &rsaquo; ${escapeHtml(entry.section)}`
+              : escapeHtml(entry.page);
+            return `
+              <a
+                href="${escapeHtml(entry.url)}"
+                data-search-item
+                data-active="${idx === 0 ? 'true' : 'false'}"
+                class="block p-2.5 sm:p-3 rounded border-2 border-transparent hover:border-ink transition"
+              >
+                <div class="text-[10px] font-bold uppercase text-ink/65 truncate">${breadcrumb}</div>
+                <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">${highlightMatches(entry.title, tokens)}</div>
+                ${
+                  entry.text
+                    ? `<div class="text-xs text-ink/80 mt-1 line-clamp-2 leading-relaxed font-sans">${buildSnippet(entry.text, tokens)}</div>`
+                    : ''
+                }
+              </a>
+            `;
+          })
+          .join('');
+      }
+    }
+
+    if (searchStatus) {
+      searchStatus.textContent =
+        topResults.length === 1 ? '1 match' : `${topResults.length} matches`;
+    }
+    updateActiveItem(0);
+  }
+
+  function openSearch() {
+    if (!searchDialog) return;
+    if (!searchDialog.open) {
+      searchDialog.showModal();
+    }
+    void loadSearchIndex();
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+      void runSearch(searchInput.value);
+    }
+  }
+
+  function closeSearch() {
+    if (searchDialog && searchDialog.open) {
+      searchDialog.close();
+    }
+  }
+
+  searchTrigger?.addEventListener('mouseenter', () => {
+    void loadSearchIndex();
+  });
+  searchTrigger?.addEventListener('click', openSearch);
+  searchClose?.addEventListener('click', closeSearch);
+
+  searchClear?.addEventListener('click', () => {
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+      void runSearch('');
+    }
+  });
+
+  searchInput?.addEventListener('input', () => {
+    void runSearch(searchInput.value);
+  });
+
+  searchDialog?.addEventListener('click', (e) => {
+    if (e.target === searchDialog) {
+      closeSearch();
+      return;
+    }
+    const link = (e.target as HTMLElement | null)?.closest('a[data-search-item]');
+    if (link) {
+      closeSearch();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      if (searchDialog?.open) {
+        closeSearch();
+      } else {
+        openSearch();
+      }
+      return;
+    }
+
+    const target = e.target as HTMLElement | null;
+    const isEditable =
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable);
+
+    if (e.key === '/' && !isEditable && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      openSearch();
+      return;
+    }
+
+    if (!searchDialog?.open) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      updateActiveItem(activeIndex + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      updateActiveItem(activeIndex - 1);
+    } else if (e.key === 'Enter') {
+      const items = getVisibleItems();
+      const current = items[activeIndex];
+      if (current) {
+        e.preventDefault();
+        closeSearch();
+        window.location.href = current.href;
+      }
+    }
+  });
 </script>
