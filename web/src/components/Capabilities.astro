@@ -53,28 +53,59 @@
       id="field-0-names"
       class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
     >
-      <div class="lg:col-span-6 space-y-2.5 min-w-0">
+      <div class="lg:col-span-6 space-y-3 min-w-0">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
-          Optional inline field names (written once in Field #0)
+          Field names with Field #0
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          By default, packets only carry field numbers to stay small. If you want string keys on the
-          wire too, turn on <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>). That writes
-          the field-name table once at the top of the packet, and for arrays or maps of nested
-          messages it records the child field names only once on the parent field instead of
-          repeating key strings inside every item like JSON or MessagePack. Even with Field #0
-          enabled, our 11-field test packet (with 4 nested <code>Neighbor</code> messages) is{' '}
-          <code>630 B</code>, which is smaller than both MessagePack (<code>656 B</code>) and JSON (
-          <code>803 B</code>).
+          By default, packets only carry field numbers to stay small. When you want full string keys
+          on the wire too, turn on <code>Field #0</code> (<code>omnibuf.v1.SchemaMeta</code>) to
+          write a field-name table once at the top of the packet.
+        </p>
+        <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
+          Where this really shines is arrays and maps of nested messages. In JSON or MessagePack, an
+          array of 1,000 structs repeats every single field name string 1,000 times on the wire. In
+          OmniBuf, <code>Field #0</code> records the child message's field names{' '}
+          <strong>once</strong> on the parent collection field (via{' '}
+          <a href="/spec#sec-8-3" class="doc-link">
+            <code>SchemaMeta.children</code>
+          </a>
+          ), and every element in the array or map inherits those names while encoding only compact
+          field numbers. Even with just 4 nested <code>Neighbor</code> items in our benchmark
+          packet, OmniBuf with Field #0 enabled is already smaller than both MessagePack and JSON.
         </p>
       </div>
-      <div class="lg:col-span-6 font-mono text-sm min-w-0">
-        <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto">
-          <div class="text-xs font-bold text-acid mb-1.5">
-            omnibuf decode (packet with Field #0)
+      <div class="lg:col-span-6 font-mono text-xs sm:text-sm min-w-0">
+        <div class="os-window overflow-hidden">
+          <div class="os-titlebar bg-[#E5E0D5]">
+            <span class="font-bold uppercase text-ink text-xs">
+              1,000-Item Array: Repeated Keys vs. Field #0 Inheritance
+            </span>
+            <div class="os-stripes"></div>
           </div>
-          <pre class="text-sm text-paper/95 leading-snug">&#123;<span class="text-acid font-bold">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>,
- <span class="text-acid font-bold">"location":</span> &#123;<span class="text-acid">"city":</span> <span class="text-paper font-bold">"FRA"</span>, <span class="text-acid">"rack":</span> 42&#125;&#125;</pre>
+          <div class="bg-ink text-paper p-4 space-y-3">
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+              <div class="text-[11px] uppercase font-bold text-[#FF4F18] mb-1">
+                JSON &amp; MessagePack (Keys Repeated 1,000x)
+              </div>
+              <pre class="leading-relaxed overflow-x-auto"><code>"neighbors": [
+  &#123;<span class="text-[#FF4F18]">"router_id"</span>: "fra-1", <span class="text-[#FF4F18]">"latency_ns"</span>: 420&#125;,
+  &#123;<span class="text-[#FF4F18]">"router_id"</span>: "ams-2", <span class="text-[#FF4F18]">"latency_ns"</span>: 890&#125;, <span class="text-paper/55">// x1,000</span>
+]</code></pre>
+            </div>
+            <div class="bg-[#1F1F1F] p-3 rounded border border-acid/40">
+              <div class="text-[11px] uppercase font-bold text-acid mb-1">
+                OmniBuf + Field #0 (Names Written 1x, Inherited 1,000x)
+              </div>
+              <pre class="leading-relaxed overflow-x-auto"><code><span class="text-acid">#0 SchemaMeta:</span> #10 "neighbors" &rarr; &#123;#1: "router_id", #2: "latency_ns"&#125;
+<span class="text-acid">#10 WireArray&lt;SubMsg&gt; (count=1000):</span>
+  &#123;1: "fra-1", 2: 420&#125;, &#123;1: "ams-2", 2: 890&#125; <span class="text-acid/80">// 0 key strings!</span></code></pre>
+            </div>
+            <div class="flex items-center justify-between px-3 py-2 rounded bg-acid text-ink font-bold text-xs border border-ink">
+              <span class="uppercase">DecodeBlind Output</span>
+              <span>Full named JSON objects, zero repeated keys</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

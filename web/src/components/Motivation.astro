@@ -33,7 +33,7 @@
         </p>
         <!-- prettier-ignore -->
         <p class="text-base sm:text-lg text-ink/90 leading-relaxed max-w-[60ch]">
-          If you also want the string field names on the wire, turning on <strong>Field #0</strong> writes the field-name table once at the top of the packet. For an array or map of nested messages, those child field names are defined only once on the parent field instead of repeating string keys on every item like JSON or MessagePack.
+          If you also want the string field names on the wire, turning on <strong>Field #0</strong> writes a field-name table once at the top of the packet. Better yet, if your message has an array or map of 1,000 nested structs, JSON and MessagePack repeat the key strings inside all 1,000 items. OmniBuf writes the child field names <strong>once</strong> in Field #0 and every item in the array or map inherits them automatically, so self-describing packets are already smaller than MessagePack and JSON with just 4 array items.
         </p>
       </div>
       <div class="lg:col-span-5 min-w-0">
