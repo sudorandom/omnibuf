@@ -1798,6 +1798,162 @@
         "router_id": "new-rtr",
         "sequence": 42
       }
+    },
+    {
+      "name": "peer_update_splice_grow_middle_fields",
+      "category": "L_SelectiveFieldSplice",
+      "description": "OpaquePeerUpdate wire splice growing middle fields (ASN 1B-\u003e4B, RouterID 19B-\u003e300B across 1B-\u003e2B len boundary, UptimeSec 4B-\u003e9B) and shifting all subsequent fields",
+      "schema": "PeerUpdate",
+      "wire_hex": "2104127a0055b204656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d656467652d7274722d66726130312d678100ffffffffffffffffa3f7d3713d0ad7a370db3ffb8e000a090b746965723109656267701565752d63656e7472616c156978702d64652d63697836029200000d0400005004000852000000a8c00000000000000010ac0000000044404040042040407202da00351965752d63656e7472616c2d31551f4652412d457175696e69782d46523575134672616e6b667572748155b190714842d1e2e90a41b6027e020c09720021723455276165302e667261312e6c6576656c332e6e6574614a0d877a00214e14552b66666d2d62352d6c696e6b2e74656c69612e6e657461620e87ba0021ba02554b6265323034302e63637234312e66726130332e61746c61732e636f67656e74636f2e636f6d61821187b600218a2d554961652d31322e7232342e66726e6b676530382e64652e62622e67696e2e6e74742e6e657461520f85c20200eb16b04c02000000",
+      "wire_byte_len": 640,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "expected_blind": {
+        "field_1": 1000000,
+        "field_10": [
+          {
+            "field_1": 3356,
+            "field_2": "ae0.fra1.level3.net",
+            "field_3": 850,
+            "field_4": true
+          },
+          {
+            "field_1": 1299,
+            "field_2": "ffm-b5-link.telia.net",
+            "field_3": 920,
+            "field_4": true
+          },
+          {
+            "field_1": 174,
+            "field_2": "be2040.ccr41.fra03.atlas.cogentco.com",
+            "field_3": 1120,
+            "field_4": true
+          },
+          {
+            "field_1": 2914,
+            "field_2": "ae-12.r24.frnkge08.de.bb.gin.ntt.net",
+            "field_3": 980,
+            "field_4": false
+          }
+        ],
+        "field_11": 9876543211,
+        "field_2": "edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-edge-rtr-fra01-",
+        "field_3": true,
+        "field_4": 18446744073709551615,
+        "field_5": -62,
+        "field_6": 0.42875,
+        "field_7": [
+          "tier1",
+          "ebgp",
+          "eu-central",
+          "ixp-de-cix"
+        ],
+        "field_8": [
+          167772160,
+          172032000,
+          3232235520,
+          2886729728,
+          134744072,
+          134743040
+        ],
+        "field_9": {
+          "field_1": "eu-central-1",
+          "field_2": "FRA-Equinix-FR5",
+          "field_3": "Frankfurt",
+          "field_4": 42,
+          "field_5": 50.1109,
+          "field_6": 8.6821
+        }
+      }
+    },
+    {
+      "name": "peer_update_splice_shrink_middle_fields",
+      "category": "L_SelectiveFieldSplice",
+      "description": "OpaquePeerUpdate wire splice shrinking middle fields (ASN 4B-\u003e1B, RouterID 300B-\u003e1B across 2B-\u003e1B len boundary, UptimeSec 9B-\u003e1B) and shifting subsequent fields left",
+      "schema": "PeerUpdate",
+      "wire_hex": "210355037267810ba3f7d3713d0ad7a370db3ffb8e000a090b746965723109656267701565752d63656e7472616c156978702d64652d63697836029200000d0400005004000852000000a8c00000000000000010ac0000000044404040042040407202da00351965752d63656e7472616c2d31551f4652412d457175696e69782d46523575134672616e6b667572748155b190714842d1e2e90a41b6027e020c09720021723455276165302e667261312e6c6576656c332e6e6574614a0d877a00214e14552b66666d2d62352d6c696e6b2e74656c69612e6e657461620e87ba0021ba02554b6265323034302e63637234312e66726130332e61746c61732e636f67656e74636f2e636f6d61821187b600218a2d554961652d31322e7232342e66726e6b676530382e64652e62622e67696e2e6e74742e6e657461520f85c20200eb16b04c02000000",
+      "wire_byte_len": 329,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "expected_blind": {
+        "field_1": 1,
+        "field_10": [
+          {
+            "field_1": 3356,
+            "field_2": "ae0.fra1.level3.net",
+            "field_3": 850,
+            "field_4": true
+          },
+          {
+            "field_1": 1299,
+            "field_2": "ffm-b5-link.telia.net",
+            "field_3": 920,
+            "field_4": true
+          },
+          {
+            "field_1": 174,
+            "field_2": "be2040.ccr41.fra03.atlas.cogentco.com",
+            "field_3": 1120,
+            "field_4": true
+          },
+          {
+            "field_1": 2914,
+            "field_2": "ae-12.r24.frnkge08.de.bb.gin.ntt.net",
+            "field_3": 980,
+            "field_4": false
+          }
+        ],
+        "field_11": 9876543211,
+        "field_2": "r",
+        "field_3": true,
+        "field_4": 5,
+        "field_5": -62,
+        "field_6": 0.42875,
+        "field_7": [
+          "tier1",
+          "ebgp",
+          "eu-central",
+          "ixp-de-cix"
+        ],
+        "field_8": [
+          167772160,
+          172032000,
+          3232235520,
+          2886729728,
+          134744072,
+          134743040
+        ],
+        "field_9": {
+          "field_1": "eu-central-1",
+          "field_2": "FRA-Equinix-FR5",
+          "field_3": "Frankfurt",
+          "field_4": 42,
+          "field_5": 50.1109,
+          "field_6": 8.6821
+        }
+      }
     }
   ],
   "invalid_cases": [

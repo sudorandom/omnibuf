@@ -1,6 +1,10 @@
 package wire
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"math"
+	"unsafe"
+)
 
 // ============================================================================
 // Opaque API Runtime Support: Zero-Decode Wire Splicing
@@ -10,6 +14,15 @@ import "encoding/binary"
 // only for fields whose bit is set in dirtyMask, avoiding any decoding of untouched fields.
 func SpliceFields(dst, raw []byte, dirtyMask uint16, maxField uint16, appendDirty func(dst []byte, fnum uint16) []byte) []byte {
 	n := len(raw)
+	if n > 0 && cap(dst) > 0 {
+		dstStart := uintptr(unsafe.Pointer(unsafe.SliceData(dst)))
+		dstEnd := dstStart + uintptr(cap(dst))
+		rawStart := uintptr(unsafe.Pointer(unsafe.SliceData(raw)))
+		rawEnd := rawStart + uintptr(n)
+		if dstStart < rawEnd && rawStart < dstEnd {
+			dst = nil
+		}
+	}
 	pos := 0
 	cleanStart := 0
 	var emitted uint16
@@ -29,7 +42,13 @@ func SpliceFields(dst, raw []byte, dirtyMask uint16, maxField uint16, appendDirt
 			wt = uint8(u & 0x0F)
 			pos += 2
 		} else {
-			break
+			tag, tn := decodeVarintMulti(raw[pos:])
+			if tn == 0 || tag>>4 > math.MaxUint16 {
+				break
+			}
+			fnum = uint16(tag >> 4)
+			wt = uint8(tag & 0x0F)
+			pos += tn
 		}
 
 		// Fast-skip field value to find fieldEnd
@@ -45,8 +64,10 @@ func SpliceFields(dst, raw []byte, dirtyMask uint16, maxField uint16, appendDirt
 			if cleanStart < fieldStart {
 				dst = append(dst, raw[cleanStart:fieldStart]...)
 			}
-			dst = appendDirty(dst, fnum)
-			emitted |= bit
+			if (emitted & bit) == 0 {
+				dst = appendDirty(dst, fnum)
+				emitted |= bit
+			}
 			cleanStart = fieldEnd
 		} else {
 			emitted |= bit

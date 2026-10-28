@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/sudorandom/omnibuf"
 )
@@ -66,6 +67,7 @@ type ConformanceRequest struct {
 	OmniBufPayload        []byte `omnibuf:"5,name=omnibuf_payload" protobuf:"bytes,5,opt,name=omnibuf_payload,proto3" json:"omnibuf_payload"`
 	JSONPayload           string `omnibuf:"6,name=json_payload" protobuf:"bytes,6,opt,name=json_payload,proto3" json:"json_payload"`
 	SelfDescribing        bool   `omnibuf:"7,name=self_describing" protobuf:"varint,7,opt,name=self_describing,proto3" json:"self_describing"`
+	TestOpaqueSplice      bool   `omnibuf:"8,name=test_opaque_splice" protobuf:"varint,8,opt,name=test_opaque_splice,proto3" json:"test_opaque_splice"`
 }
 
 // ConformanceResponse is returned by the adapter binary over stdout
@@ -380,6 +382,30 @@ func RunSuite(adapterBinary, corpusPath string) (*Summary, error) {
 				} else {
 					recordResult(tier, vec.Name+"/SelfDescribing", "", respSD.Skipped)
 				}
+
+				if tier == TestTierPlugin {
+					reqSplice := &ConformanceRequest{
+						TestName:              vec.Name + "/" + tier.String() + "/OpaqueSpliceGrow",
+						MessageType:           canonicalMessageType(vec.Schema),
+						Tier:                  uint32(tier),
+						RequestedOutputFormat: uint32(WireFormatOmniBuf),
+						OmniBufPayload:        rawWire,
+						TestOpaqueSplice:      true,
+					}
+					respSplice, err := sendReq(reqSplice)
+					if err != nil {
+						_ = stdin.Close()
+						_ = cmd.Wait()
+						return nil, err
+					}
+					if respSplice.ParseError != "" || respSplice.SerializeError != "" || respSplice.RuntimeError != "" {
+						recordResult(tier, vec.Name+"/OpaqueSpliceGrow", fmt.Sprintf("error: parse=%q serialize=%q runtime=%q", respSplice.ParseError, respSplice.SerializeError, respSplice.RuntimeError), respSplice.Skipped)
+					} else if err := verifyOpaqueSpliceGrowEquivalence(rawWire, respSplice.OmniBufPayload); err != nil {
+						recordResult(tier, vec.Name+"/OpaqueSpliceGrow", err.Error(), respSplice.Skipped)
+					} else {
+						recordResult(tier, vec.Name+"/OpaqueSpliceGrow", "", respSplice.Skipped)
+					}
+				}
 			}
 		}
 	}
@@ -505,6 +531,25 @@ type PeerUpdate struct {
 	Location  Location   `omnibuf:"9,name=location" json:"location"`
 	Neighbors []Neighbor `omnibuf:"10,name=neighbors" json:"neighbors"`
 	Sequence  uint64     `omnibuf:"11,name=sequence" json:"sequence"`
+}
+
+func verifyOpaqueSpliceGrowEquivalence(inputWire, outputWire []byte) error {
+	var want, got PeerUpdate
+	if err := omnibuf.Unmarshal(inputWire, &want); err != nil {
+		return fmt.Errorf("runner decode input PeerUpdate: %w", err)
+	}
+	want.ASN = 1_000_000
+	want.RouterID = strings.Repeat("edge-rtr-fra01-", 20)
+	want.UptimeSec = math.MaxUint64
+	want.Sequence++
+
+	if err := omnibuf.Unmarshal(outputWire, &got); err != nil {
+		return fmt.Errorf("runner decode spliced PeerUpdate: %w", err)
+	}
+	if !reflect.DeepEqual(want, got) {
+		return fmt.Errorf("PeerUpdate OpaqueSpliceGrow mismatch:\ngot:  %+v\nwant: %+v", got, want)
+	}
+	return nil
 }
 
 func verifyRoundTripEquivalence(schema string, inputWire, outputWire []byte) error {

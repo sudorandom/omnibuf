@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
+	"strings"
 
 	"github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/internal/conformance"
@@ -111,6 +113,16 @@ func handlePluginTier(req *conformance.ConformanceRequest) *conformance.Conforma
 	_ = op.GetRouterId()
 	_ = op.GetActive()
 	_ = op.GetSequence()
+
+	if req.TestOpaqueSplice {
+		op.SetAsn(1_000_000)
+		op.SetRouterId(strings.Repeat("edge-rtr-fra01-", 20))
+		op.SetUptimeSec(math.MaxUint64)
+		op.SetSequence(op.GetSequence() + 1)
+		return &conformance.ConformanceResponse{
+			OmniBufPayload: op.MarshalAppend(nil),
+		}
+	}
 
 	if req.SelfDescribing {
 		out, err := (omnibuf.MarshalOptions{Deterministic: true, SelfDescribing: true}).Marshal(&msg)

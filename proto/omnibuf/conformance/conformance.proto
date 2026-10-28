@@ -33,6 +33,7 @@ message ConformanceRequest {
   bytes omnibuf_payload = 5;
   string json_payload = 6;
   bool self_describing = 7;
+  bool test_opaque_splice = 8;
 }
 
 // ConformanceResponse is returned by the testee adapter binary over stdout

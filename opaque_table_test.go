@@ -1,11 +1,14 @@
 package omnibuf_test
 
 import (
+	"math"
 	"reflect"
+	"strings"
 	"testing"
 
 	. "github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/internal/pb"
+	"github.com/sudorandom/omnibuf/wire"
 )
 
 func TestGenericTableMarshalUnmarshal_ExistingPBStruct(t *testing.T) {
@@ -163,5 +166,122 @@ func TestPluginGeneratedPBCodecsAndOpaqueAPI(t *testing.T) {
 	}
 	if vtOut.Location.City != "Frankfurt" || vtOut.Neighbors[2].Router != pbIn.Neighbors[2].Router || vtOut.Sequence != pbIn.Sequence {
 		t.Fatalf("vtprotobuf round-trip mismatch: %#v", &vtOut)
+	}
+}
+
+func TestOpaqueSpliceFieldSizeGrowAndShrink(t *testing.T) {
+	orig := SamplePeerUpdate()
+	orig.ASN = 7 // 1-byte varint originally
+	pkt := EncodePeerOmniBufDirect(nil, &orig)
+
+	// 1. Grow fields in the middle of the message so their encoded lengths expand:
+	//    - Field #1 (ASN): 1-byte varint (7) -> 4-byte varint (1_000_000)
+	//    - Field #2 (RouterID): 19-byte string (1B len prefix) -> 300-byte string (2B len prefix)
+	//    - Field #4 (UptimeSec): 4-byte varint (864000) -> 9-byte varint (math.MaxUint64)
+	longRouter := strings.Repeat("edge-rtr-fra01-", 20) // 300 bytes
+	var op pb.OpaquePeerUpdate
+	if err := op.Unmarshal(pkt); err != nil {
+		t.Fatalf("OpaquePeerUpdate.Unmarshal failed: %v", err)
+	}
+	op.SetAsn(1_000_000)
+	op.SetRouterId(longRouter)
+	op.SetUptimeSec(math.MaxUint64)
+	grownPkt := op.MarshalAppend(nil)
+
+	if len(grownPkt) <= len(pkt) {
+		t.Fatalf("expected grownPkt (%dB) > pkt (%dB)", len(grownPkt), len(pkt))
+	}
+
+	var grownDec PeerUpdate
+	if err := DecodePeerOmniBufInto(grownPkt, &grownDec, false); err != nil {
+		t.Fatalf("DecodePeerOmniBufInto(grownPkt) failed: %v", err)
+	}
+	wantGrown := orig
+	wantGrown.ASN = 1_000_000
+	wantGrown.RouterID = longRouter
+	wantGrown.UptimeSec = math.MaxUint64
+	if !reflect.DeepEqual(grownDec, wantGrown) {
+		t.Fatalf("grownPkt mismatch:\ngot:  %#v\nwant: %#v", grownDec, wantGrown)
+	}
+
+	// Verify O(1) header-hop getters on the re-serialized grown packet still locate shifted fields
+	var opGrown pb.OpaquePeerUpdate
+	_ = opGrown.Unmarshal(grownPkt)
+	if got := opGrown.GetLocation().GetCity(); got != "Frankfurt" {
+		t.Fatalf("after grow: GetLocation().GetCity() = %q, want Frankfurt", got)
+	}
+	if got := opGrown.GetNeighbors(3).GetRouter(); got != orig.Neighbors[3].Router {
+		t.Fatalf("after grow: GetNeighbors(3).GetRouter() = %q, want %q", got, orig.Neighbors[3].Router)
+	}
+	if got := opGrown.GetSequence(); got != orig.Sequence {
+		t.Fatalf("after grow: GetSequence() = %d, want %d", got, orig.Sequence)
+	}
+
+	// 2. Shrink those same middle fields back down:
+	//    - Field #1 (ASN): 4-byte varint -> 1-byte varint (1)
+	//    - Field #2 (RouterID): 300-byte string -> 1-byte string ("r")
+	//    - Field #4 (UptimeSec): 9-byte varint -> 1-byte varint (5)
+	opGrown.SetAsn(1)
+	opGrown.SetRouterId("r")
+	opGrown.SetUptimeSec(5)
+	shrunkPkt := opGrown.MarshalAppend(nil)
+
+	if len(shrunkPkt) >= len(pkt) {
+		t.Fatalf("expected shrunkPkt (%dB) < pkt (%dB)", len(shrunkPkt), len(pkt))
+	}
+
+	var shrunkDec PeerUpdate
+	if err := DecodePeerOmniBufInto(shrunkPkt, &shrunkDec, false); err != nil {
+		t.Fatalf("DecodePeerOmniBufInto(shrunkPkt) failed: %v", err)
+	}
+	wantShrunk := orig
+	wantShrunk.ASN = 1
+	wantShrunk.RouterID = "r"
+	wantShrunk.UptimeSec = 5
+	if !reflect.DeepEqual(shrunkDec, wantShrunk) {
+		t.Fatalf("shrunkPkt mismatch:\ngot:  %#v\nwant: %#v", shrunkDec, wantShrunk)
+	}
+
+	// 3. Verify splicing into an aliased destination slice (pkt = op.MarshalAppend(pkt[:0]))
+	//    when a middle field grows does not corrupt subsequent fields in raw.
+	aliasedBuf := make([]byte, len(pkt), len(pkt)+512)
+	copy(aliasedBuf, pkt)
+	var opAlias pb.OpaquePeerUpdate
+	_ = opAlias.Unmarshal(aliasedBuf)
+	opAlias.SetRouterId(longRouter)
+	aliasedOut := opAlias.MarshalAppend(aliasedBuf[:0])
+
+	var aliasedDec PeerUpdate
+	if err := DecodePeerOmniBufInto(aliasedOut, &aliasedDec, false); err != nil {
+		t.Fatalf("DecodePeerOmniBufInto(aliasedOut) failed: %v", err)
+	}
+	if aliasedDec.RouterID != longRouter || aliasedDec.Location.City != "Frankfurt" || aliasedDec.Sequence != orig.Sequence {
+		t.Fatalf("aliasedOut mismatch: %#v", aliasedDec)
+	}
+
+	// 4. Verify splicing preserves Field #0 (SchemaMeta) and unknown fields (e.g. Field #99 and Field #2000)
+	//    when an earlier field increases in size.
+	enc := wire.NewEncoder(512)
+	enc.WriteRaw(EncodePeerOmniBuf(enc, &orig, true))
+	withUnknown := append([]byte(nil), enc.Bytes()...)
+	withUnknown = wire.AppendVarint(withUnknown, (99<<4)|uint64(wire.WireUint))
+	withUnknown = wire.AppendVarint(withUnknown, 424242)
+	withUnknown = wire.AppendVarint(withUnknown, (2000<<4)|uint64(wire.WireString))
+	withUnknown = wire.AppendVarint(withUnknown, 5)
+	withUnknown = append(withUnknown, "hello"...)
+
+	var opUnknown pb.OpaquePeerUpdate
+	_ = opUnknown.Unmarshal(withUnknown)
+	opUnknown.SetRouterId(longRouter)
+	splicedUnknown := opUnknown.MarshalAppend(nil)
+
+	if u99, ok := wire.ReadUint(splicedUnknown, 99); !ok || u99 != 424242 {
+		t.Fatalf("unknown field #99 lost or corrupted after grow splice: %d, %v", u99, ok)
+	}
+	if s2000, ok := wire.ReadString(splicedUnknown, 2000); !ok || s2000 != "hello" {
+		t.Fatalf("unknown field #2000 lost or corrupted after grow splice: %q, %v", s2000, ok)
+	}
+	if meta, ok := ReadField0SchemaMeta(splicedUnknown); !ok || meta.Fields[2] != "router_id" {
+		t.Fatalf("Field #0 SchemaMeta lost after grow splice: %#v, %v", meta, ok)
 	}
 }

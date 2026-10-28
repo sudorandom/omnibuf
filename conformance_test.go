@@ -724,6 +724,11 @@ func TestProtobufStyleConformanceCorpus(t *testing.T) {
 	// ------------------------------------------------------------------------
 	vectors = append(vectors, buildConcatAndOutOfOrderVectors(t)...)
 
+	// ------------------------------------------------------------------------
+	// Category L: Selective Field Mutation & Size-Changing Wire Splicing
+	// ------------------------------------------------------------------------
+	vectors = append(vectors, buildSelectiveSpliceVectors(t)...)
+
 	// Verify or update golden corpus file at testdata/conformance_corpus.json
 	corpus := ConformanceCorpusFile{
 		Version:       "2.1.0",
@@ -1255,6 +1260,99 @@ func buildConcatAndOutOfOrderVectors(t *testing.T) []ConformanceVector {
 	if seq, ok := ReadUint(mutatedPkt, FieldPeerSequence); !ok || seq != 7777777 {
 		t.Fatalf("ReadUint on append-mutated PeerUpdate = (%d, %v), want 7777777", seq, ok)
 	}
+
+	return out
+}
+
+func buildSelectiveSpliceVectors(t *testing.T) []ConformanceVector {
+	t.Helper()
+	var out []ConformanceVector
+
+	// L1: Grow middle fields across Prefix-Varint byte-width boundaries via OpaquePeerUpdate wire splicing
+	//   - Field #1 (ASN): 1B varint (7) -> 4B varint (1_000_000)
+	//   - Field #2 (RouterID): 19B string (1B len prefix) -> 300B string (2B len prefix)
+	//   - Field #4 (UptimeSec): 4B varint (864000) -> 9B varint (math.MaxUint64)
+	//   - Field #11 (Sequence): incremented by 1
+	orig := SamplePeerUpdate()
+	orig.ASN = 7
+	basePkt := EncodePeerOmniBufDirect(nil, &orig)
+	longRouter := strings.Repeat("edge-rtr-fra01-", 20)
+
+	var op pb.OpaquePeerUpdate
+	if err := op.Unmarshal(basePkt); err != nil {
+		t.Fatalf("OpaquePeerUpdate.Unmarshal(basePkt) failed: %v", err)
+	}
+	op.SetAsn(1_000_000)
+	op.SetRouterId(longRouter)
+	op.SetUptimeSec(math.MaxUint64)
+	op.SetSequence(orig.Sequence + 1)
+	grownSpliced := op.MarshalAppend(nil)
+
+	wantGrown := orig
+	wantGrown.ASN = 1_000_000
+	wantGrown.RouterID = longRouter
+	wantGrown.UptimeSec = math.MaxUint64
+	wantGrown.Sequence = orig.Sequence + 1
+	wantGrownBytes := EncodePeerOmniBufDirect(nil, &wantGrown)
+
+	if !bytes.Equal(grownSpliced, wantGrownBytes) {
+		t.Fatalf("OpaqueSpliceGrow bytes mismatch with full encode:\ngot  (%dB): %x\nwant (%dB): %x",
+			len(grownSpliced), grownSpliced, len(wantGrownBytes), wantGrownBytes)
+	}
+
+	blindGrown, err := DecodeBlind(grownSpliced)
+	if err != nil {
+		t.Fatalf("DecodeBlind(grownSpliced) failed: %v", err)
+	}
+	out = append(out, ConformanceVector{
+		Name:          "peer_update_splice_grow_middle_fields",
+		Category:      "L_SelectiveFieldSplice",
+		Description:   "OpaquePeerUpdate wire splice growing middle fields (ASN 1B->4B, RouterID 19B->300B across 1B->2B len boundary, UptimeSec 4B->9B) and shifting all subsequent fields",
+		Schema:        "PeerUpdate",
+		WireHex:       hex.EncodeToString(grownSpliced),
+		WireByteLen:   len(grownSpliced),
+		PresentFields: inspectPresentFields(grownSpliced),
+		ExpectedBlind: blindGrown,
+	})
+
+	// L2: Shrink those middle fields back down via OpaquePeerUpdate wire splicing
+	//   - Field #1 (ASN): 4B varint -> 1B varint (1)
+	//   - Field #2 (RouterID): 300B string (2B len prefix) -> 1B string ("r", 1B len prefix)
+	//   - Field #4 (UptimeSec): 9B varint -> 1B varint (5)
+	var opGrown pb.OpaquePeerUpdate
+	if err := opGrown.Unmarshal(grownSpliced); err != nil {
+		t.Fatalf("OpaquePeerUpdate.Unmarshal(grownSpliced) failed: %v", err)
+	}
+	opGrown.SetAsn(1)
+	opGrown.SetRouterId("r")
+	opGrown.SetUptimeSec(5)
+	shrunkSpliced := opGrown.MarshalAppend(nil)
+
+	wantShrunk := wantGrown
+	wantShrunk.ASN = 1
+	wantShrunk.RouterID = "r"
+	wantShrunk.UptimeSec = 5
+	wantShrunkBytes := EncodePeerOmniBufDirect(nil, &wantShrunk)
+
+	if !bytes.Equal(shrunkSpliced, wantShrunkBytes) {
+		t.Fatalf("OpaqueSpliceShrink bytes mismatch with full encode:\ngot  (%dB): %x\nwant (%dB): %x",
+			len(shrunkSpliced), shrunkSpliced, len(wantShrunkBytes), wantShrunkBytes)
+	}
+
+	blindShrunk, err := DecodeBlind(shrunkSpliced)
+	if err != nil {
+		t.Fatalf("DecodeBlind(shrunkSpliced) failed: %v", err)
+	}
+	out = append(out, ConformanceVector{
+		Name:          "peer_update_splice_shrink_middle_fields",
+		Category:      "L_SelectiveFieldSplice",
+		Description:   "OpaquePeerUpdate wire splice shrinking middle fields (ASN 4B->1B, RouterID 300B->1B across 2B->1B len boundary, UptimeSec 9B->1B) and shifting subsequent fields left",
+		Schema:        "PeerUpdate",
+		WireHex:       hex.EncodeToString(shrunkSpliced),
+		WireByteLen:   len(shrunkSpliced),
+		PresentFields: inspectPresentFields(shrunkSpliced),
+		ExpectedBlind: blindShrunk,
+	})
 
 	return out
 }
