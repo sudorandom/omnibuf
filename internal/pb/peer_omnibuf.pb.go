@@ -593,9 +593,7 @@ func (x *PeerUpdate) clearUnseenOmniBuf(seenMask uint64) {
 		x.Prefixes = x.Prefixes[:0]
 	}
 	if (seenMask & (1 << 8)) == 0 {
-		if x.Location != nil {
-			x.Location.clearUnseenOmniBuf(0)
-		}
+		x.Location = nil
 	}
 	if (seenMask & (1 << 9)) == 0 {
 		x.Neighbors = x.Neighbors[:0]

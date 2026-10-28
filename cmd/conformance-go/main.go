@@ -98,26 +98,40 @@ func handleBlind(req *conformance.ConformanceRequest) *conformance.ConformanceRe
 func handlePluginTier(req *conformance.ConformanceRequest) *conformance.ConformanceResponse {
 	switch req.MessageType {
 	case "omnibuf.bench.PeerUpdate":
-		var msg pb.PeerUpdate
+		// Pre-populate msg to verify struct reuse clears all unseen fields and nil sub-message pointers.
+		msg := pb.PeerUpdate{
+			Asn:       999999,
+			RouterId:  "stale-router",
+			Active:    true,
+			Tags:      []string{"stale-tag"},
+			Prefixes:  []uint32{999},
+			Location:  &pb.Location{Region: "stale", City: "stale-city", Rack: 999},
+			Neighbors: []*pb.Neighbor{{PeerAsn: 999, Router: "stale-neighbor"}},
+			Sequence:  999999,
+		}
 		if err := msg.UnmarshalOmniBuf(req.OmniBufPayload, false); err != nil {
 			return &conformance.ConformanceResponse{
 				ParseError: err.Error(),
 			}
 		}
-		// Exercise lazy Opaque view getters to verify zero-panic conformance
+		// Exercise lazy Opaque view getters to verify zero-panic and value conformance
 		var op pb.OpaquePeerUpdate
 		_ = op.Unmarshal(req.OmniBufPayload)
-		_ = op.GetAsn()
-		_ = op.GetRouterId()
-		_ = op.GetActive()
-		_ = op.GetUptimeSec()
-		_ = op.GetRssiDbm()
-		_ = op.GetCpuLoad()
-		_ = op.TagsLen()
-		_ = op.PrefixesLen()
-		_ = op.GetLocation().GetCity()
-		_ = op.NeighborsLen()
-		_ = op.GetSequence()
+		if op.GetAsn() != msg.Asn ||
+			op.GetRouterId() != msg.RouterId ||
+			op.GetActive() != msg.Active ||
+			op.GetUptimeSec() != msg.UptimeSec ||
+			op.GetRssiDbm() != msg.RssiDbm ||
+			math.Float64bits(op.GetCpuLoad()) != math.Float64bits(msg.CpuLoad) ||
+			op.TagsLen() != len(msg.Tags) ||
+			op.PrefixesLen() != len(msg.Prefixes) ||
+			op.GetLocation().GetCity() != msg.GetLocation().GetCity() ||
+			op.NeighborsLen() != len(msg.Neighbors) ||
+			op.GetSequence() != msg.Sequence {
+			return &conformance.ConformanceResponse{
+				ParseError: "opaque PeerUpdate getter mismatch with decoded struct",
+			}
+		}
 
 		if req.TestOpaqueSplice {
 			op.SetAsn(1_000_000)
@@ -177,7 +191,19 @@ func handlePluginTier(req *conformance.ConformanceRequest) *conformance.Conforma
 		}
 
 	case "omnibuf.conformance.TestAllTypes":
-		var msg pb.TestAllTypes
+		// Pre-populate msg to verify struct reuse clears all unseen fields and resets absent F8SubMsg to nil.
+		msg := pb.TestAllTypes{
+			F1Uint32:       999999,
+			F5Bool:         true,
+			F6String:       "stale-str",
+			F7Bytes:        []byte{0xff},
+			F8SubMsg:       &pb.AllTypesSubMsg{Id: 999, Label: "stale-sub", Flag: true, Score: -999},
+			F9StringArr:    []string{"stale"},
+			F10Uint32Arr:   []uint32{999},
+			F11SubMsgArr:   []*pb.AllTypesSubMsg{{Id: 999, Label: "stale-elem"}},
+			F12MapStrUint:  map[string]uint64{"stale": 999},
+			F20OverflowStr: "stale-overflow",
+		}
 		if err := msg.UnmarshalOmniBuf(req.OmniBufPayload, false); err != nil {
 			return &conformance.ConformanceResponse{
 				ParseError: err.Error(),
@@ -185,23 +211,34 @@ func handlePluginTier(req *conformance.ConformanceRequest) *conformance.Conforma
 		}
 		var op pb.OpaqueTestAllTypes
 		_ = op.Unmarshal(req.OmniBufPayload)
-		_ = op.GetF1Uint32()
-		_ = op.GetF2Uint64()
-		_ = op.GetF3Sint32()
-		_ = op.GetF4Sint64()
-		_ = op.GetF5Bool()
-		_ = op.GetF6String()
-		_ = op.GetF7Bytes()
-		_ = op.GetF8SubMsg().GetLabel()
-		_ = op.F9StringArrLen()
-		_ = op.F10Uint32ArrLen()
-		_ = op.F11SubMsgArrLen()
 		_, _ = op.LookupF12MapStrUint("k")
-		_ = op.GetF13Float32()
-		_ = op.GetF14Float64()
-		_ = op.GetF15Fixed32()
-		_ = op.GetF16Fixed64()
-		_ = op.GetF20OverflowStr()
+		wantSub := pb.AllTypesSubMsg{}
+		if msg.F8SubMsg != nil {
+			wantSub = *msg.F8SubMsg
+		}
+		if op.GetF1Uint32() != msg.F1Uint32 ||
+			op.GetF2Uint64() != msg.F2Uint64 ||
+			op.GetF3Sint32() != msg.F3Sint32 ||
+			op.GetF4Sint64() != msg.F4Sint64 ||
+			op.GetF5Bool() != msg.F5Bool ||
+			op.GetF6String() != msg.F6String ||
+			!bytes.Equal(op.GetF7Bytes(), msg.F7Bytes) ||
+			op.GetF8SubMsg().GetId() != wantSub.Id ||
+			op.GetF8SubMsg().GetLabel() != wantSub.Label ||
+			op.GetF8SubMsg().GetFlag() != wantSub.Flag ||
+			op.GetF8SubMsg().GetScore() != wantSub.Score ||
+			op.F9StringArrLen() != len(msg.F9StringArr) ||
+			op.F10Uint32ArrLen() != len(msg.F10Uint32Arr) ||
+			op.F11SubMsgArrLen() != len(msg.F11SubMsgArr) ||
+			math.Float32bits(op.GetF13Float32()) != math.Float32bits(msg.F13Float32) ||
+			math.Float64bits(op.GetF14Float64()) != math.Float64bits(msg.F14Float64) ||
+			op.GetF15Fixed32() != msg.F15Fixed32 ||
+			op.GetF16Fixed64() != msg.F16Fixed64 ||
+			op.GetF20OverflowStr() != msg.F20OverflowStr {
+			return &conformance.ConformanceResponse{
+				ParseError: "opaque TestAllTypes getter mismatch with decoded struct",
+			}
+		}
 
 		if req.TestOpaqueSplice {
 			op.SetF1Uint32(1_000_000)

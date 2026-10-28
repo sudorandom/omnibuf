@@ -458,19 +458,39 @@ func AppendSint64Arr(d []int64, p []byte, f uint16) []int64 {
 	return d
 }
 func AppendFixed32Arr(d []uint32, p []byte, f uint16) []uint32 {
-	d, _ = readArrays(d, p, f, AppendFixed32ArrBody[uint32])
+	d, _ = readArrays(d, p, f, func(d []uint32, b []byte) ([]uint32, bool) {
+		if len(b) < 2 || b[0] != WireFixed32 {
+			return nil, false
+		}
+		return AppendFixed32ArrBody(d, b)
+	})
 	return d
 }
 func AppendFixed64Arr(d []uint64, p []byte, f uint16) []uint64 {
-	d, _ = readArrays(d, p, f, AppendFixed64ArrBody[uint64])
+	d, _ = readArrays(d, p, f, func(d []uint64, b []byte) ([]uint64, bool) {
+		if len(b) < 2 || b[0] != WireFixed64 {
+			return nil, false
+		}
+		return AppendFixed64ArrBody(d, b)
+	})
 	return d
 }
 func AppendSfixed32Arr(d []int32, p []byte, f uint16) []int32 {
-	d, _ = readArrays(d, p, f, AppendFixed32ArrBody[int32])
+	d, _ = readArrays(d, p, f, func(d []int32, b []byte) ([]int32, bool) {
+		if len(b) < 2 || b[0] != WireSfixed32 {
+			return nil, false
+		}
+		return AppendFixed32ArrBody(d, b)
+	})
 	return d
 }
 func AppendSfixed64Arr(d []int64, p []byte, f uint16) []int64 {
-	d, _ = readArrays(d, p, f, AppendFixed64ArrBody[int64])
+	d, _ = readArrays(d, p, f, func(d []int64, b []byte) ([]int64, bool) {
+		if len(b) < 2 || b[0] != WireSfixed64 {
+			return nil, false
+		}
+		return AppendFixed64ArrBody(d, b)
+	})
 	return d
 }
 func AppendFloat32Arr(d []float32, p []byte, f uint16) []float32 {

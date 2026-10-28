@@ -9,7 +9,6 @@ package omnibuf
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"sort"
 	"unsafe"
 )
@@ -37,6 +36,8 @@ const (
 
 // MaxNestingDepth is the maximum allowed sub-message / array nesting depth (prevents stack-overflow bombs).
 const MaxNestingDepth = 32
+
+const maxProtobufFieldNumber = 536870911
 
 func encodeZigZag(n int64) uint64 {
 	return uint64((n << 1) ^ (n >> 63))
@@ -207,11 +208,11 @@ func skipValue(b []byte, pos int, wireType uint8) (int, error) {
 func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8, minLen uint64) (body []byte, nextPos int, matched bool, valid bool) {
 	n := len(packet)
 	for pos < n {
-		var fnum uint16
+		var fnum uint32
 		var wt uint8
 		b0 := packet[pos]
 		if (b0 & 1) != 0 {
-			fnum = uint16(b0 >> 5)
+			fnum = uint32(b0 >> 5)
 			wt = (b0 >> 1) & 0x0F
 			pos++
 		} else if (b0 & 2) != 0 {
@@ -219,20 +220,20 @@ func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8,
 				return nil, 0, false, false
 			}
 			u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
-			fnum = u >> 4
+			fnum = uint32(u >> 4)
 			wt = uint8(u & 0x0F)
 			pos += 2
 		} else {
 			tag, tn := decodeVarintMulti(packet[pos:])
-			if tn == 0 || tag>>4 > math.MaxUint16 {
+			if tn == 0 || tag>>4 > maxProtobufFieldNumber {
 				return nil, 0, false, false
 			}
-			fnum = uint16(tag >> 4)
+			fnum = uint32(tag >> 4)
 			wt = uint8(tag & 0x0F)
 			pos += tn
 		}
 
-		if fnum == targetField {
+		if fnum == uint32(targetField) {
 			if wt != expWT {
 				return nil, 0, false, false
 			}

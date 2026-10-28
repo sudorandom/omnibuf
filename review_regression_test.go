@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	ob "github.com/sudorandom/omnibuf"
+	"github.com/sudorandom/omnibuf/internal/pb"
 	"github.com/sudorandom/omnibuf/wire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -175,6 +176,91 @@ func TestReviewFullProtobufFieldRange(t *testing.T) {
 	}
 	if blind["value"] != uint64(math.MaxUint64) {
 		t.Fatalf("blind high field: %#v", blind)
+	}
+	if meta, ok := ob.ReadField0SchemaMeta(packet); !ok || meta.Fields[536870911] != "value" {
+		t.Fatalf("ReadField0SchemaMeta failed on packet with high field number: ok=%v meta=%+v", ok, meta)
+	}
+	// Verify field 65537 (0x10001) does not alias field 1 in table codec or wire.LocateField
+	aliasPkt := append([]byte(nil), packet...)
+	aliasPkt = wire.AppendVarint(aliasPkt, (uint64(1)<<4)|uint64(wire.WireUint))
+	aliasPkt = wire.AppendVarint(aliasPkt, 77)
+	aliasPkt = wire.AppendVarint(aliasPkt, (uint64(65537)<<4)|uint64(wire.WireUint))
+	aliasPkt = wire.AppendVarint(aliasPkt, 999)
+	var tableOut struct {
+		A uint32 `omnibuf:"1"`
+	}
+	if err := ob.Unmarshal(aliasPkt, &tableOut); err != nil {
+		t.Fatalf("table Unmarshal failed skipping high field numbers: %v", err)
+	}
+	if tableOut.A != 77 {
+		t.Fatalf("field 65537 aliased field 1 in table Unmarshal: got %d, want 77", tableOut.A)
+	}
+	if gotU, ok := wire.ReadUint(aliasPkt, 1); !ok || gotU != 77 {
+		t.Fatalf("field 65537 aliased field 1 in wire.LocateField: got (%d, %v), want (77, true)", gotU, ok)
+	}
+	var genOut pb.TestAllTypes
+	if err := genOut.UnmarshalOmniBuf(aliasPkt, false); err != nil {
+		t.Fatalf("generated UnmarshalOmniBuf failed on self-describing packet with high unknown fields: %v", err)
+	}
+	if genOut.F1Uint32 != 77 {
+		t.Fatalf("generated UnmarshalOmniBuf got F1Uint32=%d, want 77", genOut.F1Uint32)
+	}
+}
+
+func TestReviewMergedSubMsgAndReusePresence(t *testing.T) {
+	// 1. Concatenated packets with partial sub-messages must merge in wire.ReadSubMsg and Opaque getters
+	encA := wire.NewEncoder(64)
+	encA.BeginSubMsg(8)
+	encA.WriteUint(1, 10)
+	encA.WriteString(2, "from-A")
+	encA.WriteBool(3, true)
+	encA.EndSubMsg()
+
+	encB := wire.NewEncoder(64)
+	encB.BeginSubMsg(8)
+	encB.WriteUint(1, 20)
+	encB.WriteInt(4, -555)
+	encB.EndSubMsg()
+
+	concat := append(append([]byte(nil), encA.Bytes()...), encB.Bytes()...)
+	var op pb.OpaqueTestAllTypes
+	if err := op.Unmarshal(concat); err != nil {
+		t.Fatal(err)
+	}
+	subOp := op.GetF8SubMsg()
+	if subOp.GetId() != 20 || subOp.GetLabel() != "from-A" || !subOp.GetFlag() || subOp.GetScore() != -555 {
+		t.Fatalf("Opaque merged sub-message mismatch: id=%d label=%q flag=%v score=%d",
+			subOp.GetId(), subOp.GetLabel(), subOp.GetFlag(), subOp.GetScore())
+	}
+
+	// 2. Reusing a generated struct when a singular sub-message is absent must reset pointer to nil
+	reused := pb.TestAllTypes{
+		F1Uint32: 42,
+		F8SubMsg: &pb.AllTypesSubMsg{Id: 9, Label: "stale"},
+	}
+	if err := reused.UnmarshalOmniBuf(nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if reused.F8SubMsg != nil {
+		t.Fatalf("expected reused.F8SubMsg to be nil when absent, got %+v", reused.F8SubMsg)
+	}
+
+	// 3. wire.AppendFixed*Arr / AppendSfixed*Arr must reject mismatched element wire types
+	floatArrPkt := wire.AppendVarint(nil, (uint64(1)<<4)|uint64(wire.WireArray))
+	floatArrPkt = wire.EncodeFloat32Arr(floatArrPkt, []float32{1.5, 2.5})
+	if got := wire.AppendFixed32Arr(nil, floatArrPkt, 1); len(got) != 0 {
+		t.Fatalf("AppendFixed32Arr accepted WireFloat32 array: %v", got)
+	}
+	if got := wire.AppendSfixed32Arr(nil, floatArrPkt, 1); len(got) != 0 {
+		t.Fatalf("AppendSfixed32Arr accepted WireFloat32 array: %v", got)
+	}
+	float64ArrPkt := wire.AppendVarint(nil, (uint64(1)<<4)|uint64(wire.WireArray))
+	float64ArrPkt = wire.EncodeFloat64Arr(float64ArrPkt, []float64{1.5, 2.5})
+	if got := wire.AppendFixed64Arr(nil, float64ArrPkt, 1); len(got) != 0 {
+		t.Fatalf("AppendFixed64Arr accepted WireFloat64 array: %v", got)
+	}
+	if got := wire.AppendSfixed64Arr(nil, float64ArrPkt, 1); len(got) != 0 {
+		t.Fatalf("AppendSfixed64Arr accepted WireFloat64 array: %v", got)
 	}
 }
 func TestReviewProtoFixedMaps(t *testing.T) {
