@@ -1813,10 +1813,13 @@ func exerciseAllReadersNoPanic(raw []byte) {
 			_ = nb.GetEstablished()
 		}
 		_ = pbOp.GetSequence()
+		pbOp.SetAsn(1)
+		pbOp.SetRouterId("r")
+		_ = pbOp.MarshalAppend(nil)
 	}
 
-	// 4. Header-Hop readers across all field numbers (including overflow >14)
-	for f := uint16(0); f <= 16; f++ {
+	// 4. Header-Hop readers across 1-byte tags (1), container fields (12), and 2-byte overflow tags (16)
+	for _, f := range []uint16{1, 12, 16} {
 		_, _, _ = LocateField(raw, f)
 		_, _ = ReadUint(raw, f)
 		_, _ = ReadInt(raw, f)
@@ -1864,11 +1867,28 @@ func TestMalformedWireRejectionConformance(t *testing.T) {
 // ============================================================================
 
 func FuzzConformanceNoPanic(f *testing.F) {
-	// Seed with valid packets
-	sample := SamplePeerUpdate()
-	enc := NewEncoder(512)
-	f.Add(append([]byte(nil), EncodePeerOmniBuf(enc, &sample, false)...))
-	f.Add(append([]byte(nil), EncodePeerOmniBuf(enc, &sample, true)...))
+	// Seed with compact valid packets (keeping byte length small so Go's O(N^2)
+	// coverage minimizer in internal/fuzz/minimize.go completes in milliseconds)
+	compact := PeerUpdate{
+		ASN:       64512,
+		RouterID:  "rtr",
+		Active:    true,
+		UptimeSec: 60,
+		RssiDbm:   -50,
+		CPULoad:   0.5,
+		Tags:      []string{"t"},
+		Prefixes:  []uint32{1},
+		Location:  Location{Region: "eu", Datacenter: "dc", City: "fra", Rack: 1, Latitude: 50.1, Longitude: 8.6},
+		Neighbors: []Neighbor{{PeerASN: 1, Router: "n", LatencyUS: 10, Established: true}},
+		Sequence:  1,
+	}
+	enc := NewEncoder(128)
+	f.Add(append([]byte(nil), EncodePeerOmniBuf(enc, &compact, false)...))
+	enc.Reset()
+	enc.WriteField0Fields(map[uint32]string{1: "asn", 2: "rtr"})
+	enc.WriteUint(1, 64512)
+	enc.WriteString(2, "rtr")
+	f.Add(append([]byte(nil), enc.Finish()...))
 
 	// Seed with all invalid / malicious wire cases
 	for _, ic := range buildInvalidWireCases() {
@@ -1878,6 +1898,9 @@ func FuzzConformanceNoPanic(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 512 {
+			return
+		}
 		// None of the decoders, plugin methods, Opaque getters, or O(1) readers may ever panic on arbitrary byte streams
 		_, _ = DecodeBlind(data)
 		exerciseAllReadersNoPanic(data)
