@@ -1514,28 +1514,28 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 
 	for pos < n {
 		b0 := data[pos]
-		var tag uint32
+		var tag uint64
 		if (b0 & 1) != 0 {
-			tag = uint32(b0 >> 1)
+			tag = uint64(b0 >> 1)
 			pos++
 		} else if (b0 & 2) != 0 {
 			if pos+2 > n {
 				return fmt.Errorf("omnibuf: truncated tag at %d", pos)
 			}
-			tag = uint32(binary.LittleEndian.Uint16(data[pos:]) >> 2)
+			tag = uint64(binary.LittleEndian.Uint16(data[pos:]) >> 2)
 			pos += 2
 		} else {
 			t64, tn := decodeVarintMulti(data[pos:])
-			if tn == 0 || t64>>4 > math.MaxUint16 {
+			if tn == 0 || t64>>4 > maxProtobufFieldNumber {
 				return fmt.Errorf("omnibuf: truncated or invalid multi-byte tag at %d", pos)
 			}
-			tag = uint32(t64)
+			tag = t64
 			pos += tn
 		}
-		fieldNum := uint16(tag >> 4)
+		fieldNum32 := uint32(tag >> 4)
 		wt := uint8(tag & 0x0F)
 
-		if fieldNum == 0 {
+		if fieldNum32 == 0 {
 			nextPos, err := validateField0(data, pos, wt, depth)
 			if err != nil {
 				return err
@@ -1543,6 +1543,15 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 			pos = nextPos
 			continue
 		}
+		if fieldNum32 > math.MaxUint16 {
+			nextPos, err := skipValue(data, pos, wt)
+			if err != nil {
+				return err
+			}
+			pos = nextPos
+			continue
+		}
+		fieldNum := uint16(fieldNum32)
 
 		var fc *fieldCodec
 		if fieldNum <= maxDirectFieldSlot {

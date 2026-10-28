@@ -341,9 +341,7 @@ func (x *TestAllTypes) clearUnseenOmniBuf(seenMask uint64) {
 		x.F7Bytes = nil
 	}
 	if (seenMask & (1 << 7)) == 0 {
-		if x.F8SubMsg != nil {
-			x.F8SubMsg.clearUnseenOmniBuf(0)
-		}
+		x.F8SubMsg = nil
 	}
 	if (seenMask & (1 << 8)) == 0 {
 		x.F9StringArr = x.F9StringArr[:0]

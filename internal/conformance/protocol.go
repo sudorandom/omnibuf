@@ -204,7 +204,7 @@ type ConformanceVector struct {
 	Schema        string         `json:"schema"`
 	WireHex       string         `json:"wire_hex"`
 	WireByteLen   int            `json:"wire_byte_len"`
-	PresentFields []uint16       `json:"present_fields"`
+	PresentFields []uint32       `json:"present_fields"`
 	ExpectedBlind map[string]any `json:"expected_blind,omitempty"`
 }
 

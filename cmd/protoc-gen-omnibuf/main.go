@@ -348,14 +348,28 @@ func emitBackpatchLen(g *protogen.GeneratedFile, dstVar, lenPosVar string) {
 func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 	typeName := msg.GoIdent.GoName
 
-	var expectedMask uint64
+	numWords := (len(msg.Fields) + 63) / 64
+	if numWords == 0 {
+		numWords = 1
+	}
+	expectedMasks := make([]uint64, numWords)
 	var fnumList []string
 	fnumList = append(fnumList, "0")
 	for i, f := range msg.Fields {
-		if i < 64 {
-			expectedMask |= 1 << i
-		}
+		expectedMasks[i/64] |= 1 << (i % 64)
 		fnumList = append(fnumList, fmt.Sprintf("%d", f.Desc.Number()))
+	}
+	maskVar := func(word int) string {
+		if word == 0 {
+			return "seenMask"
+		}
+		return fmt.Sprintf("seenMask%d", word)
+	}
+	expectedVar := func(word int) string {
+		if word == 0 {
+			return "expectedMask"
+		}
+		return fmt.Sprintf("expectedMask%d", word)
 	}
 
 	g.P("// MarshalOmniBufAppend encodes ", typeName, " in a single forward pass using generated field tags.")
@@ -475,13 +489,23 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("}")
 	g.P()
 
+	var clearParams []string
+	var clearArgs []string
+	var maskCheckConds []string
+	for w := 0; w < numWords; w++ {
+		mv := maskVar(w)
+		ev := expectedVar(w)
+		clearParams = append(clearParams, mv+" uint64")
+		clearArgs = append(clearArgs, mv)
+		maskCheckConds = append(maskCheckConds, mv+" != "+ev)
+	}
+
 	g.P("//go:noinline")
-	g.P("func (x *", typeName, ") clearUnseenOmniBuf(seenMask uint64) {")
+	g.P("func (x *", typeName, ") clearUnseenOmniBuf(", strings.Join(clearParams, ", "), ") {")
 	for i, f := range msg.Fields {
-		if i >= 64 {
-			continue
-		}
-		g.P(fmt.Sprintf("	if (seenMask & (1 << %d)) == 0 {", i))
+		mv := maskVar(i / 64)
+		bit := i % 64
+		g.P(fmt.Sprintf("	if (%s & (1 << %d)) == 0 {", mv, bit))
 		if f.Desc.IsMap() {
 			g.P("		clear(x.", f.GoName, ")")
 		} else if f.Desc.IsList() {
@@ -497,9 +521,7 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			case protoreflect.BytesKind:
 				g.P("		x.", f.GoName, " = nil")
 			case protoreflect.MessageKind:
-				g.P("		if x.", f.GoName, " != nil {")
-				g.P("			x.", f.GoName, ".clearUnseenOmniBuf(0)")
-				g.P("		}")
+				g.P("		x.", f.GoName, " = nil")
 			}
 		}
 		g.P("	}")
@@ -509,9 +531,6 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 
 	g.P("// UnmarshalOmniBuf decodes data into ", typeName, " using generated switch dispatch.")
 	g.P("func (x *", typeName, ") UnmarshalOmniBuf(data []byte, zeroCopy bool) error {")
-	if len(msg.Fields) > 64 {
-		g.P("	x.clearUnseenOmniBuf(0)")
-	}
 	g.P("	return x.decodeOmniBuf(data, zeroCopy, 0, false)")
 	g.P("}")
 	g.P()
@@ -520,8 +539,10 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("	if depth > omnibuf.MaxNestingDepth {")
 	g.P(`		return fmt.Errorf("omnibuf: max nesting depth exceeded")`)
 	g.P("	}")
-	g.P(fmt.Sprintf("	const expectedMask uint64 = 0x%x", expectedMask))
-	g.P("	var seenMask uint64")
+	for w := 0; w < numWords; w++ {
+		g.P(fmt.Sprintf("	const %s uint64 = 0x%x", expectedVar(w), expectedMasks[w]))
+		g.P("	var ", maskVar(w), " uint64")
+	}
 	g.P("	n := len(data)")
 	g.P("	pos := 0")
 	g.P("	for pos < n {")
@@ -554,12 +575,14 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 	for i, f := range msg.Fields {
 		fnum := uint32(f.Desc.Number())
 		wt := wireTypeForField(f)
+		mv := maskVar(i / 64)
+		bit := i % 64
 		if f.Desc.Kind() == protoreflect.BoolKind && !f.Desc.IsList() {
 			g.P("		case ", (uint64(fnum)<<4)|uint64(wire.WireBoolTrue), ":")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = true")
 			g.P("		case ", (uint64(fnum)<<4)|uint64(wire.WireBoolFalse), ":")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = false")
 			continue
 		}
@@ -576,13 +599,13 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			if !ok || keyWT != wire.WireString || valWT != wire.WireUint {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid map header")`)
 			g.P("			}")
-			g.P("			if !merge && (seenMask&(1<<", i, ")) == 0 {")
+			g.P("			if !merge && (", mv, "&(1<<", bit, ")) == 0 {")
 			g.P("				clear(x.", f.GoName, ")")
 			g.P("			}")
 			g.P("			if x.", f.GoName, " == nil {")
 			g.P("				x.", f.GoName, " = make(map[string]uint64, count)")
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			for j := 0; j < count; j++ {")
 			g.P("				kLen, kn := wire.DecodeVarint(body[p:])")
 			g.P("				if kn == 0 || kLen > uint64(len(body)-(p+kn)) {")
@@ -611,10 +634,10 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			pos += bn")
 			g.P("			body := data[pos : pos+int(byteLen)]")
 			g.P("			pos += int(byteLen)")
-			g.P("			if !merge && (seenMask&(1<<", i, ")) == 0 {")
+			g.P("			if !merge && (", mv, "&(1<<", bit, ")) == 0 {")
 			g.P("				x.", f.GoName, " = x.", f.GoName, "[:0]")
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			switch f.Desc.Kind() {
 			case protoreflect.StringKind:
 				g.P("			if len(body) < 2 || body[0] != wire.WireString {")
@@ -701,17 +724,41 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 				g.P("			if !ok {")
 				g.P(`				return fmt.Errorf("omnibuf: invalid sint array")`)
 				g.P("			}")
-			case protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
+			case protoreflect.Fixed32Kind:
+				g.P("			if len(body) < 2 || body[0] != wire.WireFixed32 {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid fixed32 array")`)
+				g.P("			}")
 				g.P("			var ok bool")
 				g.P("			x.", f.GoName, ", ok = wire.AppendFixed32ArrBody(x.", f.GoName, ", body)")
 				g.P("			if !ok {")
 				g.P(`				return fmt.Errorf("omnibuf: invalid fixed32 array")`)
 				g.P("			}")
-			case protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind:
+			case protoreflect.Sfixed32Kind:
+				g.P("			if len(body) < 2 || body[0] != wire.WireSfixed32 {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid sfixed32 array")`)
+				g.P("			}")
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendFixed32ArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid sfixed32 array")`)
+				g.P("			}")
+			case protoreflect.Fixed64Kind:
+				g.P("			if len(body) < 2 || body[0] != wire.WireFixed64 {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid fixed64 array")`)
+				g.P("			}")
 				g.P("			var ok bool")
 				g.P("			x.", f.GoName, ", ok = wire.AppendFixed64ArrBody(x.", f.GoName, ", body)")
 				g.P("			if !ok {")
 				g.P(`				return fmt.Errorf("omnibuf: invalid fixed64 array")`)
+				g.P("			}")
+			case protoreflect.Sfixed64Kind:
+				g.P("			if len(body) < 2 || body[0] != wire.WireSfixed64 {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid sfixed64 array")`)
+				g.P("			}")
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendFixed64ArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid sfixed64 array")`)
 				g.P("			}")
 			case protoreflect.FloatKind:
 				g.P("			var ok bool")
@@ -776,7 +823,7 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P(`				return fmt.Errorf("omnibuf: truncated uint32")`)
 			g.P("			}")
 			g.P("			pos += vn")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = uint32(v)")
 		case protoreflect.Uint64Kind:
 			g.P("			v, vn := wire.DecodeVarint(data[pos:])")
@@ -784,7 +831,7 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P(`				return fmt.Errorf("omnibuf: truncated uint64")`)
 			g.P("			}")
 			g.P("			pos += vn")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = v")
 		case protoreflect.Sint32Kind, protoreflect.Int32Kind:
 			g.P("			v, vn := wire.DecodeVarint(data[pos:])")
@@ -792,7 +839,7 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P(`				return fmt.Errorf("omnibuf: truncated sint32")`)
 			g.P("			}")
 			g.P("			pos += vn")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = int32(wire.DecodeZigZag(v))")
 		case protoreflect.Sint64Kind, protoreflect.Int64Kind:
 			g.P("			v, vn := wire.DecodeVarint(data[pos:])")
@@ -800,48 +847,48 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P(`				return fmt.Errorf("omnibuf: truncated sint64")`)
 			g.P("			}")
 			g.P("			pos += vn")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = wire.DecodeZigZag(v)")
 		case protoreflect.Fixed32Kind:
 			g.P("			if n-pos < 4 {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid fixed32")`)
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = binary.LittleEndian.Uint32(data[pos:])")
 			g.P("			pos += 4")
 		case protoreflect.Fixed64Kind:
 			g.P("			if n-pos < 8 {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid fixed64")`)
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = binary.LittleEndian.Uint64(data[pos:])")
 			g.P("			pos += 8")
 		case protoreflect.Sfixed32Kind:
 			g.P("			if n-pos < 4 {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid sfixed32")`)
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = int32(binary.LittleEndian.Uint32(data[pos:]))")
 			g.P("			pos += 4")
 		case protoreflect.Sfixed64Kind:
 			g.P("			if n-pos < 8 {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid sfixed64")`)
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = int64(binary.LittleEndian.Uint64(data[pos:]))")
 			g.P("			pos += 8")
 		case protoreflect.FloatKind:
 			g.P("			if n-pos < 4 {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid float32")`)
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = math.Float32frombits(binary.LittleEndian.Uint32(data[pos:]))")
 			g.P("			pos += 4")
 		case protoreflect.DoubleKind:
 			g.P("			if n-pos < 8 {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid float64")`)
 			g.P("			}")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = math.Float64frombits(binary.LittleEndian.Uint64(data[pos:]))")
 			g.P("			pos += 8")
 		case protoreflect.StringKind:
@@ -851,7 +898,7 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			}")
 			g.P("			pos += sn")
 			g.P("			sLen := int(sLen64)")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)")
 			g.P("			pos += sLen")
 		case protoreflect.BytesKind:
@@ -861,7 +908,7 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			}")
 			g.P("			pos += bn")
 			g.P("			bLen := int(bLen64)")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			if zeroCopy {")
 			g.P("				x.", f.GoName, " = data[pos : pos+bLen]")
 			g.P("			} else {")
@@ -878,8 +925,8 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			if x.", f.GoName, " == nil {")
 			g.P("				x.", f.GoName, " = new(", subType, ")")
 			g.P("			}")
-			g.P("			subMerge := merge || (seenMask&(1<<", i, ")) != 0")
-			g.P("			seenMask |= 1 << ", i)
+			g.P("			subMerge := merge || (", mv, "&(1<<", bit, ")) != 0")
+			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			if err := x.", f.GoName, ".decodeOmniBuf(data[pos:pos+int(subLen)], zeroCopy, depth+1, subMerge); err != nil {")
 			g.P("				return err")
 			g.P("			}")
@@ -900,8 +947,12 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("			}")
 	g.P("		}")
 	g.P("	}")
-	g.P("	if !merge && seenMask != expectedMask {")
-	g.P("		x.clearUnseenOmniBuf(seenMask)")
+	if numWords == 1 {
+		g.P("	if !merge && seenMask != expectedMask {")
+	} else {
+		g.P("	if !merge && (", strings.Join(maskCheckConds, " || "), ") {")
+	}
+	g.P("		x.clearUnseenOmniBuf(", strings.Join(clearArgs, ", "), ")")
 	g.P("	}")
 	g.P("	return nil")
 	g.P("}")

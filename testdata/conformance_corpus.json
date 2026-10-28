@@ -1342,6 +1342,29 @@
       }
     },
     {
+      "name": "self_describing_high_field_numbers_wraparound_guard",
+      "category": "H_SelfDescribingField0",
+      "description": "Self-describing TestAllTypes packet with unknown high field numbers 65536 (0x10000), 65537 (0x10001), and 536870911 (max 29-bit Protobuf field) verifying no uint16 wraparound aliasing",
+      "schema": "TestAllTypes",
+      "wire_hex": "19aa01352d54657374416c6c5479706573486967684669656c64735d3e01000a0b031366315f75696e7433320d1366365f737472696e670400080019686967685f616c6961735f300c00080019686967685f616c6961735f31fcffffff1f6d61785f70726f746f5f6669656c642155d5196b6570742d6669656c642d3604008000e6c084008000fc340c0000f5ffffff01000000efbeaddebebafeca",
+      "wire_byte_len": 156,
+      "present_fields": [
+        0,
+        1,
+        6,
+        65536,
+        65537,
+        536870911
+      ],
+      "expected_blind": {
+        "f1_uint32": 42,
+        "f6_string": "kept-field-6",
+        "high_alias_0": 12345,
+        "high_alias_1": 99999,
+        "max_proto_field": 14627333968688430831
+      }
+    },
+    {
       "name": "peer_update_canonical_4way_equivalent",
       "category": "I_CanonicalPeerUpdate",
       "description": "Canonical BGP PeerUpdate verified byte-for-byte identical across Encoder, Direct, Table, and protoc-gen-omnibuf Plugin",
@@ -2314,6 +2337,12 @@
       "category": "MaliciousDepthBomb",
       "description": "40-level nested WireSubMsg chain exceeding MaxNestingDepth (32)",
       "wire_hex": "999d999999959991998d998999859981997d997999759971996d996999659961995d995999559951994d994999459941993d993999359931992d992999259921991d991999159911990d990999059901"
+    },
+    {
+      "name": "malformed_field_number_exceeds_max_protobuf_29bit",
+      "category": "InvalidTag",
+      "description": "Field tag with field number 536870912 (exceeding maximum 29-bit Protobuf field number 536870911)",
+      "wire_hex": "00000000000200000003"
     }
   ]
 }

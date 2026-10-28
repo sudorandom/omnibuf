@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"encoding/binary"
 	"unsafe"
 )
 
@@ -57,16 +58,129 @@ func (e *Encoder) EndSubMsgArr() {
 }
 
 // ReadSubMsg returns the inner packet slice of a nested WireSubMsg field.
+// When multiple occurrences of fieldNum exist (e.g. concatenated packets),
+// their inner payloads are concatenated so sub-message fields merge.
 func ReadSubMsg(packet []byte, fieldNum uint16) ([]byte, bool) {
-	s, wt, ok := LocateField(packet, fieldNum)
-	if !ok || wt != WireSubMsg {
+	pos := 0
+	n := len(packet)
+	var valSlice []byte
+	count := 0
+	for pos < n {
+		var fnum uint32
+		var wt uint8
+		b0 := packet[pos]
+		if (b0 & 1) != 0 {
+			fnum = uint32(b0 >> 5)
+			wt = (b0 >> 1) & 0x0F
+			pos++
+		} else if (b0 & 2) != 0 {
+			if pos+2 > n {
+				return nil, false
+			}
+			u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
+			fnum = uint32(u >> 4)
+			wt = uint8(u & 0x0F)
+			pos += 2
+		} else {
+			tag, tn := decodeVarintMulti(packet[pos:])
+			if tn == 0 || tag>>4 > 536870911 {
+				return nil, false
+			}
+			fnum = uint32(tag >> 4)
+			wt = uint8(tag & 0x0F)
+			pos += tn
+		}
+
+		if fnum == uint32(fieldNum) {
+			if wt != WireSubMsg {
+				return nil, false
+			}
+			valSlice = packet[pos:]
+			count++
+		}
+
+		switch wt {
+		case WireUint, WireSint:
+			if pos >= n {
+				return nil, false
+			}
+			vb := packet[pos]
+			if (vb & 1) != 0 {
+				pos++
+			} else if (vb & 2) != 0 {
+				pos += 2
+			} else if (vb & 4) != 0 {
+				pos += 4
+			} else {
+				pos += 9
+			}
+			if pos > n {
+				return nil, false
+			}
+		case WireBoolFalse, WireBoolTrue:
+		case WireString, WireBytes, WireSubMsg, WireArray, WireMap, WireExtended:
+			if pos >= n {
+				return nil, false
+			}
+			lb := packet[pos]
+			if (lb & 1) != 0 {
+				pos += 1 + int(lb>>1)
+			} else if (lb & 2) != 0 {
+				if pos+2 > n {
+					return nil, false
+				}
+				pos += 2 + int(binary.LittleEndian.Uint16(packet[pos:pos+2])>>2)
+			} else {
+				bLen, bn := decodeVarintMulti(packet[pos:])
+				if bn == 0 || bLen > uint64(n-(pos+bn)) {
+					return nil, false
+				}
+				pos += bn + int(bLen)
+			}
+			if pos > n {
+				return nil, false
+			}
+		case WireFixed32, WireFloat32, WireSfixed32:
+			pos += 4
+			if pos > n {
+				return nil, false
+			}
+		case WireFixed64, WireFloat64, WireSfixed64:
+			pos += 8
+			if pos > n {
+				return nil, false
+			}
+		default:
+			return nil, false
+		}
+	}
+	if count == 0 {
 		return nil, false
 	}
-	subLen, sn := DecodeVarint(s)
-	if sn == 0 || subLen > uint64(len(s)-sn) {
+	if count > 1 {
+		return mergeSubMsgSegments(packet, fieldNum)
+	}
+	subLen, sn := DecodeVarint(valSlice)
+	if sn == 0 || subLen > uint64(len(valSlice)-sn) {
 		return nil, false
 	}
-	return s[sn : sn+int(subLen)], true
+	return valSlice[sn : sn+int(subLen)], true
+}
+
+//go:noinline
+func mergeSubMsgSegments(packet []byte, fieldNum uint16) ([]byte, bool) {
+	var merged []byte
+	for pos := 0; ; {
+		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireSubMsg, 0)
+		if !valid {
+			return nil, false
+		}
+		if !matched {
+			return merged, true
+		}
+		merged = append(merged, body...)
+		pos = nextPos
+	}
 }
 
 // ReadElem slices the i-th sub-message element out of a WireArray payload by hopping element length prefixes.

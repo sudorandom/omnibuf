@@ -5,7 +5,6 @@ package wire
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 )
 
 // Explicit 4-bit Wire Types (0..15) encoded in the low 4 bits of the field tag:
@@ -237,11 +236,11 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 	pos := 0
 	n := len(packet)
 	for pos < n {
-		var fnum uint16
+		var fnum uint32
 		var wt uint8
 		b0 := packet[pos]
 		if (b0 & 1) != 0 {
-			fnum = uint16(b0 >> 5)
+			fnum = uint32(b0 >> 5)
 			wt = (b0 >> 1) & 0x0F
 			pos++
 		} else if (b0 & 2) != 0 {
@@ -249,20 +248,20 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 				return nil, 0, false
 			}
 			u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
-			fnum = u >> 4
+			fnum = uint32(u >> 4)
 			wt = uint8(u & 0x0F)
 			pos += 2
 		} else {
 			tag, tn := decodeVarintMulti(packet[pos:])
-			if tn == 0 || tag>>4 > math.MaxUint16 {
+			if tn == 0 || tag>>4 > 536870911 {
 				return nil, 0, false
 			}
-			fnum = uint16(tag >> 4)
+			fnum = uint32(tag >> 4)
 			wt = uint8(tag & 0x0F)
 			pos += tn
 		}
 
-		if fnum == targetField {
+		if fnum == uint32(targetField) {
 			valSlice = packet[pos:]
 			wireType = wt
 			ok = true
@@ -329,11 +328,11 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8, minLen uint64) (body []byte, nextPos int, matched bool, valid bool) {
 	n := len(packet)
 	for pos < n {
-		var fnum uint16
+		var fnum uint32
 		var wt uint8
 		b0 := packet[pos]
 		if (b0 & 1) != 0 {
-			fnum = uint16(b0 >> 5)
+			fnum = uint32(b0 >> 5)
 			wt = (b0 >> 1) & 0x0F
 			pos++
 		} else if (b0 & 2) != 0 {
@@ -341,20 +340,20 @@ func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8,
 				return nil, 0, false, false
 			}
 			u := binary.LittleEndian.Uint16(packet[pos:pos+2]) >> 2
-			fnum = u >> 4
+			fnum = uint32(u >> 4)
 			wt = uint8(u & 0x0F)
 			pos += 2
 		} else {
 			tag, tn := decodeVarintMulti(packet[pos:])
-			if tn == 0 || tag>>4 > math.MaxUint16 {
+			if tn == 0 || tag>>4 > 536870911 {
 				return nil, 0, false, false
 			}
-			fnum = uint16(tag >> 4)
+			fnum = uint32(tag >> 4)
 			wt = uint8(tag & 0x0F)
 			pos += tn
 		}
 
-		if fnum == targetField {
+		if fnum == uint32(targetField) {
 			if wt != expWT {
 				return nil, 0, false, false
 			}

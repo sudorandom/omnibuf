@@ -63,7 +63,7 @@ type ConformanceVector struct {
 	Schema        string         `json:"schema"`
 	WireHex       string         `json:"wire_hex"`
 	WireByteLen   int            `json:"wire_byte_len"`
-	PresentFields []uint16       `json:"present_fields"`
+	PresentFields []uint32       `json:"present_fields"`
 	ExpectedBlind map[string]any `json:"expected_blind,omitempty"`
 }
 
@@ -81,8 +81,8 @@ type InvalidWireCase struct {
 	WireHex     string `json:"wire_hex"`
 }
 
-func inspectPresentFields(packet []byte) []uint16 {
-	var presentFields []uint16
+func inspectPresentFields(packet []byte) []uint32 {
+	var presentFields []uint32
 	pos := 0
 	n := len(packet)
 	for pos < n {
@@ -91,7 +91,7 @@ func inspectPresentFields(packet []byte) []uint16 {
 			break
 		}
 		pos += tn
-		fnum := uint16(tag >> 4)
+		fnum := uint32(tag >> 4)
 		wtype := uint8(tag & 0x0F)
 		presentFields = append(presentFields, fnum)
 		nextPos, err := SkipValue(packet, pos, wtype)
@@ -648,6 +648,65 @@ func TestProtobufStyleConformanceCorpus(t *testing.T) {
 			PresentFields: inspectPresentFields(pktSelfDesc),
 			ExpectedBlind: blindSelf,
 		})
+
+		// H2: Self-describing TestAllTypes packet with high Protobuf field numbers (65536, 65537, 536870911)
+		// testing ReadField0SchemaMeta, DecodeBlind, unknown-field skipping above 65535, and uint16 wraparound guard
+		// (65536 = 0x10000 must not alias Field #0; 65537 = 0x10001 must not alias Field #1).
+		var pktHighFields []byte
+		pktHighFields = (&SchemaMeta{
+			TypeName: "TestAllTypesHighFields",
+			Fields: map[uint32]string{
+				1:         "f1_uint32",
+				6:         "f6_string",
+				65536:     "high_alias_0",
+				65537:     "high_alias_1",
+				536870911: "max_proto_field",
+			},
+		}).AppendField0(pktHighFields, true)
+		pktHighFields = appendTag(pktHighFields, 1, WireUint)
+		pktHighFields = AppendVarint(pktHighFields, 42)
+		pktHighFields = appendTag(pktHighFields, 6, WireString)
+		pktHighFields = AppendVarint(pktHighFields, uint64(len("kept-field-6")))
+		pktHighFields = append(pktHighFields, "kept-field-6"...)
+		pktHighFields = AppendVarint(pktHighFields, (uint64(65536)<<4)|uint64(WireUint))
+		pktHighFields = AppendVarint(pktHighFields, 12345)
+		pktHighFields = AppendVarint(pktHighFields, (uint64(65537)<<4)|uint64(WireUint))
+		pktHighFields = AppendVarint(pktHighFields, 99999)
+		pktHighFields = AppendVarint(pktHighFields, (uint64(536870911)<<4)|uint64(WireFixed64))
+		pktHighFields = append(pktHighFields, 0xef, 0xbe, 0xad, 0xde, 0xbe, 0xba, 0xfe, 0xca)
+
+		metaHigh, ok := ReadField0SchemaMeta(pktHighFields)
+		if !ok || metaHigh.Fields[65536] != "high_alias_0" || metaHigh.Fields[65537] != "high_alias_1" || metaHigh.Fields[536870911] != "max_proto_field" {
+			t.Fatalf("ReadField0SchemaMeta on high fields packet failed: (%+v, %v)", metaHigh, ok)
+		}
+		blindHigh, err := DecodeBlind(pktHighFields)
+		if err != nil {
+			t.Fatalf("DecodeBlind on high fields packet failed: %v", err)
+		}
+		if blindHigh["f1_uint32"] != uint64(42) || blindHigh["high_alias_0"] != uint64(12345) ||
+			blindHigh["high_alias_1"] != uint64(99999) || blindHigh["max_proto_field"] != uint64(0xcafebabedeadbeef) {
+			t.Fatalf("DecodeBlind high fields mismatch: %+v", blindHigh)
+		}
+		var dstHigh TestAllTypes
+		if err := Unmarshal(pktHighFields, &dstHigh); err != nil {
+			t.Fatalf("Unmarshal on high fields packet failed: %v", err)
+		}
+		if dstHigh.F1Uint32 != 42 || dstHigh.F6String != "kept-field-6" {
+			t.Fatalf("Unmarshal high fields aliased or corrupted fields: %+v", dstHigh)
+		}
+		if u1, ok := ReadUint(pktHighFields, 1); !ok || u1 != 42 {
+			t.Fatalf("ReadUint(1) on high fields packet aliased 65537: got (%d, %v), want 42", u1, ok)
+		}
+		vectors = append(vectors, ConformanceVector{
+			Name:          "self_describing_high_field_numbers_wraparound_guard",
+			Category:      "H_SelfDescribingField0",
+			Description:   "Self-describing TestAllTypes packet with unknown high field numbers 65536 (0x10000), 65537 (0x10001), and 536870911 (max 29-bit Protobuf field) verifying no uint16 wraparound aliasing",
+			Schema:        "TestAllTypes",
+			WireHex:       hex.EncodeToString(pktHighFields),
+			WireByteLen:   len(pktHighFields),
+			PresentFields: inspectPresentFields(pktHighFields),
+			ExpectedBlind: blindHigh,
+		})
 	}
 
 	// ------------------------------------------------------------------------
@@ -1186,6 +1245,32 @@ func buildConcatAndOutOfOrderVectors(t *testing.T) []ConformanceVector {
 		if gotV, ok := LookupMapStringUint(wireConcat, 12, k); !ok || gotV != wantV {
 			t.Fatalf("LookupMapStringUint(12, %q) on concat = (%d, %v), want %d", k, gotV, ok, wantV)
 		}
+	}
+	subConcat, ok := ReadSubMsg(wireConcat, 8)
+	if !ok {
+		t.Fatalf("ReadSubMsg(8) on concat failed")
+	}
+	if subID, ok := ReadUint(subConcat, 1); !ok || uint32(subID) != wantMerged.F8SubMsg.ID {
+		t.Fatalf("ReadSubMsg(8).ID on concat = (%d, %v), want %d", subID, ok, wantMerged.F8SubMsg.ID)
+	}
+	if subLbl, ok := ReadString(subConcat, 2); !ok || subLbl != wantMerged.F8SubMsg.Label {
+		t.Fatalf("ReadSubMsg(8).Label on concat = (%q, %v), want %q", subLbl, ok, wantMerged.F8SubMsg.Label)
+	}
+	if subFlag, ok := ReadBool(subConcat, 3); !ok || subFlag != wantMerged.F8SubMsg.Flag {
+		t.Fatalf("ReadSubMsg(8).Flag on concat = (%v, %v), want %v", subFlag, ok, wantMerged.F8SubMsg.Flag)
+	}
+	if subScore, ok := ReadInt(subConcat, 4); !ok || subScore != wantMerged.F8SubMsg.Score {
+		t.Fatalf("ReadSubMsg(8).Score on concat = (%d, %v), want %d", subScore, ok, wantMerged.F8SubMsg.Score)
+	}
+	var opConcatView pb.OpaqueTestAllTypes
+	if err := opConcatView.Unmarshal(wireConcat); err != nil {
+		t.Fatalf("OpaqueTestAllTypes.Unmarshal(wireConcat) failed: %v", err)
+	}
+	if opConcatView.GetF8SubMsg().GetId() != wantMerged.F8SubMsg.ID ||
+		opConcatView.GetF8SubMsg().GetLabel() != wantMerged.F8SubMsg.Label ||
+		opConcatView.GetF8SubMsg().GetFlag() != wantMerged.F8SubMsg.Flag ||
+		opConcatView.GetF8SubMsg().GetScore() != wantMerged.F8SubMsg.Score {
+		t.Fatalf("OpaqueTestAllTypes.GetF8SubMsg() on concat did not merge across segments")
 	}
 
 	// 4. Verify DecodeBlind on concatenated bytes
@@ -1788,6 +1873,11 @@ func buildInvalidWireCases() []InvalidWireCase {
 		deepBomb = outer
 	}
 
+	// 19. Tag with field number 536870912 (exceeds max Protobuf 29-bit field number 536870911)
+	var fieldNumExceeds29Bit []byte
+	fieldNumExceeds29Bit = AppendVarint(fieldNumExceeds29Bit, (uint64(536870912)<<4)|uint64(WireUint))
+	fieldNumExceeds29Bit = AppendVarint(fieldNumExceeds29Bit, 1)
+
 	return []InvalidWireCase{
 		{
 			Name:        "malformed_truncated_1b_of_2b_tag",
@@ -1938,6 +2028,12 @@ func buildInvalidWireCases() []InvalidWireCase {
 			Category:    "MaliciousDepthBomb",
 			Description: "40-level nested WireSubMsg chain exceeding MaxNestingDepth (32)",
 			WireHex:     hex.EncodeToString(deepBomb),
+		},
+		{
+			Name:        "malformed_field_number_exceeds_max_protobuf_29bit",
+			Category:    "InvalidTag",
+			Description: "Field tag with field number 536870912 (exceeding maximum 29-bit Protobuf field number 536870911)",
+			WireHex:     hex.EncodeToString(fieldNumExceeds29Bit),
 		},
 	}
 }
