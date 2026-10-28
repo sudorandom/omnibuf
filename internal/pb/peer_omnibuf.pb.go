@@ -171,7 +171,7 @@ func (x *Location) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 // OpaqueLocation is the protoc-gen-omnibuf Opaque API struct for Location.
 type OpaqueLocation struct {
 	raw          []byte
-	dirty        uint16
+	dirty        uint64
 	f_region     string
 	f_datacenter string
 	f_city       string
@@ -189,58 +189,58 @@ func (x *OpaqueLocation) Unmarshal(b []byte) error {
 func (x *OpaqueLocation) RawBytes() []byte { return x.raw }
 
 func (x OpaqueLocation) GetRegion() string {
-	if (x.dirty & (1 << 1)) != 0 {
+	if (x.dirty & (uint64(1) << 1)) != 0 {
 		return x.f_region
 	}
 	s, _ := wire.ReadStringZeroCopy(x.raw, 1)
 	return s
 }
-func (x *OpaqueLocation) SetRegion(v string) { x.f_region = v; x.dirty |= (1 << 1) }
+func (x *OpaqueLocation) SetRegion(v string) { x.f_region = v; x.dirty |= (uint64(1) << 1) }
 
 func (x OpaqueLocation) GetDatacenter() string {
-	if (x.dirty & (1 << 2)) != 0 {
+	if (x.dirty & (uint64(1) << 2)) != 0 {
 		return x.f_datacenter
 	}
 	s, _ := wire.ReadStringZeroCopy(x.raw, 2)
 	return s
 }
-func (x *OpaqueLocation) SetDatacenter(v string) { x.f_datacenter = v; x.dirty |= (1 << 2) }
+func (x *OpaqueLocation) SetDatacenter(v string) { x.f_datacenter = v; x.dirty |= (uint64(1) << 2) }
 
 func (x OpaqueLocation) GetCity() string {
-	if (x.dirty & (1 << 3)) != 0 {
+	if (x.dirty & (uint64(1) << 3)) != 0 {
 		return x.f_city
 	}
 	s, _ := wire.ReadStringZeroCopy(x.raw, 3)
 	return s
 }
-func (x *OpaqueLocation) SetCity(v string) { x.f_city = v; x.dirty |= (1 << 3) }
+func (x *OpaqueLocation) SetCity(v string) { x.f_city = v; x.dirty |= (uint64(1) << 3) }
 
 func (x OpaqueLocation) GetRack() uint32 {
-	if (x.dirty & (1 << 4)) != 0 {
+	if (x.dirty & (uint64(1) << 4)) != 0 {
 		return x.f_rack
 	}
 	v, _ := wire.ReadUint(x.raw, 4)
 	return uint32(v)
 }
-func (x *OpaqueLocation) SetRack(v uint32) { x.f_rack = v; x.dirty |= (1 << 4) }
+func (x *OpaqueLocation) SetRack(v uint32) { x.f_rack = v; x.dirty |= (uint64(1) << 4) }
 
 func (x OpaqueLocation) GetLatitude() float32 {
-	if (x.dirty & (1 << 5)) != 0 {
+	if (x.dirty & (uint64(1) << 5)) != 0 {
 		return x.f_latitude
 	}
 	v, _ := wire.ReadFloat32(x.raw, 5)
 	return v
 }
-func (x *OpaqueLocation) SetLatitude(v float32) { x.f_latitude = v; x.dirty |= (1 << 5) }
+func (x *OpaqueLocation) SetLatitude(v float32) { x.f_latitude = v; x.dirty |= (uint64(1) << 5) }
 
 func (x OpaqueLocation) GetLongitude() float32 {
-	if (x.dirty & (1 << 6)) != 0 {
+	if (x.dirty & (uint64(1) << 6)) != 0 {
 		return x.f_longitude
 	}
 	v, _ := wire.ReadFloat32(x.raw, 6)
 	return v
 }
-func (x *OpaqueLocation) SetLongitude(v float32) { x.f_longitude = v; x.dirty |= (1 << 6) }
+func (x *OpaqueLocation) SetLongitude(v float32) { x.f_longitude = v; x.dirty |= (uint64(1) << 6) }
 
 // MarshalAppend re-serializes OpaqueLocation using zero-decode wire splicing for unmodified fields.
 func (x *OpaqueLocation) MarshalAppend(dst []byte) []byte {
@@ -406,7 +406,7 @@ func (x *Neighbor) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 // OpaqueNeighbor is the protoc-gen-omnibuf Opaque API struct for Neighbor.
 type OpaqueNeighbor struct {
 	raw           []byte
-	dirty         uint16
+	dirty         uint64
 	f_peer_asn    uint32
 	f_router      string
 	f_latency_us  uint32
@@ -422,40 +422,40 @@ func (x *OpaqueNeighbor) Unmarshal(b []byte) error {
 func (x *OpaqueNeighbor) RawBytes() []byte { return x.raw }
 
 func (x OpaqueNeighbor) GetPeerAsn() uint32 {
-	if (x.dirty & (1 << 1)) != 0 {
+	if (x.dirty & (uint64(1) << 1)) != 0 {
 		return x.f_peer_asn
 	}
 	v, _ := wire.ReadUint(x.raw, 1)
 	return uint32(v)
 }
-func (x *OpaqueNeighbor) SetPeerAsn(v uint32) { x.f_peer_asn = v; x.dirty |= (1 << 1) }
+func (x *OpaqueNeighbor) SetPeerAsn(v uint32) { x.f_peer_asn = v; x.dirty |= (uint64(1) << 1) }
 
 func (x OpaqueNeighbor) GetRouter() string {
-	if (x.dirty & (1 << 2)) != 0 {
+	if (x.dirty & (uint64(1) << 2)) != 0 {
 		return x.f_router
 	}
 	s, _ := wire.ReadStringZeroCopy(x.raw, 2)
 	return s
 }
-func (x *OpaqueNeighbor) SetRouter(v string) { x.f_router = v; x.dirty |= (1 << 2) }
+func (x *OpaqueNeighbor) SetRouter(v string) { x.f_router = v; x.dirty |= (uint64(1) << 2) }
 
 func (x OpaqueNeighbor) GetLatencyUs() uint32 {
-	if (x.dirty & (1 << 3)) != 0 {
+	if (x.dirty & (uint64(1) << 3)) != 0 {
 		return x.f_latency_us
 	}
 	v, _ := wire.ReadUint(x.raw, 3)
 	return uint32(v)
 }
-func (x *OpaqueNeighbor) SetLatencyUs(v uint32) { x.f_latency_us = v; x.dirty |= (1 << 3) }
+func (x *OpaqueNeighbor) SetLatencyUs(v uint32) { x.f_latency_us = v; x.dirty |= (uint64(1) << 3) }
 
 func (x OpaqueNeighbor) GetEstablished() bool {
-	if (x.dirty & (1 << 4)) != 0 {
+	if (x.dirty & (uint64(1) << 4)) != 0 {
 		return x.f_established
 	}
 	v, _ := wire.ReadBool(x.raw, 4)
 	return v
 }
-func (x *OpaqueNeighbor) SetEstablished(v bool) { x.f_established = v; x.dirty |= (1 << 4) }
+func (x *OpaqueNeighbor) SetEstablished(v bool) { x.f_established = v; x.dirty |= (uint64(1) << 4) }
 
 // MarshalAppend re-serializes OpaqueNeighbor using zero-decode wire splicing for unmodified fields.
 func (x *OpaqueNeighbor) MarshalAppend(dst []byte) []byte {
@@ -529,16 +529,16 @@ func (x *PeerUpdate) MarshalOmniBufAppend(dst []byte) []byte {
 	} else {
 		dst = wire.BackpatchContainerLen(dst, lenPos_7)
 	}
-	dst = append(dst, 0x72, 0x02)
-	lenPos_8 := len(dst)
-	dst = append(dst, 0, 0)
 	if x.Location != nil {
+		dst = append(dst, 0x72, 0x02)
+		lenPos_8 := len(dst)
+		dst = append(dst, 0, 0)
 		dst = x.Location.MarshalOmniBufAppend(dst)
-	}
-	if d := len(dst) - lenPos_8; d <= 16385 {
-		binary.LittleEndian.PutUint16(dst[lenPos_8:], uint16(d<<2-6))
-	} else {
-		dst = wire.BackpatchContainerLen(dst, lenPos_8)
+		if d := len(dst) - lenPos_8; d <= 16385 {
+			binary.LittleEndian.PutUint16(dst[lenPos_8:], uint16(d<<2-6))
+		} else {
+			dst = wire.BackpatchContainerLen(dst, lenPos_8)
+		}
 	}
 	dst = append(dst, 0xb6, 0x02)
 	lenPos_9 := len(dst)
@@ -872,13 +872,17 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 // OpaquePeerUpdate is the protoc-gen-omnibuf Opaque API struct for PeerUpdate.
 type OpaquePeerUpdate struct {
 	raw          []byte
-	dirty        uint16
+	dirty        uint64
 	f_asn        uint32
 	f_router_id  string
 	f_active     bool
 	f_uptime_sec uint64
 	f_rssi_dbm   int32
 	f_cpu_load   float64
+	f_tags       []string
+	f_prefixes   []uint32
+	f_location   *Location
+	f_neighbors  []*Neighbor
 	f_sequence   uint64
 }
 
@@ -891,97 +895,131 @@ func (x *OpaquePeerUpdate) Unmarshal(b []byte) error {
 func (x *OpaquePeerUpdate) RawBytes() []byte { return x.raw }
 
 func (x OpaquePeerUpdate) GetAsn() uint32 {
-	if (x.dirty & (1 << 1)) != 0 {
+	if (x.dirty & (uint64(1) << 1)) != 0 {
 		return x.f_asn
 	}
 	v, _ := wire.ReadUint(x.raw, 1)
 	return uint32(v)
 }
-func (x *OpaquePeerUpdate) SetAsn(v uint32) { x.f_asn = v; x.dirty |= (1 << 1) }
+func (x *OpaquePeerUpdate) SetAsn(v uint32) { x.f_asn = v; x.dirty |= (uint64(1) << 1) }
 
 func (x OpaquePeerUpdate) GetRouterId() string {
-	if (x.dirty & (1 << 2)) != 0 {
+	if (x.dirty & (uint64(1) << 2)) != 0 {
 		return x.f_router_id
 	}
 	s, _ := wire.ReadStringZeroCopy(x.raw, 2)
 	return s
 }
-func (x *OpaquePeerUpdate) SetRouterId(v string) { x.f_router_id = v; x.dirty |= (1 << 2) }
+func (x *OpaquePeerUpdate) SetRouterId(v string) { x.f_router_id = v; x.dirty |= (uint64(1) << 2) }
 
 func (x OpaquePeerUpdate) GetActive() bool {
-	if (x.dirty & (1 << 3)) != 0 {
+	if (x.dirty & (uint64(1) << 3)) != 0 {
 		return x.f_active
 	}
 	v, _ := wire.ReadBool(x.raw, 3)
 	return v
 }
-func (x *OpaquePeerUpdate) SetActive(v bool) { x.f_active = v; x.dirty |= (1 << 3) }
+func (x *OpaquePeerUpdate) SetActive(v bool) { x.f_active = v; x.dirty |= (uint64(1) << 3) }
 
 func (x OpaquePeerUpdate) GetUptimeSec() uint64 {
-	if (x.dirty & (1 << 4)) != 0 {
+	if (x.dirty & (uint64(1) << 4)) != 0 {
 		return x.f_uptime_sec
 	}
 	v, _ := wire.ReadUint(x.raw, 4)
 	return v
 }
-func (x *OpaquePeerUpdate) SetUptimeSec(v uint64) { x.f_uptime_sec = v; x.dirty |= (1 << 4) }
+func (x *OpaquePeerUpdate) SetUptimeSec(v uint64) { x.f_uptime_sec = v; x.dirty |= (uint64(1) << 4) }
 
 func (x OpaquePeerUpdate) GetRssiDbm() int32 {
-	if (x.dirty & (1 << 5)) != 0 {
+	if (x.dirty & (uint64(1) << 5)) != 0 {
 		return x.f_rssi_dbm
 	}
 	v, _ := wire.ReadInt(x.raw, 5)
 	return int32(v)
 }
-func (x *OpaquePeerUpdate) SetRssiDbm(v int32) { x.f_rssi_dbm = v; x.dirty |= (1 << 5) }
+func (x *OpaquePeerUpdate) SetRssiDbm(v int32) { x.f_rssi_dbm = v; x.dirty |= (uint64(1) << 5) }
 
 func (x OpaquePeerUpdate) GetCpuLoad() float64 {
-	if (x.dirty & (1 << 6)) != 0 {
+	if (x.dirty & (uint64(1) << 6)) != 0 {
 		return x.f_cpu_load
 	}
 	v, _ := wire.ReadFloat64(x.raw, 6)
 	return v
 }
-func (x *OpaquePeerUpdate) SetCpuLoad(v float64) { x.f_cpu_load = v; x.dirty |= (1 << 6) }
+func (x *OpaquePeerUpdate) SetCpuLoad(v float64) { x.f_cpu_load = v; x.dirty |= (uint64(1) << 6) }
 
 func (x *OpaquePeerUpdate) TagsLen() int {
+	if (x.dirty & (uint64(1) << 7)) != 0 {
+		return len(x.f_tags)
+	}
 	return wire.CountedArrLen(x.raw, 7, wire.WireString)
 }
 
 func (x *OpaquePeerUpdate) AppendTagsInto(dst []string) []string {
+	if (x.dirty & (uint64(1) << 7)) != 0 {
+		return append(dst, x.f_tags...)
+	}
 	return wire.AppendStringArrZeroCopy(dst, x.raw, 7)
 }
+func (x *OpaquePeerUpdate) SetTags(v []string) { x.f_tags = v; x.dirty |= (uint64(1) << 7) }
 
 func (x *OpaquePeerUpdate) PrefixesLen() int {
+	if (x.dirty & (uint64(1) << 8)) != 0 {
+		return len(x.f_prefixes)
+	}
 	return wire.CountedArrLen(x.raw, 8, wire.WireUint)
 }
 
 func (x *OpaquePeerUpdate) AppendPrefixesInto(dst []uint32) []uint32 {
+	if (x.dirty & (uint64(1) << 8)) != 0 {
+		return append(dst, x.f_prefixes...)
+	}
 	return wire.AppendUint32Arr(dst, x.raw, 8)
 }
+func (x *OpaquePeerUpdate) SetPrefixes(v []uint32) { x.f_prefixes = v; x.dirty |= (uint64(1) << 8) }
 
 func (x *OpaquePeerUpdate) GetLocation() OpaqueLocation {
+	if (x.dirty & (uint64(1) << 9)) != 0 {
+		if x.f_location != nil {
+			return OpaqueLocation{raw: x.f_location.MarshalOmniBufAppend(nil)}
+		}
+		return OpaqueLocation{}
+	}
 	sub, _ := wire.ReadSubMsg(x.raw, 9)
 	return OpaqueLocation{raw: sub}
 }
+func (x *OpaquePeerUpdate) SetLocation(v *Location) { x.f_location = v; x.dirty |= (uint64(1) << 9) }
 
 func (x *OpaquePeerUpdate) GetNeighbors(idx int) OpaqueNeighbor {
+	if (x.dirty & (uint64(1) << 10)) != 0 {
+		if idx >= 0 && idx < len(x.f_neighbors) && x.f_neighbors[idx] != nil {
+			return OpaqueNeighbor{raw: x.f_neighbors[idx].MarshalOmniBufAppend(nil)}
+		}
+		return OpaqueNeighbor{}
+	}
 	elem, _ := wire.ReadSubMsgArrElem(x.raw, 10, idx)
 	return OpaqueNeighbor{raw: elem}
 }
 
 func (x *OpaquePeerUpdate) NeighborsLen() int {
+	if (x.dirty & (uint64(1) << 10)) != 0 {
+		return len(x.f_neighbors)
+	}
 	return wire.SubMsgArrLen(x.raw, 10)
+}
+func (x *OpaquePeerUpdate) SetNeighbors(v []*Neighbor) {
+	x.f_neighbors = v
+	x.dirty |= (uint64(1) << 10)
 }
 
 func (x OpaquePeerUpdate) GetSequence() uint64 {
-	if (x.dirty & (1 << 11)) != 0 {
+	if (x.dirty & (uint64(1) << 11)) != 0 {
 		return x.f_sequence
 	}
 	v, _ := wire.ReadUint(x.raw, 11)
 	return v
 }
-func (x *OpaquePeerUpdate) SetSequence(v uint64) { x.f_sequence = v; x.dirty |= (1 << 11) }
+func (x *OpaquePeerUpdate) SetSequence(v uint64) { x.f_sequence = v; x.dirty |= (uint64(1) << 11) }
 
 // MarshalAppend re-serializes OpaquePeerUpdate using zero-decode wire splicing for unmodified fields.
 func (x *OpaquePeerUpdate) MarshalAppend(dst []byte) []byte {
@@ -1013,6 +1051,37 @@ func (x *OpaquePeerUpdate) MarshalAppend(dst []byte) []byte {
 			b = append(b, 0xd3)
 			v := math.Float64bits(x.f_cpu_load)
 			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24), byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56))
+		case 7:
+			b = append(b, 0xfb)
+			return wire.EncodeStringArr(b, x.f_tags)
+		case 8:
+			b = append(b, 0x36, 0x02)
+			return wire.EncodeUintArr(b, x.f_prefixes)
+		case 9:
+			if x.f_location == nil {
+				return b
+			}
+			b = append(b, 0x72, 0x02)
+			lenPos := len(b)
+			b = append(b, 0, 0)
+			if x.f_location != nil {
+				b = x.f_location.MarshalOmniBufAppend(b)
+			}
+			return wire.BackpatchContainerLen(b, lenPos)
+		case 10:
+			b = append(b, 0xb6, 0x02)
+			lenPos := len(b)
+			b = append(b, 0, 0, wire.WireSubMsg)
+			b = wire.AppendVarint(b, uint64(len(x.f_neighbors)))
+			for _, elem := range x.f_neighbors {
+				eLenPos := len(b)
+				b = append(b, 0, 0)
+				if elem != nil {
+					b = elem.MarshalOmniBufAppend(b)
+				}
+				b = wire.BackpatchContainerLen(b, eLenPos)
+			}
+			return wire.BackpatchContainerLen(b, lenPos)
 		case 11:
 			b = append(b, 0xc2, 0x02)
 			return wire.AppendVarint(b, x.f_sequence)

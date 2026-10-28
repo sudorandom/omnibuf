@@ -21,11 +21,19 @@ import (
 
 func main() {
 	selfGenOut := flag.String("self-gen", "", "Run protogen on omnibuf/bench/peer.proto descriptor and write generated file to path")
+	conformanceGenOut := flag.String("conformance-gen", "", "Run protogen on omnibuf/conformance/conformance.proto descriptor and write generated file to path")
 	vtGenOut := flag.String("vtproto-gen", "", "Run vtprotobuf generator on omnibuf/bench/peer.proto descriptor and write generated file to path")
 	flag.Parse()
 
 	if *selfGenOut != "" {
 		if err := runSelfGen(*selfGenOut); err != nil {
+			fmt.Fprintf(os.Stderr, "protoc-gen-omnibuf: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if *conformanceGenOut != "" {
+		if err := runConformanceGen(*conformanceGenOut); err != nil {
 			fmt.Fprintf(os.Stderr, "protoc-gen-omnibuf: %v\n", err)
 			os.Exit(1)
 		}
@@ -130,8 +138,95 @@ func writePluginResponse(resp *pluginpb.CodeGeneratorResponse, outPath string) e
 	return nil
 }
 
+func conformanceProtoRequest() *pluginpb.CodeGeneratorRequest {
+	f := func(name string, num int32, label descriptorpb.FieldDescriptorProto_Label, typ descriptorpb.FieldDescriptorProto_Type, typeName string) *descriptorpb.FieldDescriptorProto {
+		fd := &descriptorpb.FieldDescriptorProto{
+			Name:   proto.String(name),
+			Number: proto.Int32(num),
+			Label:  label.Enum(),
+			Type:   typ.Enum(),
+		}
+		if typeName != "" {
+			fd.TypeName = proto.String(typeName)
+		}
+		return fd
+	}
+	opt := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+	rep := descriptorpb.FieldDescriptorProto_LABEL_REPEATED
+	fdp := &descriptorpb.FileDescriptorProto{
+		Syntax:  proto.String("proto3"),
+		Name:    proto.String("omnibuf/conformance/conformance.proto"),
+		Package: proto.String("omnibuf.conformance"),
+		Options: &descriptorpb.FileOptions{
+			GoPackage: proto.String("github.com/sudorandom/omnibuf/internal/pb;pb"),
+		},
+		MessageType: []*descriptorpb.DescriptorProto{
+			{
+				Name: proto.String("AllTypesSubMsg"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					f("id", 1, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
+					f("label", 2, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
+					f("flag", 3, opt, descriptorpb.FieldDescriptorProto_TYPE_BOOL, ""),
+					f("score", 4, opt, descriptorpb.FieldDescriptorProto_TYPE_SINT64, ""),
+				},
+			},
+			{
+				Name: proto.String("TestAllTypes"),
+				Field: []*descriptorpb.FieldDescriptorProto{
+					f("f1_uint32", 1, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
+					f("f2_uint64", 2, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT64, ""),
+					f("f3_sint32", 3, opt, descriptorpb.FieldDescriptorProto_TYPE_SINT32, ""),
+					f("f4_sint64", 4, opt, descriptorpb.FieldDescriptorProto_TYPE_SINT64, ""),
+					f("f5_bool", 5, opt, descriptorpb.FieldDescriptorProto_TYPE_BOOL, ""),
+					f("f6_string", 6, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
+					f("f7_bytes", 7, opt, descriptorpb.FieldDescriptorProto_TYPE_BYTES, ""),
+					f("f8_sub_msg", 8, opt, descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, ".omnibuf.conformance.AllTypesSubMsg"),
+					f("f9_string_arr", 9, rep, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
+					f("f10_uint32_arr", 10, rep, descriptorpb.FieldDescriptorProto_TYPE_UINT32, ""),
+					f("f11_sub_msg_arr", 11, rep, descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, ".omnibuf.conformance.AllTypesSubMsg"),
+					f("f12_map_str_uint", 12, rep, descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, ".omnibuf.conformance.TestAllTypes.F12MapStrUintEntry"),
+					f("f13_float32", 13, opt, descriptorpb.FieldDescriptorProto_TYPE_FLOAT, ""),
+					f("f14_float64", 14, opt, descriptorpb.FieldDescriptorProto_TYPE_DOUBLE, ""),
+					f("f15_fixed32", 15, opt, descriptorpb.FieldDescriptorProto_TYPE_FIXED32, ""),
+					f("f16_fixed64", 16, opt, descriptorpb.FieldDescriptorProto_TYPE_FIXED64, ""),
+					f("f20_overflow_str", 20, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
+				},
+				NestedType: []*descriptorpb.DescriptorProto{
+					{
+						Name: proto.String("F12MapStrUintEntry"),
+						Options: &descriptorpb.MessageOptions{
+							MapEntry: proto.Bool(true),
+						},
+						Field: []*descriptorpb.FieldDescriptorProto{
+							f("key", 1, opt, descriptorpb.FieldDescriptorProto_TYPE_STRING, ""),
+							f("value", 2, opt, descriptorpb.FieldDescriptorProto_TYPE_UINT64, ""),
+						},
+					},
+				},
+			},
+		},
+	}
+	return &pluginpb.CodeGeneratorRequest{
+		FileToGenerate: []string{"omnibuf/conformance/conformance.proto"},
+		ProtoFile:      []*descriptorpb.FileDescriptorProto{fdp},
+	}
+}
+
 func runSelfGen(outPath string) error {
 	gen, err := protogen.Options{}.New(peerProtoRequest())
+	if err != nil {
+		return err
+	}
+	for _, file := range gen.Files {
+		if file.Generate {
+			generateFile(gen, file)
+		}
+	}
+	return writePluginResponse(gen.Response(), outPath)
+}
+
+func runConformanceGen(outPath string) error {
+	gen, err := protogen.Options{}.New(conformanceProtoRequest())
 	if err != nil {
 		return err
 	}
@@ -162,6 +257,9 @@ func runVTProtoGen(outPath string) error {
 }
 
 func wireTypeForField(field *protogen.Field) uint8 {
+	if field.Desc.IsMap() {
+		return wire.WireMap
+	}
 	if field.Desc.IsList() {
 		return wire.WireArray
 	}
@@ -276,7 +374,22 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("\t}")
 			continue
 		}
+		if f.Desc.Kind() == protoreflect.MessageKind && !f.Desc.IsList() && !f.Desc.IsMap() {
+			g.P("\tif x.", f.GoName, " != nil {")
+			emitConstTag(g, "dst", rawTag)
+			g.P("		lenPos_", i, " := len(dst)")
+			g.P("		dst = append(dst, 0, 0)")
+			g.P("		dst = x.", f.GoName, ".MarshalOmniBufAppend(dst)")
+			emitBackpatchLen(g, "dst", fmt.Sprintf("lenPos_%d", i))
+			g.P("\t}")
+			continue
+		}
 		emitConstTag(g, "dst", rawTag)
+
+		if f.Desc.IsMap() {
+			g.P("	dst = wire.EncodeMapStringUint(dst, x.", f.GoName, ", true)")
+			continue
+		}
 
 		if f.Desc.IsList() {
 			switch f.Desc.Kind() {
@@ -289,7 +402,11 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 				g.P("		dst = append(dst, s...)")
 				g.P("	}")
 				emitBackpatchLen(g, "dst", fmt.Sprintf("lenPos_%d", i))
-			case protoreflect.Uint32Kind:
+			case protoreflect.BytesKind:
+				g.P("	dst = wire.EncodeBytesArr(dst, x.", f.GoName, ")")
+			case protoreflect.BoolKind:
+				g.P("	dst = wire.EncodeBoolArr(dst, x.", f.GoName, ")")
+			case protoreflect.Uint32Kind, protoreflect.Uint64Kind:
 				g.P("	lenPos_", i, " := len(dst)")
 				g.P("	dst = append(dst, 0, 0, wire.WireUint)")
 				g.P("	dst = wire.AppendVarint(dst, uint64(len(x.", f.GoName, ")))")
@@ -297,6 +414,20 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 				g.P("		dst = wire.AppendVarint(dst, uint64(v))")
 				g.P("	}")
 				emitBackpatchLen(g, "dst", fmt.Sprintf("lenPos_%d", i))
+			case protoreflect.Sint32Kind, protoreflect.Int32Kind, protoreflect.Sint64Kind, protoreflect.Int64Kind:
+				g.P("	dst = wire.EncodeSintArr(dst, x.", f.GoName, ")")
+			case protoreflect.Fixed32Kind:
+				g.P("	dst = wire.EncodeFixed32Arr(dst, x.", f.GoName, ", wire.WireFixed32)")
+			case protoreflect.Fixed64Kind:
+				g.P("	dst = wire.EncodeFixed64Arr(dst, x.", f.GoName, ", wire.WireFixed64)")
+			case protoreflect.Sfixed32Kind:
+				g.P("	dst = wire.EncodeFixed32Arr(dst, x.", f.GoName, ", wire.WireSfixed32)")
+			case protoreflect.Sfixed64Kind:
+				g.P("	dst = wire.EncodeFixed64Arr(dst, x.", f.GoName, ", wire.WireSfixed64)")
+			case protoreflect.FloatKind:
+				g.P("	dst = wire.EncodeFloat32Arr(dst, x.", f.GoName, ")")
+			case protoreflect.DoubleKind:
+				g.P("	dst = wire.EncodeFloat64Arr(dst, x.", f.GoName, ")")
 			case protoreflect.MessageKind:
 				g.P("	lenPos_", i, " := len(dst)")
 				g.P("	dst = append(dst, 0, 0, wire.WireSubMsg)")
@@ -321,22 +452,23 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("	dst = wire.AppendVarint(dst, x.", f.GoName, ")")
 		case protoreflect.Sint32Kind, protoreflect.Int32Kind:
 			g.P("	dst = wire.AppendVarint(dst, wire.EncodeZigZag(int64(x.", f.GoName, ")))")
+		case protoreflect.Sint64Kind, protoreflect.Int64Kind:
+			g.P("	dst = wire.AppendVarint(dst, wire.EncodeZigZag(x.", f.GoName, "))")
+		case protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
+			g.P("	b_", i, " := uint32(x.", f.GoName, ")")
+			g.P("	dst = append(dst, byte(b_", i, "), byte(b_", i, ">>8), byte(b_", i, ">>16), byte(b_", i, ">>24))")
+		case protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind:
+			g.P("	b_", i, " := uint64(x.", f.GoName, ")")
+			g.P("	dst = append(dst, byte(b_", i, "), byte(b_", i, ">>8), byte(b_", i, ">>16), byte(b_", i, ">>24), byte(b_", i, ">>32), byte(b_", i, ">>40), byte(b_", i, ">>48), byte(b_", i, ">>56))")
 		case protoreflect.FloatKind:
 			g.P("	b_", i, " := math.Float32bits(x.", f.GoName, ")")
 			g.P("	dst = append(dst, byte(b_", i, "), byte(b_", i, ">>8), byte(b_", i, ">>16), byte(b_", i, ">>24))")
 		case protoreflect.DoubleKind:
 			g.P("	b_", i, " := math.Float64bits(x.", f.GoName, ")")
 			g.P("	dst = append(dst, byte(b_", i, "), byte(b_", i, ">>8), byte(b_", i, ">>16), byte(b_", i, ">>24), byte(b_", i, ">>32), byte(b_", i, ">>40), byte(b_", i, ">>48), byte(b_", i, ">>56))")
-		case protoreflect.StringKind:
+		case protoreflect.StringKind, protoreflect.BytesKind:
 			g.P("	dst = wire.AppendVarint(dst, uint64(len(x.", f.GoName, ")))")
 			g.P("	dst = append(dst, x.", f.GoName, "...)")
-		case protoreflect.MessageKind:
-			g.P("	lenPos_", i, " := len(dst)")
-			g.P("	dst = append(dst, 0, 0)")
-			g.P("	if x.", f.GoName, " != nil {")
-			g.P("		dst = x.", f.GoName, ".MarshalOmniBufAppend(dst)")
-			g.P("	}")
-			emitBackpatchLen(g, "dst", fmt.Sprintf("lenPos_%d", i))
 		}
 	}
 	g.P("	return dst")
@@ -350,16 +482,20 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			continue
 		}
 		g.P(fmt.Sprintf("	if (seenMask & (1 << %d)) == 0 {", i))
-		if f.Desc.IsList() {
+		if f.Desc.IsMap() {
+			g.P("		clear(x.", f.GoName, ")")
+		} else if f.Desc.IsList() {
 			g.P("		x.", f.GoName, " = x.", f.GoName, "[:0]")
 		} else {
 			switch f.Desc.Kind() {
-			case protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.Sint32Kind, protoreflect.Int32Kind, protoreflect.FloatKind, protoreflect.DoubleKind:
+			case protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.Sint32Kind, protoreflect.Int32Kind, protoreflect.Sint64Kind, protoreflect.Int64Kind, protoreflect.Fixed32Kind, protoreflect.Fixed64Kind, protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind, protoreflect.FloatKind, protoreflect.DoubleKind:
 				g.P("		x.", f.GoName, " = 0")
 			case protoreflect.BoolKind:
 				g.P("		x.", f.GoName, " = false")
 			case protoreflect.StringKind:
 				g.P(`		x.`, f.GoName, ` = ""`)
+			case protoreflect.BytesKind:
+				g.P("		x.", f.GoName, " = nil")
 			case protoreflect.MessageKind:
 				g.P("		if x.", f.GoName, " != nil {")
 				g.P("			x.", f.GoName, ".clearUnseenOmniBuf(0)")
@@ -428,6 +564,45 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			continue
 		}
 		g.P("		case ", (uint64(fnum)<<4)|uint64(wt), ":")
+		if f.Desc.IsMap() {
+			g.P("			byteLen, bn := wire.DecodeVarint(data[pos:])")
+			g.P("			if bn == 0 || byteLen > uint64(n-(pos+bn)) {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid map byteLen")`)
+			g.P("			}")
+			g.P("			pos += bn")
+			g.P("			body := data[pos : pos+int(byteLen)]")
+			g.P("			pos += int(byteLen)")
+			g.P("			keyWT, valWT, count, p, ok := wire.ParseMapHeader(body)")
+			g.P("			if !ok || keyWT != wire.WireString || valWT != wire.WireUint {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid map header")`)
+			g.P("			}")
+			g.P("			if !merge && (seenMask&(1<<", i, ")) == 0 {")
+			g.P("				clear(x.", f.GoName, ")")
+			g.P("			}")
+			g.P("			if x.", f.GoName, " == nil {")
+			g.P("				x.", f.GoName, " = make(map[string]uint64, count)")
+			g.P("			}")
+			g.P("			seenMask |= 1 << ", i)
+			g.P("			for j := 0; j < count; j++ {")
+			g.P("				kLen, kn := wire.DecodeVarint(body[p:])")
+			g.P("				if kn == 0 || kLen > uint64(len(body)-(p+kn)) {")
+			g.P(`					return fmt.Errorf("omnibuf: invalid map key")`)
+			g.P("				}")
+			g.P("				p += kn")
+			g.P("				k := wire.DecodeStr(body[p:p+int(kLen)], zeroCopy)")
+			g.P("				p += int(kLen)")
+			g.P("				v, vn := wire.DecodeVarint(body[p:])")
+			g.P("				if vn == 0 {")
+			g.P(`					return fmt.Errorf("omnibuf: invalid map value")`)
+			g.P("				}")
+			g.P("				p += vn")
+			g.P("				x.", f.GoName, "[k] = v")
+			g.P("			}")
+			g.P("			if p != len(body) {")
+			g.P(`				return fmt.Errorf("omnibuf: map trailing bytes")`)
+			g.P("			}")
+			continue
+		}
 		if f.Desc.IsList() {
 			g.P("			byteLen, bn := wire.DecodeVarint(data[pos:])")
 			g.P("			if bn == 0 || byteLen > uint64(n-(pos+bn)) {")
@@ -472,6 +647,18 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 				g.P("			if p != len(body) {")
 				g.P(`				return fmt.Errorf("omnibuf: string array trailing bytes")`)
 				g.P("			}")
+			case protoreflect.BytesKind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendBytesArrBody(x.", f.GoName, ", body, zeroCopy)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid bytes array")`)
+				g.P("			}")
+			case protoreflect.BoolKind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendBoolArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid bool array")`)
+				g.P("			}")
 			case protoreflect.Uint32Kind:
 				g.P("			if len(body) < 2 || body[0] != wire.WireUint {")
 				g.P(`				return fmt.Errorf("omnibuf: invalid uint32 array")`)
@@ -501,6 +688,42 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 				g.P("			}")
 				g.P("			if p != len(body) {")
 				g.P(`				return fmt.Errorf("omnibuf: uint32 array trailing bytes")`)
+				g.P("			}")
+			case protoreflect.Uint64Kind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendUintArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid uint64 array")`)
+				g.P("			}")
+			case protoreflect.Sint32Kind, protoreflect.Int32Kind, protoreflect.Sint64Kind, protoreflect.Int64Kind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendSintArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid sint array")`)
+				g.P("			}")
+			case protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendFixed32ArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid fixed32 array")`)
+				g.P("			}")
+			case protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendFixed64ArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid fixed64 array")`)
+				g.P("			}")
+			case protoreflect.FloatKind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendFloat32ArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid float32 array")`)
+				g.P("			}")
+			case protoreflect.DoubleKind:
+				g.P("			var ok bool")
+				g.P("			x.", f.GoName, ", ok = wire.AppendFloat64ArrBody(x.", f.GoName, ", body)")
+				g.P("			if !ok {")
+				g.P(`				return fmt.Errorf("omnibuf: invalid float64 array")`)
 				g.P("			}")
 			case protoreflect.MessageKind:
 				elemType := f.Message.GoIdent.GoName
@@ -571,6 +794,42 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			pos += vn")
 			g.P("			seenMask |= 1 << ", i)
 			g.P("			x.", f.GoName, " = int32(wire.DecodeZigZag(v))")
+		case protoreflect.Sint64Kind, protoreflect.Int64Kind:
+			g.P("			v, vn := wire.DecodeVarint(data[pos:])")
+			g.P("			if vn == 0 {")
+			g.P(`				return fmt.Errorf("omnibuf: truncated sint64")`)
+			g.P("			}")
+			g.P("			pos += vn")
+			g.P("			seenMask |= 1 << ", i)
+			g.P("			x.", f.GoName, " = wire.DecodeZigZag(v)")
+		case protoreflect.Fixed32Kind:
+			g.P("			if n-pos < 4 {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid fixed32")`)
+			g.P("			}")
+			g.P("			seenMask |= 1 << ", i)
+			g.P("			x.", f.GoName, " = binary.LittleEndian.Uint32(data[pos:])")
+			g.P("			pos += 4")
+		case protoreflect.Fixed64Kind:
+			g.P("			if n-pos < 8 {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid fixed64")`)
+			g.P("			}")
+			g.P("			seenMask |= 1 << ", i)
+			g.P("			x.", f.GoName, " = binary.LittleEndian.Uint64(data[pos:])")
+			g.P("			pos += 8")
+		case protoreflect.Sfixed32Kind:
+			g.P("			if n-pos < 4 {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid sfixed32")`)
+			g.P("			}")
+			g.P("			seenMask |= 1 << ", i)
+			g.P("			x.", f.GoName, " = int32(binary.LittleEndian.Uint32(data[pos:]))")
+			g.P("			pos += 4")
+		case protoreflect.Sfixed64Kind:
+			g.P("			if n-pos < 8 {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid sfixed64")`)
+			g.P("			}")
+			g.P("			seenMask |= 1 << ", i)
+			g.P("			x.", f.GoName, " = int64(binary.LittleEndian.Uint64(data[pos:]))")
+			g.P("			pos += 8")
 		case protoreflect.FloatKind:
 			g.P("			if n-pos < 4 {")
 			g.P(`				return fmt.Errorf("omnibuf: invalid float32")`)
@@ -595,6 +854,20 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			seenMask |= 1 << ", i)
 			g.P("			x.", f.GoName, " = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)")
 			g.P("			pos += sLen")
+		case protoreflect.BytesKind:
+			g.P("			bLen64, bn := wire.DecodeVarint(data[pos:])")
+			g.P("			if bn == 0 || bLen64 > uint64(n-(pos+bn)) {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid bytes length")`)
+			g.P("			}")
+			g.P("			pos += bn")
+			g.P("			bLen := int(bLen64)")
+			g.P("			seenMask |= 1 << ", i)
+			g.P("			if zeroCopy {")
+			g.P("				x.", f.GoName, " = data[pos : pos+bLen]")
+			g.P("			} else {")
+			g.P("				x.", f.GoName, " = append(x.", f.GoName, "[:0], data[pos:pos+bLen]...)")
+			g.P("			}")
+			g.P("			pos += bLen")
 		case protoreflect.MessageKind:
 			subType := f.Message.GoIdent.GoName
 			g.P("			subLen, sn := wire.DecodeVarint(data[pos:])")
@@ -642,19 +915,47 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("// ", name, " is the protoc-gen-omnibuf Opaque API struct for ", msg.GoIdent.GoName, ".")
 	g.P("type ", name, " struct {")
 	g.P("	raw   []byte")
-	g.P("	dirty uint16")
+	g.P("	dirty uint64")
 	for _, f := range msg.Fields {
-		if f.Desc.IsList() {
+		fname := "f_" + f.Desc.TextName()
+		if f.Desc.IsMap() {
+			g.P("	", fname, " map[string]uint64")
 			continue
 		}
-		fname := "f_" + f.Desc.TextName()
+		if f.Desc.IsList() {
+			switch f.Desc.Kind() {
+			case protoreflect.StringKind:
+				g.P("	", fname, " []string")
+			case protoreflect.BytesKind:
+				g.P("	", fname, " [][]byte")
+			case protoreflect.BoolKind:
+				g.P("	", fname, " []bool")
+			case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+				g.P("	", fname, " []uint32")
+			case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+				g.P("	", fname, " []uint64")
+			case protoreflect.Sint32Kind, protoreflect.Int32Kind, protoreflect.Sfixed32Kind:
+				g.P("	", fname, " []int32")
+			case protoreflect.Sint64Kind, protoreflect.Int64Kind, protoreflect.Sfixed64Kind:
+				g.P("	", fname, " []int64")
+			case protoreflect.FloatKind:
+				g.P("	", fname, " []float32")
+			case protoreflect.DoubleKind:
+				g.P("	", fname, " []float64")
+			case protoreflect.MessageKind:
+				g.P("	", fname, " []*", f.Message.GoIdent.GoName)
+			}
+			continue
+		}
 		switch f.Desc.Kind() {
-		case protoreflect.Uint32Kind:
+		case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 			g.P("	", fname, " uint32")
-		case protoreflect.Uint64Kind:
+		case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
 			g.P("	", fname, " uint64")
-		case protoreflect.Sint32Kind, protoreflect.Int32Kind:
+		case protoreflect.Sint32Kind, protoreflect.Int32Kind, protoreflect.Sfixed32Kind:
 			g.P("	", fname, " int32")
+		case protoreflect.Sint64Kind, protoreflect.Int64Kind, protoreflect.Sfixed64Kind:
+			g.P("	", fname, " int64")
 		case protoreflect.BoolKind:
 			g.P("	", fname, " bool")
 		case protoreflect.FloatKind:
@@ -663,6 +964,10 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("	", fname, " float64")
 		case protoreflect.StringKind:
 			g.P("	", fname, " string")
+		case protoreflect.BytesKind:
+			g.P("	", fname, " []byte")
+		case protoreflect.MessageKind:
+			g.P("	", fname, " *", f.Message.GoIdent.GoName)
 		}
 	}
 	g.P("}")
@@ -680,37 +985,189 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 		fnum := uint16(f.Desc.Number())
 		goName := f.GoName
 		privName := "f_" + f.Desc.TextName()
+		bitExpr := fmt.Sprintf("(uint64(1) << %d)", fnum)
+
+		if f.Desc.IsMap() {
+			g.P("func (x *", name, ") Lookup", goName, "(key string) (uint64, bool) {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { v, ok := x.", privName, "[key]; return v, ok }")
+			g.P("	return wire.LookupMapStringUint(x.raw, ", fnum, ", key)")
+			g.P("}")
+			g.P("func (x *", name, ") Get", goName, "() map[string]uint64 {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
+			g.P("	m, _ := wire.ReadMapStringUint(x.raw, ", fnum, ", false)")
+			g.P("	return m")
+			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v map[string]uint64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+			g.P()
+			continue
+		}
 
 		if f.Desc.IsList() {
 			switch f.Desc.Kind() {
 			case protoreflect.StringKind:
 				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
 				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireString)")
 				g.P("}")
 				g.P()
 				g.P("func (x *", name, ") Append", goName, "Into(dst []string) []string {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
 				g.P("	return wire.AppendStringArrZeroCopy(dst, x.raw, ", fnum, ")")
 				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []string) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.BytesKind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireBytes)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst [][]byte) [][]byte {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendBytesArr(dst, x.raw, ", fnum, ", false)")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v [][]byte) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.BoolKind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireBoolFalse)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []bool) []bool {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendBoolArr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []bool) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 				g.P()
 			case protoreflect.Uint32Kind:
 				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
 				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireUint)")
 				g.P("}")
 				g.P()
 				g.P("func (x *", name, ") Append", goName, "Into(dst []uint32) []uint32 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
 				g.P("	return wire.AppendUint32Arr(dst, x.raw, ", fnum, ")")
 				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []uint32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.Uint64Kind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireUint)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []uint64) []uint64 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendUint64Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []uint64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.Sint32Kind, protoreflect.Int32Kind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireSint)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []int32) []int32 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendSint32Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []int32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.Sint64Kind, protoreflect.Int64Kind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireSint)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []int64) []int64 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendSint64Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []int64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.Fixed32Kind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireFixed32)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []uint32) []uint32 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendFixed32Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []uint32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.Fixed64Kind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireFixed64)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []uint64) []uint64 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendFixed64Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []uint64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.Sfixed32Kind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireSfixed32)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []int32) []int32 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendSfixed32Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []int32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.Sfixed64Kind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireSfixed64)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []int64) []int64 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendSfixed64Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []int64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.FloatKind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireFloat32)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []float32) []float32 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendFloat32Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []float32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+				g.P()
+			case protoreflect.DoubleKind:
+				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
+				g.P("	return wire.CountedArrLen(x.raw, ", fnum, ", wire.WireFloat64)")
+				g.P("}")
+				g.P("func (x *", name, ") Append", goName, "Into(dst []float64) []float64 {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return append(dst, x.", privName, "...) }")
+				g.P("	return wire.AppendFloat64Arr(dst, x.raw, ", fnum, ")")
+				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []float64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 				g.P()
 			case protoreflect.MessageKind:
-				subOpaque := "Opaque" + f.Message.GoIdent.GoName
+				elemType := f.Message.GoIdent.GoName
+				subOpaque := "Opaque" + elemType
 				g.P("func (x *", name, ") Get", goName, "(idx int) ", subOpaque, " {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 {")
+				g.P("		if idx >= 0 && idx < len(x.", privName, ") && x.", privName, "[idx] != nil {")
+				g.P("			return ", subOpaque, "{raw: x.", privName, "[idx].MarshalOmniBufAppend(nil)}")
+				g.P("		}")
+				g.P("		return ", subOpaque, "{}")
+				g.P("	}")
 				g.P("	elem, _ := wire.ReadSubMsgArrElem(x.raw, ", fnum, ", idx)")
 				g.P("	return ", subOpaque, "{raw: elem}")
 				g.P("}")
 				g.P()
 				g.P("func (x *", name, ") ", goName, "Len() int {")
+				g.P("	if (x.dirty & ", bitExpr, ") != 0 { return len(x.", privName, ") }")
 				g.P("	return wire.SubMsgArrLen(x.raw, ", fnum, ")")
 				g.P("}")
+				g.P("func (x *", name, ") Set", goName, "(v []*", elemType, ") { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 				g.P()
 			}
 			continue
@@ -719,64 +1176,114 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 		switch f.Desc.Kind() {
 		case protoreflect.Uint32Kind:
 			g.P("func (x ", name, ") Get", goName, "() uint32 {")
-			g.P("	if (x.dirty & (1 << ", fnum, ")) != 0 { return x.", privName, " }")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
 			g.P("	v, _ := wire.ReadUint(x.raw, ", fnum, ")")
 			g.P("	return uint32(v)")
 			g.P("}")
-			g.P("func (x *", name, ") Set", goName, "(v uint32) { x.", privName, " = v; x.dirty |= (1 << ", fnum, ") }")
+			g.P("func (x *", name, ") Set", goName, "(v uint32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		case protoreflect.Uint64Kind:
 			g.P("func (x ", name, ") Get", goName, "() uint64 {")
-			g.P("	if (x.dirty & (1 << ", fnum, ")) != 0 { return x.", privName, " }")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
 			g.P("	v, _ := wire.ReadUint(x.raw, ", fnum, ")")
 			g.P("	return v")
 			g.P("}")
-			g.P("func (x *", name, ") Set", goName, "(v uint64) { x.", privName, " = v; x.dirty |= (1 << ", fnum, ") }")
+			g.P("func (x *", name, ") Set", goName, "(v uint64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		case protoreflect.Sint32Kind, protoreflect.Int32Kind:
 			g.P("func (x ", name, ") Get", goName, "() int32 {")
-			g.P("	if (x.dirty & (1 << ", fnum, ")) != 0 { return x.", privName, " }")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
 			g.P("	v, _ := wire.ReadInt(x.raw, ", fnum, ")")
 			g.P("	return int32(v)")
 			g.P("}")
-			g.P("func (x *", name, ") Set", goName, "(v int32) { x.", privName, " = v; x.dirty |= (1 << ", fnum, ") }")
+			g.P("func (x *", name, ") Set", goName, "(v int32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+		case protoreflect.Sint64Kind, protoreflect.Int64Kind:
+			g.P("func (x ", name, ") Get", goName, "() int64 {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
+			g.P("	v, _ := wire.ReadInt(x.raw, ", fnum, ")")
+			g.P("	return v")
+			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v int64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+		case protoreflect.Fixed32Kind:
+			g.P("func (x ", name, ") Get", goName, "() uint32 {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
+			g.P("	v, _ := wire.ReadFixed32(x.raw, ", fnum, ")")
+			g.P("	return v")
+			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v uint32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+		case protoreflect.Fixed64Kind:
+			g.P("func (x ", name, ") Get", goName, "() uint64 {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
+			g.P("	v, _ := wire.ReadFixed64(x.raw, ", fnum, ")")
+			g.P("	return v")
+			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v uint64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+		case protoreflect.Sfixed32Kind:
+			g.P("func (x ", name, ") Get", goName, "() int32 {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
+			g.P("	v, _ := wire.ReadSfixed32(x.raw, ", fnum, ")")
+			g.P("	return v")
+			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v int32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+		case protoreflect.Sfixed64Kind:
+			g.P("func (x ", name, ") Get", goName, "() int64 {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
+			g.P("	v, _ := wire.ReadSfixed64(x.raw, ", fnum, ")")
+			g.P("	return v")
+			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v int64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		case protoreflect.BoolKind:
 			g.P("func (x ", name, ") Get", goName, "() bool {")
-			g.P("	if (x.dirty & (1 << ", fnum, ")) != 0 { return x.", privName, " }")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
 			g.P("	v, _ := wire.ReadBool(x.raw, ", fnum, ")")
 			g.P("	return v")
 			g.P("}")
-			g.P("func (x *", name, ") Set", goName, "(v bool) { x.", privName, " = v; x.dirty |= (1 << ", fnum, ") }")
+			g.P("func (x *", name, ") Set", goName, "(v bool) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		case protoreflect.FloatKind:
 			g.P("func (x ", name, ") Get", goName, "() float32 {")
-			g.P("	if (x.dirty & (1 << ", fnum, ")) != 0 { return x.", privName, " }")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
 			g.P("	v, _ := wire.ReadFloat32(x.raw, ", fnum, ")")
 			g.P("	return v")
 			g.P("}")
-			g.P("func (x *", name, ") Set", goName, "(v float32) { x.", privName, " = v; x.dirty |= (1 << ", fnum, ") }")
+			g.P("func (x *", name, ") Set", goName, "(v float32) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		case protoreflect.DoubleKind:
 			g.P("func (x ", name, ") Get", goName, "() float64 {")
-			g.P("	if (x.dirty & (1 << ", fnum, ")) != 0 { return x.", privName, " }")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
 			g.P("	v, _ := wire.ReadFloat64(x.raw, ", fnum, ")")
 			g.P("	return v")
 			g.P("}")
-			g.P("func (x *", name, ") Set", goName, "(v float64) { x.", privName, " = v; x.dirty |= (1 << ", fnum, ") }")
+			g.P("func (x *", name, ") Set", goName, "(v float64) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		case protoreflect.StringKind:
 			g.P("func (x ", name, ") Get", goName, "() string {")
-			g.P("	if (x.dirty & (1 << ", fnum, ")) != 0 { return x.", privName, " }")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
 			g.P("	s, _ := wire.ReadStringZeroCopy(x.raw, ", fnum, ")")
 			g.P("	return s")
 			g.P("}")
-			g.P("func (x *", name, ") Set", goName, "(v string) { x.", privName, " = v; x.dirty |= (1 << ", fnum, ") }")
+			g.P("func (x *", name, ") Set", goName, "(v string) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
+		case protoreflect.BytesKind:
+			g.P("func (x ", name, ") Get", goName, "() []byte {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 { return x.", privName, " }")
+			g.P("	b, _ := wire.ReadBytes(x.raw, ", fnum, ")")
+			g.P("	return b")
+			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v []byte) { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		case protoreflect.MessageKind:
-			subOpaque := "Opaque" + f.Message.GoIdent.GoName
+			elemType := f.Message.GoIdent.GoName
+			subOpaque := "Opaque" + elemType
 			g.P("func (x *", name, ") Get", goName, "() ", subOpaque, " {")
+			g.P("	if (x.dirty & ", bitExpr, ") != 0 {")
+			g.P("		if x.", privName, " != nil {")
+			g.P("			return ", subOpaque, "{raw: x.", privName, ".MarshalOmniBufAppend(nil)}")
+			g.P("		}")
+			g.P("		return ", subOpaque, "{}")
+			g.P("	}")
 			g.P("	sub, _ := wire.ReadSubMsg(x.raw, ", fnum, ")")
 			g.P("	return ", subOpaque, "{raw: sub}")
 			g.P("}")
+			g.P("func (x *", name, ") Set", goName, "(v *", elemType, ") { x.", privName, " = v; x.dirty |= ", bitExpr, " }")
 		}
 		g.P()
 	}
 
-	// Generate MarshalAppend on Opaque struct with full scalar zero-decode splice support!
+	// Generate MarshalAppend on Opaque struct with full zero-decode splice support across all field types!
 	maxFnum := uint16(msg.Fields[len(msg.Fields)-1].Desc.Number())
 	g.P("// MarshalAppend re-serializes ", name, " using zero-decode wire splicing for unmodified fields.")
 	g.P("func (x *", name, ") MarshalAppend(dst []byte) []byte {")
@@ -787,25 +1294,66 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("	return wire.SpliceFields(dst, x.raw, x.dirty, ", maxFnum, ", func(b []byte, fnum uint16) []byte {")
 	g.P("		switch fnum {")
 	for _, f := range msg.Fields {
-		if f.Desc.IsList() || f.Desc.Kind() == protoreflect.MessageKind {
-			continue
-		}
 		fnum := uint16(f.Desc.Number())
 		privName := "f_" + f.Desc.TextName()
 		g.P("		case ", fnum, ":")
-		if f.Desc.Kind() == protoreflect.BoolKind {
-			g.P("if x.", privName, " { return wire.AppendVarint(b, ", (uint64(fnum)<<4)|uint64(wire.WireBoolTrue), ") }")
-			g.P("return wire.AppendVarint(b, ", (uint64(fnum)<<4)|uint64(wire.WireBoolFalse), ")")
+		if f.Desc.Kind() == protoreflect.BoolKind && !f.Desc.IsList() {
+			g.P("			if x.", privName, " { return wire.AppendVarint(b, ", (uint64(fnum)<<4)|uint64(wire.WireBoolTrue), ") }")
+			g.P("			return wire.AppendVarint(b, ", (uint64(fnum)<<4)|uint64(wire.WireBoolFalse), ")")
+			continue
+		}
+		if f.Desc.Kind() == protoreflect.MessageKind && !f.Desc.IsList() && !f.Desc.IsMap() {
+			g.P("			if x.", privName, " == nil { return b }")
+		}
+
+		rawTag := (uint64(fnum) << 4) | uint64(wireTypeForField(f))
+		emitConstTag(g, "b", rawTag)
+
+		if f.Desc.IsMap() {
+			g.P("			return wire.EncodeMapStringUint(b, x.", privName, ", true)")
+			continue
+		}
+		if f.Desc.IsList() {
+			switch f.Desc.Kind() {
+			case protoreflect.StringKind:
+				g.P("			return wire.EncodeStringArr(b, x.", privName, ")")
+			case protoreflect.BytesKind:
+				g.P("			return wire.EncodeBytesArr(b, x.", privName, ")")
+			case protoreflect.BoolKind:
+				g.P("			return wire.EncodeBoolArr(b, x.", privName, ")")
+			case protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+				g.P("			return wire.EncodeUintArr(b, x.", privName, ")")
+			case protoreflect.Sint32Kind, protoreflect.Int32Kind, protoreflect.Sint64Kind, protoreflect.Int64Kind:
+				g.P("			return wire.EncodeSintArr(b, x.", privName, ")")
+			case protoreflect.Fixed32Kind:
+				g.P("			return wire.EncodeFixed32Arr(b, x.", privName, ", wire.WireFixed32)")
+			case protoreflect.Fixed64Kind:
+				g.P("			return wire.EncodeFixed64Arr(b, x.", privName, ", wire.WireFixed64)")
+			case protoreflect.Sfixed32Kind:
+				g.P("			return wire.EncodeFixed32Arr(b, x.", privName, ", wire.WireSfixed32)")
+			case protoreflect.Sfixed64Kind:
+				g.P("			return wire.EncodeFixed64Arr(b, x.", privName, ", wire.WireSfixed64)")
+			case protoreflect.FloatKind:
+				g.P("			return wire.EncodeFloat32Arr(b, x.", privName, ")")
+			case protoreflect.DoubleKind:
+				g.P("			return wire.EncodeFloat64Arr(b, x.", privName, ")")
+			case protoreflect.MessageKind:
+				g.P("			lenPos := len(b)")
+				g.P("			b = append(b, 0, 0, wire.WireSubMsg)")
+				g.P("			b = wire.AppendVarint(b, uint64(len(x.", privName, ")))")
+				g.P("			for _, elem := range x.", privName, " {")
+				g.P("				eLenPos := len(b)")
+				g.P("				b = append(b, 0, 0)")
+				g.P("				if elem != nil {")
+				g.P("					b = elem.MarshalOmniBufAppend(b)")
+				g.P("				}")
+				g.P("				b = wire.BackpatchContainerLen(b, eLenPos)")
+				g.P("			}")
+				g.P("			return wire.BackpatchContainerLen(b, lenPos)")
+			}
 			continue
 		}
 
-		rawTag := (fnum << 4) | uint16(wireTypeForField(f))
-		if rawTag <= 127 {
-			g.P(fmt.Sprintf("			b = append(b, 0x%02x)", byte(rawTag<<1)|1))
-		} else {
-			tag2 := (rawTag << 2) | 2
-			g.P(fmt.Sprintf("			b = append(b, 0x%02x, 0x%02x)", byte(tag2), byte(tag2>>8)))
-		}
 		switch f.Desc.Kind() {
 		case protoreflect.Uint32Kind:
 			g.P("			return wire.AppendVarint(b, uint64(x.", privName, "))")
@@ -813,15 +1361,30 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			return wire.AppendVarint(b, x.", privName, ")")
 		case protoreflect.Sint32Kind, protoreflect.Int32Kind:
 			g.P("			return wire.AppendVarint(b, wire.EncodeZigZag(int64(x.", privName, ")))")
+		case protoreflect.Sint64Kind, protoreflect.Int64Kind:
+			g.P("			return wire.AppendVarint(b, wire.EncodeZigZag(x.", privName, "))")
+		case protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind:
+			g.P("			v := uint32(x.", privName, ")")
+			g.P("			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))")
+		case protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind:
+			g.P("			v := uint64(x.", privName, ")")
+			g.P("			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24), byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56))")
 		case protoreflect.FloatKind:
 			g.P("			v := math.Float32bits(x.", privName, ")")
 			g.P("			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24))")
 		case protoreflect.DoubleKind:
 			g.P("			v := math.Float64bits(x.", privName, ")")
 			g.P("			return append(b, byte(v), byte(v>>8), byte(v>>16), byte(v>>24), byte(v>>32), byte(v>>40), byte(v>>48), byte(v>>56))")
-		case protoreflect.StringKind:
+		case protoreflect.StringKind, protoreflect.BytesKind:
 			g.P("			b = wire.AppendVarint(b, uint64(len(x.", privName, ")))")
 			g.P("			return append(b, x.", privName, "...)")
+		case protoreflect.MessageKind:
+			g.P("			lenPos := len(b)")
+			g.P("			b = append(b, 0, 0)")
+			g.P("			if x.", privName, " != nil {")
+			g.P("				b = x.", privName, ".MarshalOmniBufAppend(b)")
+			g.P("			}")
+			g.P("			return wire.BackpatchContainerLen(b, lenPos)")
 		}
 	}
 	g.P("		}")
@@ -831,28 +1394,36 @@ func generateOpaqueMessage(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P()
 }
 
-// The optimized encoder currently supports this explicit subset. Reject other
+// The optimized encoder supports this explicit subset. Reject other
 // schemas at generation time; the descriptor-aware runtime supports more types.
 func validateGeneratedFile(file *protogen.File) error {
 	for _, msg := range file.Messages {
-		if len(msg.Messages) != 0 {
-			return fmt.Errorf("omnibuf: generated codecs do not yet support nested declarations in %s; use omnibuf.Marshal", msg.Desc.FullName())
+		for _, nm := range msg.Messages {
+			if !nm.Desc.IsMapEntry() {
+				return fmt.Errorf("omnibuf: generated codecs do not yet support nested declarations in %s; use omnibuf.Marshal", msg.Desc.FullName())
+			}
 		}
 		for _, f := range msg.Fields {
-			if f.Desc.Number() > 65535 || f.Desc.IsMap() || f.Desc.HasOptionalKeyword() || f.Oneof != nil || (f.Desc.HasPresence() && f.Desc.Kind() != protoreflect.MessageKind) {
+			if f.Desc.Number() > 65535 || f.Desc.HasOptionalKeyword() || f.Oneof != nil || (f.Desc.HasPresence() && f.Desc.Kind() != protoreflect.MessageKind) {
 				return fmt.Errorf("omnibuf: generated codec unsupported field %s; use descriptor-aware omnibuf.Marshal/Unmarshal", f.Desc.FullName())
+			}
+			if f.Desc.IsMap() {
+				if f.Desc.MapKey().Kind() == protoreflect.StringKind && f.Desc.MapValue().Kind() == protoreflect.Uint64Kind {
+					continue
+				}
+				return fmt.Errorf("omnibuf: generated codec unsupported map field %s; use descriptor-aware omnibuf.Marshal/Unmarshal", f.Desc.FullName())
 			}
 			if f.Message != nil && f.Message.GoIdent.GoImportPath != msg.GoIdent.GoImportPath {
 				return fmt.Errorf("omnibuf: generated codec cannot call external message %s; use omnibuf.Marshal", f.Desc.FullName())
 			}
 			if f.Desc.IsList() {
 				switch f.Desc.Kind() {
-				case protoreflect.StringKind, protoreflect.Uint32Kind, protoreflect.MessageKind:
+				case protoreflect.StringKind, protoreflect.BytesKind, protoreflect.BoolKind, protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Fixed32Kind, protoreflect.Fixed64Kind, protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind, protoreflect.FloatKind, protoreflect.DoubleKind, protoreflect.MessageKind:
 					continue
 				}
 			} else {
 				switch f.Desc.Kind() {
-				case protoreflect.StringKind, protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.BoolKind, protoreflect.FloatKind, protoreflect.DoubleKind, protoreflect.MessageKind:
+				case protoreflect.StringKind, protoreflect.BytesKind, protoreflect.Uint32Kind, protoreflect.Uint64Kind, protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Fixed32Kind, protoreflect.Fixed64Kind, protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind, protoreflect.BoolKind, protoreflect.FloatKind, protoreflect.DoubleKind, protoreflect.MessageKind:
 					continue
 				}
 			}
@@ -866,7 +1437,7 @@ func canGenerateOpaque(msg *protogen.Message) bool {
 		return false
 	}
 	for _, f := range msg.Fields {
-		if f.Desc.Number() > 15 {
+		if f.Desc.Number() > 63 {
 			return false
 		}
 	}

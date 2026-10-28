@@ -68,6 +68,53 @@ func encodeMapStringUint(dst []byte, m map[string]uint64, deterministic bool) []
 	return BackpatchContainerLen(dst, lenPos)
 }
 
+// EncodeMapStringUint appends a WireMap<WireString, WireUint> container to dst.
+func EncodeMapStringUint(dst []byte, m map[string]uint64, deterministic bool) []byte {
+	return encodeMapStringUint(dst, m, deterministic)
+}
+
+// ReadMapStringUint decodes a WireMap<WireString, WireUint> field across any concatenated segments.
+func ReadMapStringUint(packet []byte, fieldNum uint16, zeroCopy bool) (map[string]uint64, bool) {
+	var out map[string]uint64
+	found := false
+	for pos := 0; ; {
+		body, nextPos, matched, valid := nextContainerField(packet, pos, fieldNum, WireMap, 3)
+		if !valid {
+			return nil, false
+		}
+		if !matched {
+			return out, found
+		}
+		pos = nextPos
+		keyWT, valWT, count, p, ok := ParseMapHeader(body)
+		if !ok || keyWT != WireString || valWT != WireUint {
+			return nil, false
+		}
+		if out == nil {
+			out = make(map[string]uint64, count)
+		}
+		for range count {
+			kLen, kn := DecodeVarint(body[p:])
+			if kn == 0 || kLen > uint64(len(body)-(p+kn)) {
+				return nil, false
+			}
+			p += kn
+			k := DecodeStr(body[p:p+int(kLen)], zeroCopy)
+			p += int(kLen)
+			v, vn := DecodeVarint(body[p:])
+			if vn == 0 {
+				return nil, false
+			}
+			p += vn
+			out[k] = v
+		}
+		if p != len(body) {
+			return nil, false
+		}
+		found = true
+	}
+}
+
 // WriteMapStringUint writes a map<string, uint64> (WireMap) in a single pass with zero allocations.
 func (e *Encoder) WriteMapStringUint(fieldNum uint16, m map[string]uint64) {
 	e.writeTag(fieldNum, WireMap)

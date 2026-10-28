@@ -34,6 +34,7 @@ message ConformanceRequest {
   string json_payload = 6;
   bool self_describing = 7;
   bool test_opaque_splice = 8;
+  bool test_opaque_splice_shrink = 9;
 }
 
 // ConformanceResponse is returned by the testee adapter binary over stdout

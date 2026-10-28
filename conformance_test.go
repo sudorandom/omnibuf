@@ -1354,6 +1354,183 @@ func buildSelectiveSpliceVectors(t *testing.T) []ConformanceVector {
 		ExpectedBlind: blindShrunk,
 	})
 
+	// L3: Grow EVERY field type in TestAllTypes across varint & container length boundaries via OpaqueTestAllTypes
+	compactAll := &pb.TestAllTypes{
+		F1Uint32:     1,
+		F2Uint64:     2,
+		F3Sint32:     -1,
+		F4Sint64:     -2,
+		F5Bool:       false,
+		F6String:     "hi",
+		F7Bytes:      []byte{0x01, 0x02},
+		F8SubMsg:     &pb.AllTypesSubMsg{Id: 1, Label: "a", Flag: false, Score: -1},
+		F9StringArr:  []string{"s0"},
+		F10Uint32Arr: []uint32{1},
+		F11SubMsgArr: []*pb.AllTypesSubMsg{
+			{Id: 1, Label: "e0", Flag: true, Score: 1},
+		},
+		F12MapStrUint:  map[string]uint64{"k": 1},
+		F13Float32:     0.5,
+		F14Float64:     1.5,
+		F15Fixed32:     10,
+		F16Fixed64:     20,
+		F20OverflowStr: "tail",
+	}
+	compactAllBytes := compactAll.MarshalOmniBufAppend(nil)
+
+	var opAll pb.OpaqueTestAllTypes
+	if err := opAll.Unmarshal(compactAllBytes); err != nil {
+		t.Fatalf("OpaqueTestAllTypes.Unmarshal(compactAllBytes) failed: %v", err)
+	}
+	// Mutate & grow every variable-width field while Leaving F13..F16 untouched to verify right-shift + trailing F20 grow
+	opAll.SetF1Uint32(1_000_000)
+	opAll.SetF2Uint64(math.MaxUint64)
+	opAll.SetF3Sint32(-1_000_000)
+	opAll.SetF4Sint64(math.MinInt64)
+	opAll.SetF5Bool(true)
+	opAll.SetF6String(strings.Repeat("grown-str-", 30))
+	opAll.SetF7Bytes(bytes.Repeat([]byte{0xab, 0xcd}, 130))
+	opAll.SetF8SubMsg(&pb.AllTypesSubMsg{
+		Id:    888888,
+		Label: strings.Repeat("sub-grown-", 20),
+		Flag:  true,
+		Score: -999999999,
+	})
+	opAll.SetF9StringArr([]string{"arr-grow-1", "arr-grow-2", strings.Repeat("arr-grow-3-", 15)})
+	opAll.SetF10Uint32Arr([]uint32{100000, 200000, 300000, 400000, 500000})
+	opAll.SetF11SubMsgArr([]*pb.AllTypesSubMsg{
+		{Id: 100001, Label: strings.Repeat("elem0-", 25), Flag: true, Score: -500000},
+		{Id: 100002, Label: "elem1-grown", Flag: false, Score: 500000},
+	})
+	opAll.SetF12MapStrUint(map[string]uint64{
+		"k1":          1000000,
+		"k2":          math.MaxUint64,
+		"k3_long_key": 424242,
+	})
+	opAll.SetF20OverflowStr(strings.Repeat("overflow20-", 20))
+	allGrownBytes := opAll.MarshalAppend(nil)
+
+	if len(allGrownBytes) <= len(compactAllBytes) {
+		t.Fatalf("expected allGrownBytes (%dB) > compactAllBytes (%dB)", len(allGrownBytes), len(compactAllBytes))
+	}
+	blindAllGrown, err := DecodeBlind(allGrownBytes)
+	if err != nil {
+		t.Fatalf("DecodeBlind(allGrownBytes) failed: %v", err)
+	}
+	out = append(out, ConformanceVector{
+		Name:          "test_all_types_splice_grow_every_type",
+		Category:      "L_SelectiveFieldSplice",
+		Description:   "OpaqueTestAllTypes wire splice growing every variable-width type (uint32, uint64, sint32, sint64, bool, string, bytes, SubMsg, []string, []uint32, []SubMsg, map, and field #20) while shifting untouched fixed/float fields right",
+		Schema:        "TestAllTypes",
+		WireHex:       hex.EncodeToString(allGrownBytes),
+		WireByteLen:   len(allGrownBytes),
+		PresentFields: inspectPresentFields(allGrownBytes),
+		ExpectedBlind: blindAllGrown,
+	})
+
+	// L4: Shrink EVERY field type in TestAllTypes back down to compact 1-byte / 1-element encodings
+	var opAllGrown pb.OpaqueTestAllTypes
+	if err := opAllGrown.Unmarshal(allGrownBytes); err != nil {
+		t.Fatalf("OpaqueTestAllTypes.Unmarshal(allGrownBytes) failed: %v", err)
+	}
+	opAllGrown.SetF1Uint32(1)
+	opAllGrown.SetF2Uint64(2)
+	opAllGrown.SetF3Sint32(-1)
+	opAllGrown.SetF4Sint64(-2)
+	opAllGrown.SetF5Bool(false)
+	opAllGrown.SetF6String("hi")
+	opAllGrown.SetF7Bytes([]byte{0x01, 0x02})
+	opAllGrown.SetF8SubMsg(&pb.AllTypesSubMsg{Id: 1, Label: "a", Flag: false, Score: -1})
+	opAllGrown.SetF9StringArr([]string{"s0"})
+	opAllGrown.SetF10Uint32Arr([]uint32{1})
+	opAllGrown.SetF11SubMsgArr([]*pb.AllTypesSubMsg{
+		{Id: 1, Label: "e0", Flag: true, Score: 1},
+	})
+	opAllGrown.SetF12MapStrUint(map[string]uint64{"k": 1})
+	opAllGrown.SetF20OverflowStr("tail")
+	allShrunkBytes := opAllGrown.MarshalAppend(nil)
+
+	if !bytes.Equal(allShrunkBytes, compactAllBytes) {
+		t.Fatalf("OpaqueTestAllTypes shrink back to compactAllBytes mismatch:\ngot  (%dB): %x\nwant (%dB): %x",
+			len(allShrunkBytes), allShrunkBytes, len(compactAllBytes), compactAllBytes)
+	}
+	blindAllShrunk, err := DecodeBlind(allShrunkBytes)
+	if err != nil {
+		t.Fatalf("DecodeBlind(allShrunkBytes) failed: %v", err)
+	}
+	out = append(out, ConformanceVector{
+		Name:          "test_all_types_splice_shrink_every_type",
+		Category:      "L_SelectiveFieldSplice",
+		Description:   "OpaqueTestAllTypes wire splice shrinking every variable-width type (uint32, uint64, sint32, sint64, bool, string, bytes, SubMsg, []string, []uint32, []SubMsg, map, and field #20) and shifting untouched fixed/float fields left",
+		Schema:        "TestAllTypes",
+		WireHex:       hex.EncodeToString(allShrunkBytes),
+		WireByteLen:   len(allShrunkBytes),
+		PresentFields: inspectPresentFields(allShrunkBytes),
+		ExpectedBlind: blindAllShrunk,
+	})
+
+	// L5: Weird edge-case: Splicing a packet produced by raw concatenation (append(pktA, pktB...))
+	// where duplicate occurrences of F6String, F9StringArr, and F12MapStrUint exist in raw.
+	// Mutating F6String (shrinking it to "x") and F9StringArr (replacing both array segments with ["replaced"])
+	// deduplicates the dirty fields while leaving untouched concatenated F10Uint32Arr ([1, 2] + [3, 4]) to merge!
+	partA, err := MarshalDeterministic(&TestAllTypes{
+		F1Uint32:      500000,
+		F6String:      strings.Repeat("duplicate-seg-a-", 12),
+		F9StringArr:   []string{"old-a1", "old-a2"},
+		F10Uint32Arr:  []uint32{1, 2},
+		F12MapStrUint: map[string]uint64{"a": 10},
+	})
+	if err != nil {
+		t.Fatalf("MarshalDeterministic(partA) failed: %v", err)
+	}
+	partB, err := MarshalDeterministic(&TestAllTypes{
+		F6String:       strings.Repeat("duplicate-seg-b-", 15),
+		F9StringArr:    []string{"old-b1", "old-b2"},
+		F10Uint32Arr:   []uint32{3, 4},
+		F12MapStrUint:  map[string]uint64{"b": 20},
+		F20OverflowStr: "from-part-b",
+	})
+	if err != nil {
+		t.Fatalf("MarshalDeterministic(partB) failed: %v", err)
+	}
+	concatRaw := append(append([]byte(nil), partA...), partB...)
+
+	var opConcat pb.OpaqueTestAllTypes
+	_ = opConcat.Unmarshal(concatRaw)
+	opConcat.SetF1Uint32(7)                     // shrink 4B -> 1B
+	opConcat.SetF6String("x")                   // shrink & deduplicate two >190B string occurrences -> single 1B "x"
+	opConcat.SetF9StringArr([]string{"single"}) // replace two array segments with single 1-element array
+	opConcat.SetF15Fixed32(42)                  // newly added field not present in partA or partB
+	splicedConcat := opConcat.MarshalAppend(nil)
+
+	var gotConcat TestAllTypes
+	if err := Unmarshal(splicedConcat, &gotConcat); err != nil {
+		t.Fatalf("Unmarshal(splicedConcat) failed: %v", err)
+	}
+	if gotConcat.F1Uint32 != 7 ||
+		gotConcat.F6String != "x" ||
+		!reflect.DeepEqual(gotConcat.F9StringArr, []string{"single"}) ||
+		!reflect.DeepEqual(gotConcat.F10Uint32Arr, []uint32{1, 2, 3, 4}) ||
+		!reflect.DeepEqual(gotConcat.F12MapStrUint, map[string]uint64{"a": 10, "b": 20}) ||
+		gotConcat.F15Fixed32 != 42 ||
+		gotConcat.F20OverflowStr != "from-part-b" {
+		t.Fatalf("splicedConcat mismatch: %+v", gotConcat)
+	}
+	blindSplicedConcat, err := DecodeBlind(splicedConcat)
+	if err != nil {
+		t.Fatalf("DecodeBlind(splicedConcat) failed: %v", err)
+	}
+	out = append(out, ConformanceVector{
+		Name:          "test_all_types_splice_concat_dedup_and_new_field",
+		Category:      "L_SelectiveFieldSplice",
+		Description:   "Splicing a concatenated packet (append(partA, partB)): deduplicates & shrinks dirty F6String and F9StringArr, preserves untouched multi-segment F10Uint32Arr and F12MapStrUint merge, and appends newly set F15Fixed32",
+		Schema:        "TestAllTypes",
+		WireHex:       hex.EncodeToString(splicedConcat),
+		WireByteLen:   len(splicedConcat),
+		PresentFields: inspectPresentFields(splicedConcat),
+		ExpectedBlind: blindSplicedConcat,
+	})
+
 	return out
 }
 

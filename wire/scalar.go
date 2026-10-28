@@ -184,3 +184,39 @@ func ReadBytes(packet []byte, fieldNum uint16) ([]byte, bool) {
 	}
 	return s[bn : bn+int(bLen)], true
 }
+
+// ReadFixed32 reads a 4-byte little-endian uint32 field (WireFixed32) with 0 heap allocations.
+func ReadFixed32(packet []byte, fieldNum uint16) (uint32, bool) {
+	s, wt, ok := LocateField(packet, fieldNum)
+	if !ok || wt != WireFixed32 || len(s) < 4 {
+		return 0, false
+	}
+	return binary.LittleEndian.Uint32(s[:4]), true
+}
+
+// ReadFixed64 reads an 8-byte little-endian uint64 field (WireFixed64) with 0 heap allocations.
+func ReadFixed64(packet []byte, fieldNum uint16) (uint64, bool) {
+	s, wt, ok := LocateField(packet, fieldNum)
+	if !ok || wt != WireFixed64 || len(s) < 8 {
+		return 0, false
+	}
+	return binary.LittleEndian.Uint64(s[:8]), true
+}
+
+// ReadSfixed32 reads a 4-byte little-endian signed int32 field (WireSfixed32) with 0 heap allocations.
+func ReadSfixed32(packet []byte, fieldNum uint16) (int32, bool) {
+	s, wt, ok := LocateField(packet, fieldNum)
+	if !ok || wt != WireSfixed32 || len(s) < 4 {
+		return 0, false
+	}
+	return int32(binary.LittleEndian.Uint32(s[:4])), true
+}
+
+// ReadSfixed64 reads an 8-byte little-endian signed int64 field (WireSfixed64) with 0 heap allocations.
+func ReadSfixed64(packet []byte, fieldNum uint16) (int64, bool) {
+	s, wt, ok := LocateField(packet, fieldNum)
+	if !ok || wt != WireSfixed64 || len(s) < 8 {
+		return 0, false
+	}
+	return int64(binary.LittleEndian.Uint64(s[:8])), true
+}

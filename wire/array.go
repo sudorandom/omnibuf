@@ -159,6 +159,32 @@ func EncodeFixed64Arr[T intOrUint](dst []byte, items []T, elem uint8) []byte {
 	}
 	return BackpatchContainerLen(dst, p)
 }
+func EncodeFloat32Arr(dst []byte, items []float32) []byte {
+	p := len(dst)
+	dst = append(dst, 0, 0, WireFloat32)
+	dst = AppendVarint(dst, uint64(len(items)))
+	for _, v := range items {
+		dst = binary.LittleEndian.AppendUint32(dst, math.Float32bits(v))
+	}
+	if d := len(dst) - p; d <= 16385 {
+		binary.LittleEndian.PutUint16(dst[p:], uint16(d<<2-6))
+		return dst
+	}
+	return BackpatchContainerLen(dst, p)
+}
+func EncodeFloat64Arr(dst []byte, items []float64) []byte {
+	p := len(dst)
+	dst = append(dst, 0, 0, WireFloat64)
+	dst = AppendVarint(dst, uint64(len(items)))
+	for _, v := range items {
+		dst = binary.LittleEndian.AppendUint64(dst, math.Float64bits(v))
+	}
+	if d := len(dst) - p; d <= 16385 {
+		binary.LittleEndian.PutUint16(dst[p:], uint16(d<<2-6))
+		return dst
+	}
+	return BackpatchContainerLen(dst, p)
+}
 
 func AppendStringArrBody(dst []string, body []byte, zeroCopy bool) ([]string, bool) {
 	if len(body) < 2 || body[0] != WireString {
@@ -410,4 +436,48 @@ func ReadFloat32Arr(p []byte, f uint16) ([]float32, bool) {
 }
 func ReadFloat64Arr(p []byte, f uint16) ([]float64, bool) {
 	return readArrays(nil, p, f, AppendFloat64ArrBody)
+}
+func AppendBytesArr(d [][]byte, p []byte, f uint16, zeroCopy bool) [][]byte {
+	d, _ = readArrays(d, p, f, func(d [][]byte, b []byte) ([][]byte, bool) { return AppendBytesArrBody(d, b, zeroCopy) })
+	return d
+}
+func AppendBoolArr(d []bool, p []byte, f uint16) []bool {
+	d, _ = readArrays(d, p, f, AppendBoolArrBody)
+	return d
+}
+func AppendUint64Arr(d []uint64, p []byte, f uint16) []uint64 {
+	d, _ = readArrays(d, p, f, AppendUintArrBody[uint64])
+	return d
+}
+func AppendSint32Arr(d []int32, p []byte, f uint16) []int32 {
+	d, _ = readArrays(d, p, f, AppendSintArrBody[int32])
+	return d
+}
+func AppendSint64Arr(d []int64, p []byte, f uint16) []int64 {
+	d, _ = readArrays(d, p, f, AppendSintArrBody[int64])
+	return d
+}
+func AppendFixed32Arr(d []uint32, p []byte, f uint16) []uint32 {
+	d, _ = readArrays(d, p, f, AppendFixed32ArrBody[uint32])
+	return d
+}
+func AppendFixed64Arr(d []uint64, p []byte, f uint16) []uint64 {
+	d, _ = readArrays(d, p, f, AppendFixed64ArrBody[uint64])
+	return d
+}
+func AppendSfixed32Arr(d []int32, p []byte, f uint16) []int32 {
+	d, _ = readArrays(d, p, f, AppendFixed32ArrBody[int32])
+	return d
+}
+func AppendSfixed64Arr(d []int64, p []byte, f uint16) []int64 {
+	d, _ = readArrays(d, p, f, AppendFixed64ArrBody[int64])
+	return d
+}
+func AppendFloat32Arr(d []float32, p []byte, f uint16) []float32 {
+	d, _ = readArrays(d, p, f, AppendFloat32ArrBody)
+	return d
+}
+func AppendFloat64Arr(d []float64, p []byte, f uint16) []float64 {
+	d, _ = readArrays(d, p, f, AppendFloat64ArrBody)
+	return d
 }

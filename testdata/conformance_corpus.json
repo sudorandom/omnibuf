@@ -1954,6 +1954,214 @@
           "field_6": 8.6821
         }
       }
+    },
+    {
+      "name": "test_all_types_splice_grow_every_type",
+      "category": "L_SelectiveFieldSplice",
+      "description": "OpaqueTestAllTypes wire splice growing every variable-width type (uint32, uint64, sint32, sint64, bool, string, bytes, SubMsg, []string, []uint32, []SubMsg, map, and field #20) while shifting untouched fixed/float fields right",
+      "schema": "TestAllTypes",
+      "wire_hex": "2104127a004100ffffffffffffffff63fc23f4008300ffffffffffffffffa7d5b20467726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722d67726f776e2d7374722df71204abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd32026e0321c4816c005522037375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d7375622d67726f776e2d678300fd933577000000007602fe020a07156172722d67726f772d31156172722d67726f772d3296026172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332d6172722d67726f772d332db6025a00000b04350c00046a1800049f240004d4300004093d00f6020a030c059202210c350c00555a02656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d656c656d302d6783fc117a0062002114350c005517656c656d312d67726f776e658304127a003a039a000a0007056b3104127a00056b3200ffffffffffffffff176b335f6c6f6e675f6b657994c9330062030000003fa603000000000000f83fd2030a000000160414000000000000002a0572036f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d6f766572666c6f7732302d",
+      "wire_byte_len": 1537,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 1000000,
+        "field_10": [
+          100000,
+          200000,
+          300000,
+          400000,
+          500000
+        ],
+        "field_11": [
+          {
+            "field_1": 100001,
+            "field_2": "elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-elem0-",
+            "field_3": true,
+            "field_4": -500000
+          },
+          {
+            "field_1": 100002,
+            "field_2": "elem1-grown",
+            "field_3": false,
+            "field_4": 500000
+          }
+        ],
+        "field_12": {
+          "k1": 1000000,
+          "k2": 18446744073709551615,
+          "k3_long_key": 424242
+        },
+        "field_13": 0.5,
+        "field_14": 1.5,
+        "field_15": 10,
+        "field_16": 20,
+        "field_2": 18446744073709551615,
+        "field_20": "overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-overflow20-",
+        "field_3": -1000000,
+        "field_4": -9223372036854775808,
+        "field_5": true,
+        "field_6": "grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-grown-str-",
+        "field_7": "q82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq82rzavNq80=",
+        "field_8": {
+          "field_1": 888888,
+          "field_2": "sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-sub-grown-",
+          "field_3": true,
+          "field_4": -999999999
+        },
+        "field_9": [
+          "arr-grow-1",
+          "arr-grow-2",
+          "arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-arr-grow-3-"
+        ]
+      }
+    },
+    {
+      "name": "test_all_types_splice_shrink_every_type",
+      "category": "L_SelectiveFieldSplice",
+      "description": "OpaqueTestAllTypes wire splice shrinking every variable-width type (uint32, uint64, sint32, sint64, bool, string, bytes, SubMsg, []string, []uint32, []SubMsg, map, and field #20) and shifting untouched fixed/float fields left",
+      "schema": "TestAllTypes",
+      "wire_hex": "2103410563038307a5d5056869f7050102320222002103550361658303760216000a03057330b6020e00000303f60236000c0326002103550565306783053a031a000a0003036b0362030000003fa603000000000000f83fd2030a000000160414000000000000002a05097461696c",
+      "wire_byte_len": 111,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 1,
+        "field_10": [
+          1
+        ],
+        "field_11": [
+          {
+            "field_1": 1,
+            "field_2": "e0",
+            "field_3": true,
+            "field_4": 1
+          }
+        ],
+        "field_12": {
+          "k": 1
+        },
+        "field_13": 0.5,
+        "field_14": 1.5,
+        "field_15": 10,
+        "field_16": 20,
+        "field_2": 2,
+        "field_20": "tail",
+        "field_3": -1,
+        "field_4": -2,
+        "field_5": false,
+        "field_6": "hi",
+        "field_7": "AQI=",
+        "field_8": {
+          "field_1": 1,
+          "field_2": "a",
+          "field_3": false,
+          "field_4": -1
+        },
+        "field_9": [
+          "s0"
+        ]
+      }
+    },
+    {
+      "name": "test_all_types_splice_concat_dedup_and_new_field",
+      "category": "L_SelectiveFieldSplice",
+      "description": "Splicing a concatenated packet (append(partA, partB)): deduplicates \u0026 shrinks dirty F6String and F9StringArr, preserves untouched multi-segment F10Uint32Arr and F12MapStrUint merge, and appends newly set F15Fixed32",
+      "schema": "TestAllTypes",
+      "wire_hex": "210f410163018301a5d50378f701760226000a030d73696e676c65b602120000050305f6020a000c013a031a000a0003036115620300000000a6030000000000000000d2032a000000160400000000000000002a0501410163018301a5f701b602120000050709f6020a000c013a031a000a0003036229620300000000a6030000000000000000160400000000000000002a051766726f6d2d706172742d62",
+      "wire_byte_len": 159,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20,
+        2,
+        3,
+        4,
+        5,
+        7,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 7,
+        "field_10": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "field_11": [],
+        "field_12": {
+          "a": 10,
+          "b": 20
+        },
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 42,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "from-part-b",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "x",
+        "field_7": "",
+        "field_9": [
+          "single"
+        ]
+      }
     }
   ],
   "invalid_cases": [

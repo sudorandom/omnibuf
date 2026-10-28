@@ -1,6 +1,7 @@
 package omnibuf_test
 
 import (
+	"bytes"
 	"math"
 	"reflect"
 	"strings"
@@ -283,5 +284,242 @@ func TestOpaqueSpliceFieldSizeGrowAndShrink(t *testing.T) {
 	}
 	if meta, ok := ReadField0SchemaMeta(splicedUnknown); !ok || meta.Fields[2] != "router_id" {
 		t.Fatalf("Field #0 SchemaMeta lost after grow splice: %#v, %v", meta, ok)
+	}
+}
+
+func TestOpaqueSpliceEverySingleTypeIndividually(t *testing.T) {
+	base := func() *pb.TestAllTypes {
+		return &pb.TestAllTypes{
+			F1Uint32:     1,
+			F2Uint64:     2,
+			F3Sint32:     -1,
+			F4Sint64:     -2,
+			F5Bool:       false,
+			F6String:     "hi",
+			F7Bytes:      []byte{0x01, 0x02},
+			F8SubMsg:     &pb.AllTypesSubMsg{Id: 1, Label: "a", Flag: false, Score: -1},
+			F9StringArr:  []string{"s0"},
+			F10Uint32Arr: []uint32{1},
+			F11SubMsgArr: []*pb.AllTypesSubMsg{
+				{Id: 1, Label: "e0", Flag: true, Score: 1},
+			},
+			F12MapStrUint:  map[string]uint64{"k": 1},
+			F13Float32:     0.5,
+			F14Float64:     1.5,
+			F15Fixed32:     10,
+			F16Fixed64:     20,
+			F20OverflowStr: "tail",
+		}
+	}
+
+	cases := []struct {
+		name      string
+		growOp    func(*pb.OpaqueTestAllTypes)
+		growMsg   func(*pb.TestAllTypes)
+		shrinkOp  func(*pb.OpaqueTestAllTypes)
+		shrinkMsg func(*pb.TestAllTypes)
+		sizeDelta bool // true if grow increases wire size and shrink decreases wire size
+	}{
+		{
+			name:      "f1_uint32 (1B <-> 4B)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF1Uint32(1_000_000) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F1Uint32 = 1_000_000 },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF1Uint32(7) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F1Uint32 = 7 },
+			sizeDelta: true,
+		},
+		{
+			name:      "f2_uint64 (1B <-> 9B)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF2Uint64(math.MaxUint64) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F2Uint64 = math.MaxUint64 },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF2Uint64(3) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F2Uint64 = 3 },
+			sizeDelta: true,
+		},
+		{
+			name:      "f3_sint32 (1B <-> 4B)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF3Sint32(-1_000_000) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F3Sint32 = -1_000_000 },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF3Sint32(-2) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F3Sint32 = -2 },
+			sizeDelta: true,
+		},
+		{
+			name:      "f4_sint64 (1B <-> 9B)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF4Sint64(math.MinInt64) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F4Sint64 = math.MinInt64 },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF4Sint64(0) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F4Sint64 = 0 },
+			sizeDelta: true,
+		},
+		{
+			name:      "f5_bool (WireBoolFalse <-> WireBoolTrue)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF5Bool(true) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F5Bool = true },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF5Bool(false) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F5Bool = false },
+			sizeDelta: false,
+		},
+		{
+			name:      "f6_string (2B/1B-len <-> 300B/2B-len)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF6String(strings.Repeat("str-", 75)) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F6String = strings.Repeat("str-", 75) },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF6String("x") },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F6String = "x" },
+			sizeDelta: true,
+		},
+		{
+			name:      "f7_bytes (2B/1B-len <-> 260B/2B-len)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF7Bytes(bytes.Repeat([]byte{0xde, 0xad}, 130)) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F7Bytes = bytes.Repeat([]byte{0xde, 0xad}, 130) },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF7Bytes([]byte{0xff}) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F7Bytes = []byte{0xff} },
+			sizeDelta: true,
+		},
+		{
+			name: "f8_sub_msg (small <-> >200B)",
+			growOp: func(o *pb.OpaqueTestAllTypes) {
+				o.SetF8SubMsg(&pb.AllTypesSubMsg{Id: 999999, Label: strings.Repeat("sub-", 55), Flag: true, Score: math.MinInt64})
+			},
+			growMsg: func(m *pb.TestAllTypes) {
+				m.F8SubMsg = &pb.AllTypesSubMsg{Id: 999999, Label: strings.Repeat("sub-", 55), Flag: true, Score: math.MinInt64}
+			},
+			shrinkOp: func(o *pb.OpaqueTestAllTypes) {
+				o.SetF8SubMsg(&pb.AllTypesSubMsg{Id: 2, Label: "z", Flag: false, Score: 0})
+			},
+			shrinkMsg: func(m *pb.TestAllTypes) {
+				m.F8SubMsg = &pb.AllTypesSubMsg{Id: 2, Label: "z", Flag: false, Score: 0}
+			},
+			sizeDelta: true,
+		},
+		{
+			name:      "f9_string_arr (1 elem <-> 10 elems)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF9StringArr([]string{"a", "b", "c", strings.Repeat("long-", 30)}) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F9StringArr = []string{"a", "b", "c", strings.Repeat("long-", 30)} },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF9StringArr([]string{"z"}) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F9StringArr = []string{"z"} },
+			sizeDelta: true,
+		},
+		{
+			name:      "f10_uint32_arr (1x1B <-> 5x4B)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF10Uint32Arr([]uint32{100000, 200000, 300000, 400000, 500000}) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F10Uint32Arr = []uint32{100000, 200000, 300000, 400000, 500000} },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF10Uint32Arr([]uint32{9}) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F10Uint32Arr = []uint32{9} },
+			sizeDelta: true,
+		},
+		{
+			name: "f11_sub_msg_arr (1 elem <-> 3 elems)",
+			growOp: func(o *pb.OpaqueTestAllTypes) {
+				o.SetF11SubMsgArr([]*pb.AllTypesSubMsg{
+					{Id: 100, Label: strings.Repeat("e0-", 30), Flag: true, Score: -100000},
+					{Id: 200, Label: "e1", Flag: false, Score: 200000},
+					{Id: 300, Label: "e2", Flag: true, Score: -300000},
+				})
+			},
+			growMsg: func(m *pb.TestAllTypes) {
+				m.F11SubMsgArr = []*pb.AllTypesSubMsg{
+					{Id: 100, Label: strings.Repeat("e0-", 30), Flag: true, Score: -100000},
+					{Id: 200, Label: "e1", Flag: false, Score: 200000},
+					{Id: 300, Label: "e2", Flag: true, Score: -300000},
+				}
+			},
+			shrinkOp: func(o *pb.OpaqueTestAllTypes) {
+				o.SetF11SubMsgArr([]*pb.AllTypesSubMsg{{Id: 2, Label: "s", Flag: false, Score: 0}})
+			},
+			shrinkMsg: func(m *pb.TestAllTypes) {
+				m.F11SubMsgArr = []*pb.AllTypesSubMsg{{Id: 2, Label: "s", Flag: false, Score: 0}}
+			},
+			sizeDelta: true,
+		},
+		{
+			name: "f12_map_str_uint (1 entry <-> 4 entries)",
+			growOp: func(o *pb.OpaqueTestAllTypes) {
+				o.SetF12MapStrUint(map[string]uint64{"a": 1000000, "b": math.MaxUint64, "c": 42, "d_long": 999999})
+			},
+			growMsg: func(m *pb.TestAllTypes) {
+				m.F12MapStrUint = map[string]uint64{"a": 1000000, "b": math.MaxUint64, "c": 42, "d_long": 999999}
+			},
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF12MapStrUint(map[string]uint64{"z": 1}) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F12MapStrUint = map[string]uint64{"z": 1} },
+			sizeDelta: true,
+		},
+		{
+			name:      "f13_float32",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF13Float32(-9876.5) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F13Float32 = -9876.5 },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF13Float32(0.25) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F13Float32 = 0.25 },
+			sizeDelta: false,
+		},
+		{
+			name:      "f14_float64",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF14Float64(3.141592653589793) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F14Float64 = 3.141592653589793 },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF14Float64(-0.125) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F14Float64 = -0.125 },
+			sizeDelta: false,
+		},
+		{
+			name:      "f15_fixed32",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF15Fixed32(0xdeadbeef) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F15Fixed32 = 0xdeadbeef },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF15Fixed32(3) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F15Fixed32 = 3 },
+			sizeDelta: false,
+		},
+		{
+			name:      "f16_fixed64 (field #16 >= 16)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF16Fixed64(0xcafebabedeadbeef) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F16Fixed64 = 0xcafebabedeadbeef },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF16Fixed64(4) },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F16Fixed64 = 4 },
+			sizeDelta: false,
+		},
+		{
+			name:      "f20_overflow_str (2B tag field #20, 4B <-> 220B)",
+			growOp:    func(o *pb.OpaqueTestAllTypes) { o.SetF20OverflowStr(strings.Repeat("f20-grow-", 25)) },
+			growMsg:   func(m *pb.TestAllTypes) { m.F20OverflowStr = strings.Repeat("f20-grow-", 25) },
+			shrinkOp:  func(o *pb.OpaqueTestAllTypes) { o.SetF20OverflowStr("k") },
+			shrinkMsg: func(m *pb.TestAllTypes) { m.F20OverflowStr = "k" },
+			sizeDelta: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := base()
+			initialBytes := m.MarshalOmniBufAppend(nil)
+
+			// 1. Single-field grow/mutate splice
+			var op pb.OpaqueTestAllTypes
+			_ = op.Unmarshal(initialBytes)
+			tc.growOp(&op)
+			grownBytes := op.MarshalAppend(nil)
+
+			tc.growMsg(m)
+			wantGrownBytes := m.MarshalOmniBufAppend(nil)
+			if tc.sizeDelta && len(grownBytes) <= len(initialBytes) {
+				t.Fatalf("expected grownBytes (%dB) > initialBytes (%dB)", len(grownBytes), len(initialBytes))
+			}
+			if !bytes.Equal(grownBytes, wantGrownBytes) {
+				t.Fatalf("grow splice bytes mismatch:\ngot  (%dB): %x\nwant (%dB): %x", len(grownBytes), grownBytes, len(wantGrownBytes), wantGrownBytes)
+			}
+
+			// 2. Single-field shrink splice from the grown packet
+			var op2 pb.OpaqueTestAllTypes
+			_ = op2.Unmarshal(grownBytes)
+			tc.shrinkOp(&op2)
+			shrunkBytes := op2.MarshalAppend(nil)
+
+			tc.shrinkMsg(m)
+			wantShrunkBytes := m.MarshalOmniBufAppend(nil)
+			if tc.sizeDelta && len(shrunkBytes) >= len(grownBytes) {
+				t.Fatalf("expected shrunkBytes (%dB) < grownBytes (%dB)", len(shrunkBytes), len(grownBytes))
+			}
+			if !bytes.Equal(shrunkBytes, wantShrunkBytes) {
+				t.Fatalf("shrink splice bytes mismatch:\ngot  (%dB): %x\nwant (%dB): %x", len(shrunkBytes), shrunkBytes, len(wantShrunkBytes), wantShrunkBytes)
+			}
+		})
 	}
 }

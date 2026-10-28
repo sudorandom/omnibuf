@@ -53,7 +53,7 @@ func TestRoundTrip(t *testing.T){
 }
 func TestRejectUnsupportedGeneratedField(t *testing.T) {
 	req := peerProtoRequest()
-	req.ProtoFile[0].MessageType[0].Field[0].Type = descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum()
+	req.ProtoFile[0].MessageType[0].Field[0].Proto3Optional = proto.Bool(true)
 	gen, err := protogen.Options{}.New(req)
 	if err != nil {
 		t.Fatal(err)

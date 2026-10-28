@@ -8,6 +8,8 @@
 *.test
 *.out
 
+.gemini
+
 # Frontend build & dependencies
 /web/node_modules/
 /web/dist/

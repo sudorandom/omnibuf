@@ -60,14 +60,15 @@ func (t TestTier) String() string {
 // ConformanceRequest is sent from conformance-runner to the adapter binary over stdin
 // prefixed by a 4-byte little-endian uint32 byte length.
 type ConformanceRequest struct {
-	TestName              string `omnibuf:"1,name=test_name" protobuf:"bytes,1,opt,name=test_name,proto3" json:"test_name"`
-	MessageType           string `omnibuf:"2,name=message_type" protobuf:"bytes,2,opt,name=message_type,proto3" json:"message_type"`
-	Tier                  uint32 `omnibuf:"3,name=tier" protobuf:"varint,3,opt,name=tier,proto3" json:"tier"`
-	RequestedOutputFormat uint32 `omnibuf:"4,name=requested_output_format" protobuf:"varint,4,opt,name=requested_output_format,proto3" json:"requested_output_format"`
-	OmniBufPayload        []byte `omnibuf:"5,name=omnibuf_payload" protobuf:"bytes,5,opt,name=omnibuf_payload,proto3" json:"omnibuf_payload"`
-	JSONPayload           string `omnibuf:"6,name=json_payload" protobuf:"bytes,6,opt,name=json_payload,proto3" json:"json_payload"`
-	SelfDescribing        bool   `omnibuf:"7,name=self_describing" protobuf:"varint,7,opt,name=self_describing,proto3" json:"self_describing"`
-	TestOpaqueSplice      bool   `omnibuf:"8,name=test_opaque_splice" protobuf:"varint,8,opt,name=test_opaque_splice,proto3" json:"test_opaque_splice"`
+	TestName               string `omnibuf:"1,name=test_name" protobuf:"bytes,1,opt,name=test_name,proto3" json:"test_name"`
+	MessageType            string `omnibuf:"2,name=message_type" protobuf:"bytes,2,opt,name=message_type,proto3" json:"message_type"`
+	Tier                   uint32 `omnibuf:"3,name=tier" protobuf:"varint,3,opt,name=tier,proto3" json:"tier"`
+	RequestedOutputFormat  uint32 `omnibuf:"4,name=requested_output_format" protobuf:"varint,4,opt,name=requested_output_format,proto3" json:"requested_output_format"`
+	OmniBufPayload         []byte `omnibuf:"5,name=omnibuf_payload" protobuf:"bytes,5,opt,name=omnibuf_payload,proto3" json:"omnibuf_payload"`
+	JSONPayload            string `omnibuf:"6,name=json_payload" protobuf:"bytes,6,opt,name=json_payload,proto3" json:"json_payload"`
+	SelfDescribing         bool   `omnibuf:"7,name=self_describing" protobuf:"varint,7,opt,name=self_describing,proto3" json:"self_describing"`
+	TestOpaqueSplice       bool   `omnibuf:"8,name=test_opaque_splice" protobuf:"varint,8,opt,name=test_opaque_splice,proto3" json:"test_opaque_splice"`
+	TestOpaqueSpliceShrink bool   `omnibuf:"9,name=test_opaque_splice_shrink" protobuf:"varint,9,opt,name=test_opaque_splice_shrink,proto3" json:"test_opaque_splice_shrink"`
 }
 
 // ConformanceResponse is returned by the adapter binary over stdout
@@ -400,10 +401,76 @@ func RunSuite(adapterBinary, corpusPath string) (*Summary, error) {
 					}
 					if respSplice.ParseError != "" || respSplice.SerializeError != "" || respSplice.RuntimeError != "" {
 						recordResult(tier, vec.Name+"/OpaqueSpliceGrow", fmt.Sprintf("error: parse=%q serialize=%q runtime=%q", respSplice.ParseError, respSplice.SerializeError, respSplice.RuntimeError), respSplice.Skipped)
-					} else if err := verifyOpaqueSpliceGrowEquivalence(rawWire, respSplice.OmniBufPayload); err != nil {
+					} else if err := verifyOpaqueSpliceGrowEquivalence(vec.Schema, rawWire, respSplice.OmniBufPayload); err != nil {
 						recordResult(tier, vec.Name+"/OpaqueSpliceGrow", err.Error(), respSplice.Skipped)
 					} else {
 						recordResult(tier, vec.Name+"/OpaqueSpliceGrow", "", respSplice.Skipped)
+
+						reqShrink := &ConformanceRequest{
+							TestName:               vec.Name + "/" + tier.String() + "/OpaqueSpliceShrink",
+							MessageType:            canonicalMessageType(vec.Schema),
+							Tier:                   uint32(tier),
+							RequestedOutputFormat:  uint32(WireFormatOmniBuf),
+							OmniBufPayload:         respSplice.OmniBufPayload,
+							TestOpaqueSpliceShrink: true,
+						}
+						respShrink, err := sendReq(reqShrink)
+						if err != nil {
+							_ = stdin.Close()
+							_ = cmd.Wait()
+							return nil, err
+						}
+						if respShrink.ParseError != "" || respShrink.SerializeError != "" || respShrink.RuntimeError != "" {
+							recordResult(tier, vec.Name+"/OpaqueSpliceShrink", fmt.Sprintf("error: parse=%q serialize=%q runtime=%q", respShrink.ParseError, respShrink.SerializeError, respShrink.RuntimeError), respShrink.Skipped)
+						} else if err := verifyOpaqueSpliceShrinkEquivalence(vec.Schema, respSplice.OmniBufPayload, respShrink.OmniBufPayload); err != nil {
+							recordResult(tier, vec.Name+"/OpaqueSpliceShrink", err.Error(), respShrink.Skipped)
+						} else {
+							recordResult(tier, vec.Name+"/OpaqueSpliceShrink", "", respShrink.Skipped)
+						}
+					}
+				}
+			} else if vec.Schema == "TestAllTypes" && tier == TestTierPlugin {
+				reqSplice := &ConformanceRequest{
+					TestName:              vec.Name + "/" + tier.String() + "/OpaqueSpliceGrow",
+					MessageType:           canonicalMessageType(vec.Schema),
+					Tier:                  uint32(tier),
+					RequestedOutputFormat: uint32(WireFormatOmniBuf),
+					OmniBufPayload:        rawWire,
+					TestOpaqueSplice:      true,
+				}
+				respSplice, err := sendReq(reqSplice)
+				if err != nil {
+					_ = stdin.Close()
+					_ = cmd.Wait()
+					return nil, err
+				}
+				if respSplice.ParseError != "" || respSplice.SerializeError != "" || respSplice.RuntimeError != "" {
+					recordResult(tier, vec.Name+"/OpaqueSpliceGrow", fmt.Sprintf("error: parse=%q serialize=%q runtime=%q", respSplice.ParseError, respSplice.SerializeError, respSplice.RuntimeError), respSplice.Skipped)
+				} else if err := verifyOpaqueSpliceGrowEquivalence(vec.Schema, rawWire, respSplice.OmniBufPayload); err != nil {
+					recordResult(tier, vec.Name+"/OpaqueSpliceGrow", err.Error(), respSplice.Skipped)
+				} else {
+					recordResult(tier, vec.Name+"/OpaqueSpliceGrow", "", respSplice.Skipped)
+
+					reqShrink := &ConformanceRequest{
+						TestName:               vec.Name + "/" + tier.String() + "/OpaqueSpliceShrink",
+						MessageType:            canonicalMessageType(vec.Schema),
+						Tier:                   uint32(tier),
+						RequestedOutputFormat:  uint32(WireFormatOmniBuf),
+						OmniBufPayload:         respSplice.OmniBufPayload,
+						TestOpaqueSpliceShrink: true,
+					}
+					respShrink, err := sendReq(reqShrink)
+					if err != nil {
+						_ = stdin.Close()
+						_ = cmd.Wait()
+						return nil, err
+					}
+					if respShrink.ParseError != "" || respShrink.SerializeError != "" || respShrink.RuntimeError != "" {
+						recordResult(tier, vec.Name+"/OpaqueSpliceShrink", fmt.Sprintf("error: parse=%q serialize=%q runtime=%q", respShrink.ParseError, respShrink.SerializeError, respShrink.RuntimeError), respShrink.Skipped)
+					} else if err := verifyOpaqueSpliceShrinkEquivalence(vec.Schema, respSplice.OmniBufPayload, respShrink.OmniBufPayload); err != nil {
+						recordResult(tier, vec.Name+"/OpaqueSpliceShrink", err.Error(), respShrink.Skipped)
+					} else {
+						recordResult(tier, vec.Name+"/OpaqueSpliceShrink", "", respShrink.Skipped)
 					}
 				}
 			}
@@ -476,9 +543,9 @@ func RunSuite(adapterBinary, corpusPath string) (*Summary, error) {
 
 func tiersForSchema(schema string) []TestTier {
 	switch schema {
-	case "PeerUpdate":
+	case "PeerUpdate", "TestAllTypes":
 		return []TestTier{TestTierPlugin, TestTierProtobufTypes, TestTierAnnotatedStruct}
-	case "TestAllTypes", "EmptyMessage", "SparseField14", "SelfDescribingSparse":
+	case "EmptyMessage", "SparseField14", "SelfDescribingSparse":
 		return []TestTier{TestTierAnnotatedStruct}
 	case "TreeNode", "NestedCluster":
 		return []TestTier{TestTierAnnotatedStruct}
@@ -533,23 +600,153 @@ type PeerUpdate struct {
 	Sequence  uint64     `omnibuf:"11,name=sequence" json:"sequence"`
 }
 
-func verifyOpaqueSpliceGrowEquivalence(inputWire, outputWire []byte) error {
-	var want, got PeerUpdate
-	if err := omnibuf.Unmarshal(inputWire, &want); err != nil {
-		return fmt.Errorf("runner decode input PeerUpdate: %w", err)
-	}
-	want.ASN = 1_000_000
-	want.RouterID = strings.Repeat("edge-rtr-fra01-", 20)
-	want.UptimeSec = math.MaxUint64
-	want.Sequence++
+func verifyOpaqueSpliceGrowEquivalence(schema string, inputWire, outputWire []byte) error {
+	switch schema {
+	case "PeerUpdate":
+		var want, got PeerUpdate
+		if err := omnibuf.Unmarshal(inputWire, &want); err != nil {
+			return fmt.Errorf("runner decode input PeerUpdate: %w", err)
+		}
+		want.ASN = 1_000_000
+		want.RouterID = strings.Repeat("edge-rtr-fra01-", 20)
+		want.Active = !want.Active
+		want.UptimeSec = math.MaxUint64
+		want.RssiDbm = -1_000_000
+		want.CPULoad = 99.875
+		want.Tags = []string{"tag-grow-a", "tag-grow-b", strings.Repeat("long-tag-", 20)}
+		want.Prefixes = []uint32{100000, 200000, 300000, 400000, 500000, 600000}
+		want.Location = Location{
+			Region:     "eu-central-grown",
+			Datacenter: strings.Repeat("fra-dc-", 25),
+			City:       "Berlin",
+			Rack:       999999,
+			Latitude:   52.52,
+			Longitude:  13.405,
+		}
+		want.Sequence++
 
-	if err := omnibuf.Unmarshal(outputWire, &got); err != nil {
-		return fmt.Errorf("runner decode spliced PeerUpdate: %w", err)
+		if err := omnibuf.Unmarshal(outputWire, &got); err != nil {
+			return fmt.Errorf("runner decode spliced PeerUpdate: %w", err)
+		}
+		if !reflect.DeepEqual(want, got) {
+			return fmt.Errorf("PeerUpdate OpaqueSpliceGrow mismatch:\ngot:  %+v\nwant: %+v", got, want)
+		}
+		return nil
+
+	default:
+		var want, got TestAllTypes
+		if err := omnibuf.Unmarshal(inputWire, &want); err != nil {
+			return fmt.Errorf("runner decode input TestAllTypes: %w", err)
+		}
+		want.F1Uint32 = 1_000_000
+		want.F2Uint64 = math.MaxUint64
+		want.F3Sint32 = -1_000_000
+		want.F4Sint64 = math.MinInt64
+		want.F5Bool = !want.F5Bool
+		want.F6String = strings.Repeat("grown-str-", 30)
+		want.F7Bytes = bytes.Repeat([]byte{0xab, 0xcd}, 130)
+		want.F8SubMsg = &AllTypesSubMsg{
+			ID:    888888,
+			Label: strings.Repeat("sub-grown-", 20),
+			Flag:  true,
+			Score: -999999999,
+		}
+		want.F9StringArr = []string{"arr-grow-1", "arr-grow-2", strings.Repeat("arr-grow-3-", 15)}
+		want.F10Uint32Arr = []uint32{100000, 200000, 300000, 400000, 500000}
+		want.F11SubMsgArr = []AllTypesSubMsg{
+			{ID: 100001, Label: strings.Repeat("elem0-", 25), Flag: true, Score: -500000},
+			{ID: 100002, Label: "elem1-grown", Flag: false, Score: 500000},
+		}
+		want.F12MapStrUint = map[string]uint64{
+			"k1":          1000000,
+			"k2":          math.MaxUint64,
+			"k3_long_key": 424242,
+		}
+		want.F13Float32 = -1234.5
+		want.F14Float64 = 3.141592653589793
+		want.F15Fixed32 = 0xdeadbeef
+		want.F16Fixed64 = 0xcafebabedeadbeef
+		want.F20OverflowStr = strings.Repeat("overflow20-", 20)
+
+		if err := omnibuf.Unmarshal(outputWire, &got); err != nil {
+			return fmt.Errorf("runner decode spliced TestAllTypes: %w", err)
+		}
+		if !testAllTypesEqual(&want, &got) {
+			return fmt.Errorf("TestAllTypes OpaqueSpliceGrow mismatch:\ngot:  %+v\nwant: %+v", got, want)
+		}
+		return nil
 	}
-	if !reflect.DeepEqual(want, got) {
-		return fmt.Errorf("PeerUpdate OpaqueSpliceGrow mismatch:\ngot:  %+v\nwant: %+v", got, want)
+}
+
+func verifyOpaqueSpliceShrinkEquivalence(schema string, inputWire, outputWire []byte) error {
+	if len(outputWire) >= len(inputWire) {
+		return fmt.Errorf("expected shrunk wire (%dB) < grown input wire (%dB)", len(outputWire), len(inputWire))
 	}
-	return nil
+	switch schema {
+	case "PeerUpdate":
+		var want, got PeerUpdate
+		if err := omnibuf.Unmarshal(inputWire, &want); err != nil {
+			return fmt.Errorf("runner decode input PeerUpdate: %w", err)
+		}
+		want.ASN = 1
+		want.RouterID = "r"
+		want.Active = false
+		want.UptimeSec = 5
+		want.RssiDbm = -1
+		want.CPULoad = 0.5
+		want.Tags = []string{"t"}
+		want.Prefixes = []uint32{1}
+		want.Location = Location{
+			Region:     "r",
+			Datacenter: "d",
+			City:       "c",
+			Rack:       1,
+			Latitude:   1.0,
+			Longitude:  2.0,
+		}
+		want.Sequence = 2
+
+		if err := omnibuf.Unmarshal(outputWire, &got); err != nil {
+			return fmt.Errorf("runner decode shrunk PeerUpdate: %w", err)
+		}
+		if !reflect.DeepEqual(want, got) {
+			return fmt.Errorf("PeerUpdate OpaqueSpliceShrink mismatch:\ngot:  %+v\nwant: %+v", got, want)
+		}
+		return nil
+
+	default:
+		var want, got TestAllTypes
+		if err := omnibuf.Unmarshal(inputWire, &want); err != nil {
+			return fmt.Errorf("runner decode input TestAllTypes: %w", err)
+		}
+		want.F1Uint32 = 1
+		want.F2Uint64 = 2
+		want.F3Sint32 = -1
+		want.F4Sint64 = -2
+		want.F5Bool = false
+		want.F6String = "s"
+		want.F7Bytes = []byte{0x01}
+		want.F8SubMsg = &AllTypesSubMsg{ID: 1, Label: "x", Flag: false, Score: -1}
+		want.F9StringArr = []string{"a"}
+		want.F10Uint32Arr = []uint32{7}
+		want.F11SubMsgArr = []AllTypesSubMsg{
+			{ID: 1, Label: "e", Flag: true, Score: 1},
+		}
+		want.F12MapStrUint = map[string]uint64{"k": 1}
+		want.F13Float32 = 0.5
+		want.F14Float64 = -0.25
+		want.F15Fixed32 = 7
+		want.F16Fixed64 = 9
+		want.F20OverflowStr = "z"
+
+		if err := omnibuf.Unmarshal(outputWire, &got); err != nil {
+			return fmt.Errorf("runner decode shrunk TestAllTypes: %w", err)
+		}
+		if !testAllTypesEqual(&want, &got) {
+			return fmt.Errorf("TestAllTypes OpaqueSpliceShrink mismatch:\ngot:  %+v\nwant: %+v", got, want)
+		}
+		return nil
+	}
 }
 
 func verifyRoundTripEquivalence(schema string, inputWire, outputWire []byte) error {
