@@ -162,6 +162,8 @@ OmniBuf includes a self-contained conformance test runner modeled after Protobuf
 The runner spawns a language-specific conformance client binary (`cmd/conformance-go` for Go, `omnibuf-conformance-es` for TypeScript/Node.js) and exchanges 4-byte little-endian `uint32` length-prefixed `ConformanceRequest` and `ConformanceResponse` messages (defined in [`proto/omnibuf/conformance/conformance.proto`](proto/omnibuf/conformance/conformance.proto)) over `stdin` and `stdout` across all four implementation tiers:
 
 - `TEST_TIER_PLUGIN` (`1`): Generated plugin codecs (`protoc-gen-omnibuf-*`) and lazy `Opaque` views (`test_opaque_splice` / `test_opaque_splice_shrink`)
+
+  The Go adapter also checks runtime splicing into overlapping destination storage with 0-, 3-, and 32-byte prefixes, verifying prefix preservation, identical output, and an unchanged source packet.
 - `TEST_TIER_PROTOBUF_TYPES` (`2`): Standard Protobuf descriptors and generated Protobuf message types
 - `TEST_TIER_ANNOTATED_STRUCT` (`3`): Plain language structs, classes, or declarative schemas
 - `TEST_TIER_BLIND` (`4`): Schema-less inspection (`DecodeBlind` / `decodeBlind`)

@@ -19,7 +19,8 @@ func SpliceFields(dst, raw []byte, dirtyMask uint64, maxField uint16, appendDirt
 		rawStart := uintptr(unsafe.Pointer(unsafe.SliceData(raw)))
 		rawEnd := rawStart + uintptr(n)
 		if dstStart < rawEnd && rawStart < dstEnd {
-			dst = nil
+			// Preserve the caller's prefix while detaching writes from raw.
+			dst = append([]byte(nil), dst...)
 		}
 	}
 	pos := 0
