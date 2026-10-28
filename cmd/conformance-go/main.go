@@ -18,6 +18,7 @@ import (
 	"github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/internal/conformance"
 	"github.com/sudorandom/omnibuf/internal/pb"
+	"github.com/sudorandom/omnibuf/wire"
 )
 
 func main() {
@@ -96,6 +97,11 @@ func handleBlind(req *conformance.ConformanceRequest) *conformance.ConformanceRe
 }
 
 func handlePluginTier(req *conformance.ConformanceRequest) *conformance.ConformanceResponse {
+	if req.TestOpaqueSplice || req.TestOpaqueSpliceShrink {
+		if err := checkSpliceAliasedPrefix(req.OmniBufPayload); err != nil {
+			return &conformance.ConformanceResponse{RuntimeError: err.Error()}
+		}
+	}
 	switch req.MessageType {
 	case "omnibuf.bench.PeerUpdate":
 		// Pre-populate msg to verify struct reuse clears all unseen fields and nil sub-message pointers.
@@ -309,6 +315,31 @@ func handlePluginTier(req *conformance.ConformanceRequest) *conformance.Conforma
 			Skipped: "plugin tier generated for PeerUpdate and TestAllTypes",
 		}
 	}
+}
+
+// Exercise the append-oriented runtime directly: generated opaque MarshalAppend
+// methods reset dst's length and cannot test preservation of a nonempty prefix.
+func checkSpliceAliasedPrefix(packet []byte) error {
+	appendDirty := func(dst []byte, fnum uint16) []byte {
+		dst = wire.AppendVarint(dst, uint64(fnum)<<4|uint64(wire.WireUint))
+		return wire.AppendVarint(dst, 1<<40)
+	}
+	spliced := wire.SpliceFields(nil, packet, 1<<1, 2, appendDirty)
+	for _, prefixLen := range []int{0, 3, 32} {
+		prefix := bytes.Repeat([]byte{0xa5}, prefixLen)
+		storage := make([]byte, prefixLen+len(packet), prefixLen+len(packet)+512)
+		copy(storage, prefix)
+		copy(storage[prefixLen:], packet)
+		want := append(append([]byte(nil), prefix...), spliced...)
+		got := wire.SpliceFields(storage[:prefixLen], storage[prefixLen:], 1<<1, 2, appendDirty)
+		if !bytes.Equal(got, want) {
+			return fmt.Errorf("opaque splice with %d-byte aliased prefix changed prefix or output", prefixLen)
+		}
+		if !bytes.Equal(storage[prefixLen:], packet) {
+			return fmt.Errorf("opaque splice with %d-byte aliased prefix modified source packet", prefixLen)
+		}
+	}
+	return nil
 }
 
 func handleProtobufTypesTier(req *conformance.ConformanceRequest) *conformance.ConformanceResponse {
