@@ -129,14 +129,12 @@ const miniLanguagePreviews = [
   {packetSizeCat && (
     <div id="packet-size" class="os-window overflow-hidden mb-10 scroll-mt-20">
       <div class="os-titlebar bg-[#E5E0D5]">
-        <span class="font-mono text-sm sm:text-base font-bold uppercase">
-          {packetSizeCat.title}
-        </span>
+        <span class="font-mono text-xs sm:text-sm font-bold uppercase">{packetSizeCat.title}</span>
         <div class="os-stripes" />
       </div>
 
-      <div class="p-5 sm:p-7 bg-[#FAF8F2] space-y-3">
-        <p class="text-sm sm:text-base text-ink/85 leading-relaxed pb-2 max-w-[70ch]">
+      <div class="p-3.5 sm:p-4 bg-[#FAF8F2] space-y-1">
+        <p class="text-xs sm:text-sm text-ink/85 leading-snug pb-1.5 max-w-[70ch]">
           {packetSizeCat.methodology}
         </p>
         {(() => {
@@ -145,7 +143,8 @@ const miniLanguagePreviews = [
             packetSizeCat.rows.find((row) => row.highlight)?.val ??
             packetSizeCat.rows[0].val;
           return packetSizeCat.rows.map((r) => {
-            const pct = Math.max(2, Math.min(100, (r.val / packetSizeCat.maxVal) * 100)).toFixed(1);
+            const numPct = Math.max(2, Math.min(100, (r.val / packetSizeCat.maxVal) * 100));
+            const pct = numPct.toFixed(1);
             let ratioStr = 'Baseline (1x)';
             if (r.val !== omniVal) {
               const pctDiff = Math.round((Math.abs(r.val - omniVal) / omniVal) * 100);
@@ -154,32 +153,36 @@ const miniLanguagePreviews = [
             return (
               <div
                 class:list={[
-                  'grid grid-cols-12 gap-3 items-center px-3 rounded min-w-0',
+                  'grid grid-cols-12 gap-x-2 gap-y-1 items-center px-2.5 py-1 rounded min-w-0',
                   r.baseline
-                    ? 'py-2.5 bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
+                    ? 'bg-acid/45 border-2 border-ink shadow-[2px_2px_0px_#111111] font-bold'
                     : r.highlight
-                      ? 'py-2 bg-acid/25 border-2 border-dashed border-ink font-bold'
-                      : 'py-2 border border-ink/15 bg-white',
+                      ? 'bg-acid/25 border-2 border-dashed border-ink font-bold'
+                      : 'border border-ink/15 bg-white',
                 ]}
               >
-                <div class="col-span-12 sm:col-span-4 font-mono text-sm sm:text-base text-ink break-words">
+                <div
+                  class="col-span-12 sm:col-span-4 font-mono text-xs sm:text-sm text-ink truncate"
+                  title={r.name}
+                >
                   {r.name}
                 </div>
-                <div class="col-span-8 sm:col-span-6 flex items-center min-w-0">
-                  <div class="w-full bg-[#E5E0D5] h-6 border border-ink rounded-sm overflow-hidden">
+                <div class="col-span-6 sm:col-span-5 flex items-center min-w-0">
+                  <div class="w-full bg-[#E5E0D5] h-3.5 border border-ink rounded-sm overflow-hidden">
                     <div
                       class:list={[
-                        'h-full border-r border-ink',
+                        'h-full',
+                        numPct < 99.5 && 'border-r border-ink',
                         r.highlight ? 'bench-bar-omni' : 'bench-bar-competitor',
                       ]}
                       style={`width: ${pct}%;`}
                     />
                   </div>
                 </div>
-                <div class="col-span-4 sm:col-span-2 text-right font-mono tabular-nums leading-tight">
-                  <span class="text-sm sm:text-base font-bold text-ink">{ratioStr}</span>
-                  <span class="block text-xs text-ink/75 font-normal">
-                    {r.val} {packetSizeCat.unit}
+                <div class="col-span-6 sm:col-span-3 text-right font-mono text-xs sm:text-sm tabular-nums whitespace-nowrap leading-none">
+                  <span class="font-bold text-ink">{ratioStr}</span>{' '}
+                  <span class="text-ink/70 font-normal">
+                    ({r.val.toLocaleString('en-US')} {packetSizeCat.unit})
                   </span>
                 </div>
               </div>
