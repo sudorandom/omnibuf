@@ -3,6 +3,7 @@ package omnibuf_test
 import (
 	"testing"
 
+	flatbuffers "github.com/google/flatbuffers/go"
 	. "github.com/sudorandom/omnibuf"
 	"github.com/sudorandom/omnibuf/internal/pb"
 	"google.golang.org/protobuf/proto"
@@ -402,6 +403,112 @@ func BenchmarkProtobufProtoWire_ReadModifyWrite(b *testing.B) {
 		outBuf = EncodePeerProtoWire(outBuf, &msg)
 		if len(outBuf) == 0 {
 			b.Fatal("empty")
+		}
+	}
+}
+
+func BenchmarkFlatBuffers_ReadModifyWrite(b *testing.B) {
+	orig := SamplePeerUpdate()
+	builder := flatbuffers.NewBuilder(1024)
+	pkt := append([]byte(nil), EncodePeerFlatBuffers(builder, &orig)...)
+	var msg PeerUpdate
+	msg.Tags = make([]string, 0, 8)
+	msg.Prefixes = make([]uint32, 0, 8)
+	msg.Neighbors = make([]Neighbor, 0, 8)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		DecodePeerFlatBuffersInto(pkt, &msg, true)
+		if msg.Location.City == "Frankfurt" {
+			msg.Sequence = msg.Sequence + 1
+		}
+		out := EncodePeerFlatBuffers(builder, &msg)
+		if len(out) == 0 {
+			b.Fatal("empty")
+		}
+	}
+}
+
+func BenchmarkCapnProto_ReadModifyWrite(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := EncodePeerCapnp(nil, &orig)
+	scratch := make([]byte, 0, 1024)
+	var msg PeerUpdate
+	msg.Tags = make([]string, 0, 8)
+	msg.Prefixes = make([]uint32, 0, 8)
+	msg.Neighbors = make([]Neighbor, 0, 8)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := DecodePeerCapnpInto(pkt, &msg, true); err != nil {
+			b.Fatal(err)
+		}
+		if msg.Location.City == "Frankfurt" {
+			msg.Sequence = msg.Sequence + 1
+		}
+		out, err := EncodePeerCapnp(scratch, &msg)
+		if err != nil || len(out) == 0 {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkAvro_ReadModifyWrite(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalAvro(&orig)
+	msg := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := UnmarshalAvro(pkt, &msg); err != nil {
+			b.Fatal(err)
+		}
+		if msg.Location.City == "Frankfurt" {
+			msg.Sequence = msg.Sequence + 1
+		}
+		out, err := MarshalAvro(&msg)
+		if err != nil || len(out) == 0 {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkMsgpack_ReadModifyWrite(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalMsgpack(&orig)
+	msg := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := UnmarshalMsgpack(pkt, &msg); err != nil {
+			b.Fatal(err)
+		}
+		if msg.Location.City == "Frankfurt" {
+			msg.Sequence = msg.Sequence + 1
+		}
+		out, err := MarshalMsgpack(&msg)
+		if err != nil || len(out) == 0 {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkJSON_ReadModifyWrite(b *testing.B) {
+	orig := SamplePeerUpdate()
+	pkt, _ := MarshalJSON(&orig)
+	msg := SamplePeerUpdate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := UnmarshalJSON(pkt, &msg); err != nil {
+			b.Fatal(err)
+		}
+		if msg.Location.City == "Frankfurt" {
+			msg.Sequence = msg.Sequence + 1
+		}
+		out, err := MarshalJSON(&msg)
+		if err != nil || len(out) == 0 {
+			b.Fatal(err)
 		}
 	}
 }

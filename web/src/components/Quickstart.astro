@@ -34,8 +34,15 @@ plugins:
 
 const generatedMethodsSnippet = `pkt := msg.MarshalOmniBufAppend(nil)
 
-var out pb.Peer
-err := out.UnmarshalOmniBuf(pkt, false)`;
+var out pb.PeerUpdate
+err := out.UnmarshalOmniBuf(pkt, false)
+
+var view pb.OpaquePeerUpdate
+_ = view.Unmarshal(pkt)
+if view.GetActive() && view.GetAsn() == 64512 {
+	view.SetSequence(99)
+	forwarded := view.MarshalAppend(nil)
+}`;
 ---
 
 <section
@@ -163,10 +170,11 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
           With buffer and struct reuse, the generated methods run{' '}
           <strong>6x faster on encode</strong> and <strong>7x faster on decode</strong> than
           standard Go Protobuf (or <strong>2x faster on decode</strong> when allocating a fresh
-          struct and copying every string). The plugin targets flat proto3 messages (fields{' '}
-          <code>1..65535</code>, or <code>1..15</code> for <code>Opaque</code> views). For messages
-          with <code>oneof</code>, maps, or explicit <code>optional</code> presence, use{' '}
-          <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code>.
+          struct and copying every string). The plugin generates code for <code>.proto</code>{' '}
+          schemas with fields <code>1..65535</code> (or <code>1..15</code> for <code>Opaque</code>{' '}
+          views over OmniBuf packets). For schemas that use <code>oneof</code>, maps, or explicit{' '}
+          <code>optional</code> presence, use <code>omnibuf.Marshal</code> and{' '}
+          <code>omnibuf.Unmarshal</code>.
         </p>
       </div>
 
@@ -202,7 +210,9 @@ err := out.UnmarshalOmniBuf(pkt, false)`;
 
         <div class="p-4 sm:p-5 bg-ink text-paper rounded-md font-mono text-xs sm:text-sm overflow-x-auto leading-relaxed border-2 border-ink [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0">
           <div class="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-paper/15">
-            <div class="text-xs font-bold uppercase text-acid">Generated Single-Pass Methods</div>
+            <div class="text-xs font-bold uppercase text-acid">
+              Generated Single-Pass Methods &amp; Lazy Opaque View
+            </div>
             <button
               type="button"
               data-copy={generatedMethodsSnippet}

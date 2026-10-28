@@ -191,6 +191,33 @@ const miniLanguagePreviews = [
   )}
 
   <div class="grid md:grid-cols-2 gap-6">
+    <!-- Standalone OmniBuf Panel Explaining the 5 Radar Scores -->
+    <div id="compare-omnibuf" class="os-window overflow-hidden scroll-mt-20 flex flex-col">
+      <div class="os-titlebar bg-[#E5E0D5]">
+        <h3 class="font-mono text-sm sm:text-base font-bold uppercase">
+          OmniBuf (How the Scores Work)
+        </h3>
+        <div class="os-stripes"></div>
+      </div>
+
+      <div class="bg-ink text-paper p-6 sm:p-7 flex-1 flex flex-col justify-between min-w-0">
+        <div>
+          <div class="flex items-center justify-between border-b border-paper/15 pb-3 mb-4 font-mono text-sm">
+            <span class="flex items-center gap-2 font-bold text-acid">
+              <span class="w-3 h-3 bg-acid inline-block border border-ink"></span> OmniBuf
+            </span>
+          </div>
+          <RadarChart oppKey="omnibuf" />
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-paper/20">
+          <p class="text-sm sm:text-base text-paper/95 leading-relaxed">
+            {formatProfiles.omnibuf.verdict}
+          </p>
+        </div>
+      </div>
+    </div>
+
     {opponentKeys.map((oppKey) => {
       const opp = formatProfiles[oppKey];
       return (

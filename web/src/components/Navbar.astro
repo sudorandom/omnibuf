@@ -5,11 +5,12 @@ interface Props {
 
 const { currentPage = 'home' } = Astro.props;
 
-const pages = [
+const primaryPages = [
   { href: '/', key: 'home', label: 'Overview' },
   { href: '/how-it-works', key: 'how-it-works', label: 'How It Works' },
-  { href: '/spec', key: 'spec', label: 'Specification' },
 ] as const;
+
+const specPage = { href: '/spec', key: 'spec', label: 'Specification' } as const;
 
 const languages = [
   { href: '/go', key: 'go', label: 'Go' },
@@ -18,7 +19,8 @@ const languages = [
 
 const activeLang = languages.find((l) => l.key === currentPage);
 const activePageLabel =
-  pages.find((p) => p.key === currentPage)?.label ??
+  primaryPages.find((p) => p.key === currentPage)?.label ??
+  (currentPage === specPage.key ? specPage.label : undefined) ??
   (activeLang ? `Languages: ${activeLang.label}` : 'Menu');
 ---
 
@@ -38,7 +40,7 @@ const activePageLabel =
         aria-label="Page navigation"
         class="hidden lg:flex items-center gap-2 font-medium min-w-0 py-1.5 px-0.5"
       >
-        {pages.map((p) => (
+        {primaryPages.map((p) => (
           <a
             href={p.href}
             class="nav-link"
@@ -79,6 +81,15 @@ const activePageLabel =
             })}
           </div>
         </details>
+
+        <a
+          href={specPage.href}
+          class="nav-link"
+          data-active={currentPage === specPage.key ? 'true' : 'false'}
+          aria-current={currentPage === specPage.key ? 'page' : undefined}
+        >
+          {specPage.label}
+        </a>
       </nav>
 
       <!-- Mobile Hamburger / Dropdown Selector -->
@@ -107,7 +118,7 @@ const activePageLabel =
           aria-label="Mobile page navigation"
           class="absolute left-0 mt-2 w-52 bg-[#FAF8F2] border-2 border-ink rounded-md shadow-[4px_4px_0px_#111111] py-1.5 z-50 divide-y divide-ink/15"
         >
-          {pages.map((p) => {
+          {primaryPages.map((p) => {
             const isActive = currentPage === p.key;
             return (
               <a
@@ -140,6 +151,16 @@ const activePageLabel =
               </a>
             );
           })}
+          <a
+            href={specPage.href}
+            aria-current={currentPage === specPage.key ? 'page' : undefined}
+            class={`flex items-center justify-between px-3.5 py-2.5 text-sm font-bold transition-colors ${
+              currentPage === specPage.key ? 'bg-acid text-ink' : 'text-ink hover:bg-[#E5E0D5]'
+            }`}
+          >
+            <span>{specPage.label}</span>
+            {currentPage === specPage.key && <span class="text-xs">&bull;</span>}
+          </a>
         </nav>
       </details>
     </div>
@@ -289,65 +310,44 @@ const activePageLabel =
     aria-label="Search results"
     class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5"
   >
-    <div id="search-default-links" class="space-y-3">
-      <div class="text-[11px] font-bold uppercase text-ink/65 px-1">Quick Jump</div>
-      <div class="grid sm:grid-cols-2 gap-2">
-        <a
-          href="/how-it-works#wire-types"
-          data-search-item
-          data-active="true"
-          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
-        >
-          <div class="text-[10px] font-bold uppercase text-ink/65">How It Works</div>
-          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">The 16 Wire Types</div>
-        </a>
-        <a
-          href="/how-it-works#prefix-varints"
-          data-search-item
-          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
-        >
-          <div class="text-[10px] font-bold uppercase text-ink/65">How It Works</div>
-          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">Prefix-Varints &amp; TZCNT</div>
-        </a>
-        <a
-          href="/how-it-works#comparisons"
-          data-search-item
-          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
-        >
-          <div class="text-[10px] font-bold uppercase text-ink/65">How It Works</div>
-          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">Format Comparisons</div>
-        </a>
-        <a
-          href="/spec"
-          data-search-item
-          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
-        >
-          <div class="text-[10px] font-bold uppercase text-ink/65">Specification</div>
-          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
-            Wire Format Specification v0.1
-          </div>
-        </a>
-        <a
-          href="/go"
-          data-search-item
-          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
-        >
-          <div class="text-[10px] font-bold uppercase text-ink/65">Go</div>
-          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
-            Go Structs, .pb.go &amp; Benchmarks
-          </div>
-        </a>
-        <a
-          href="/es"
-          data-search-item
-          class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
-        >
-          <div class="text-[10px] font-bold uppercase text-ink/65">TypeScript / JS</div>
-          <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
-            TypeScript Schemas &amp; Benchmarks
-          </div>
-        </a>
-      </div>
+    <div id="search-default-links" class="grid sm:grid-cols-2 gap-2">
+      <a
+        href="/how-it-works#wire-types"
+        data-search-item
+        data-active="true"
+        class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+      >
+        <div class="text-[10px] font-bold uppercase text-ink/65">How It Works</div>
+        <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">The 16 Wire Types</div>
+      </a>
+      <a
+        href="/spec"
+        data-search-item
+        class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+      >
+        <div class="text-[10px] font-bold uppercase text-ink/65">Specification</div>
+        <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
+          Wire Format Specification v0.1
+        </div>
+      </a>
+      <a
+        href="/go"
+        data-search-item
+        class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+      >
+        <div class="text-[10px] font-bold uppercase text-ink/65">Go</div>
+        <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">OmniBuf for Go</div>
+      </a>
+      <a
+        href="/es"
+        data-search-item
+        class="block p-2.5 rounded border-2 border-ink/25 hover:border-ink transition"
+      >
+        <div class="text-[10px] font-bold uppercase text-ink/65">TypeScript / JS</div>
+        <div class="text-xs sm:text-sm font-bold text-ink mt-0.5">
+          OmniBuf for TypeScript &amp; JS
+        </div>
+      </a>
     </div>
     <div id="search-dynamic-results" class="hidden space-y-1.5"></div>
   </div>

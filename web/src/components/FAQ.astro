@@ -38,14 +38,14 @@ const faqItems: FAQItem[] = [
     id: 'faq-unknown',
     question: 'What happens to unknown fields?',
     paragraphs: [
-      'Go structs skip over unknown fields without storing them (so re-marshaling that struct drops them), while TypeScript keeps them in <code>$unknown</code>. If you are building a proxy that forwards packets, use <code>Opaque</code> views or <code>SpliceFields</code> to read or update fields directly on the raw byte slice without losing unknown fields.',
+      'In Go, both plain structs and generated <code>.pb.go</code> Protobuf structs skip over unknown fields without storing them (OmniBuf does not populate <code>unknownFields</code> on <code>proto.Message</code>, so re-marshaling that struct drops them), while TypeScript keeps them in <code>$unknown</code>. If you are building a proxy that forwards packets, use <code>Opaque</code> views or <code>SpliceFields</code> to read or update fields directly on the raw byte slice without losing unknown fields.',
     ],
   },
   {
     id: 'faq-deterministic',
     question: 'Is the encoding deterministic?',
     paragraphs: [
-      'Normal encoding is not canonical because Go randomizes map order. When you need reproducible bytes for hashing or tests, use <code>omnibuf.MarshalDeterministic</code> to sort fields and map keys.',
+      'Like <a href="https://protobuf.dev/programming-guides/serialization-not-canonical/" target="_blank" rel="noopener noreferrer" class="doc-link">Protobuf</a>, normal encoding is not canonical. Go randomizes map iteration order, fields can appear in any order, and concatenating two packets produces duplicate field occurrences on the wire (where later scalar values overwrite earlier ones, nested messages merge recursively, and repeated array fields append in order). When you need reproducible bytes for hashing or tests, use <code>omnibuf.MarshalDeterministic</code> to sort fields and map keys.',
     ],
   },
   {

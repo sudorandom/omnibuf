@@ -6,12 +6,17 @@ interface Props {
 }
 
 const { oppKey } = Astro.props;
+const isSelfOnly = oppKey === 'omnibuf';
 const oppProfile = formatProfiles[oppKey];
 const omni = formatProfiles.omnibuf.stats;
 const opp = oppProfile.stats;
-const ariaSummary = `Radar chart comparing OmniBuf and ${oppProfile.name} across 5 normalized axes (0 to 100): ${omni
-  .map((s, i) => `${s.label} (OmniBuf ${s.score}, ${oppProfile.name} ${opp[i].score})`)
-  .join('; ')}.`;
+const ariaSummary = isSelfOnly
+  ? `Radar chart showing OmniBuf scores across 5 normalized axes (0 to 100): ${omni
+      .map((s) => `${s.label} (${s.score})`)
+      .join('; ')}.`
+  : `Radar chart comparing ${oppProfile.name} and OmniBuf across 5 normalized axes (0 to 100): ${omni
+      .map((s, i) => `${s.label} (${oppProfile.name} ${opp[i].score}, OmniBuf ${s.score})`)
+      .join('; ')}.`;
 
 const cx = 180;
 const cy = 135;
@@ -96,18 +101,36 @@ const dots = angles.map((a, i) => {
       </text>
     </>
   ))}
-  <polygon points={omniPts} fill="rgba(212, 255, 51, 0.25)" stroke="#D4FF33" stroke-width="2.5" />
-  <polygon
-    points={oppPts}
-    fill="rgba(255, 79, 24, 0.42)"
-    stroke="#FF4F18"
-    stroke-width="2.2"
-    stroke-dasharray="4 2"
-  />
-  {dots.map((d) => (
+  {isSelfOnly ? (
     <>
-      <circle cx={d.omniX} cy={d.omniY} r="3.5" fill="#D4FF33" stroke="#111" stroke-width="1.5" />
-      <circle cx={d.oppX} cy={d.oppY} r="3.2" fill="#FF4F18" stroke="#111" stroke-width="1.2" />
+      <polygon
+        points={omniPts}
+        fill="rgba(212, 255, 51, 0.32)"
+        stroke="#D4FF33"
+        stroke-width="2.5"
+      />
+      {dots.map((d) => (
+        <circle cx={d.omniX} cy={d.omniY} r="3.6" fill="#D4FF33" stroke="#111" stroke-width="1.5" />
+      ))}
     </>
-  ))}
+  ) : (
+    <>
+      <!-- OmniBuf rendered behind the compared format -->
+      <polygon
+        points={omniPts}
+        fill="rgba(212, 255, 51, 0.18)"
+        stroke="#D4FF33"
+        stroke-width="2"
+        stroke-dasharray="4 2"
+      />
+      {dots.map((d) => (
+        <circle cx={d.omniX} cy={d.omniY} r="3" fill="#D4FF33" stroke="#111" stroke-width="1.2" />
+      ))}
+      <!-- Compared format rendered in front of OmniBuf -->
+      <polygon points={oppPts} fill="rgba(255, 79, 24, 0.52)" stroke="#FF4F18" stroke-width="2.5" />
+      {dots.map((d) => (
+        <circle cx={d.oppX} cy={d.oppY} r="3.6" fill="#FF4F18" stroke="#111" stroke-width="1.5" />
+      ))}
+    </>
+  )}
 </svg>

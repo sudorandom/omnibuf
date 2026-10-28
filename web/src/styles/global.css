@@ -623,6 +623,14 @@ html.dark dialog#search-dialog::backdrop {
   background-color: rgba(5, 6, 8, 0.76);
 }
 
+#search-input::placeholder {
+  color: rgba(17, 17, 17, 0.68);
+}
+
+html.dark #search-input::placeholder {
+  color: rgba(244, 240, 230, 0.74) !important;
+}
+
 a[data-search-item][data-active='true'],
 a[data-search-item][data-active='true'] * {
   background-color: #d4ff33;

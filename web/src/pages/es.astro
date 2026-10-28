@@ -110,9 +110,9 @@ const esFaqItems = [
   },
   {
     id: 'es-faq-opaque',
-    question: 'When should I use Opaque views?',
+    question: 'Do I have to parse the whole message to read one field?',
     paragraphs: [
-      'Use <code>fromBinary</code> when your code reads most of the object. Use <code>Opaque</code> in edge workers or WebSocket proxies when you only need to inspect or update one or two fields before forwarding the packet.',
+      'No. While <code>fromBinary</code> decodes a full packet into an object, generated <code>Opaque</code> views (and <code>locateField</code> in <code>@omnibuf/core</code>) hop over preceding field headers by byte length and read or update a single field directly on the <code>Uint8Array</code> without parsing the rest of the message. For streaming multiple packets over a socket or fetch body, <code>@omnibuf/web</code> and <code>@omnibuf/node</code> decode length-delimited frames as they arrive.',
     ],
     codeBlock: opaqueSpliceEsCode,
     codeLabel: 'Example',

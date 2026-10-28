@@ -48,6 +48,8 @@ export const formatProfiles: Record<string, FormatProfile> = {
   omnibuf: {
     key: 'omnibuf',
     name: 'OmniBuf',
+    verdict:
+      'These radar charts compare five tradeoffs across our benchmark suite. Encode Speed and Decode Speed reflect how fast a message converts to and from native structs, where single-pass writing and TZCNT Prefix-Varints put OmniBuf at the top. Memory Efficiency tracks heap allocations during serialization, where buffer reuse and zeroCopy strings keep allocations near zero. Wire Size measures encoded byte length (within 7% of Protobuf and 14% of raw Avro), while Field Lookup measures reading one field from raw bytes, where hopping by byte length is much faster than scanning varints but still walks preceding field headers linearly unlike FlatBuffers offset tables.',
     stats: [
       { label: 'Wire Size', score: 94 },
       { label: 'Encode Speed', score: 100 },
@@ -204,7 +206,7 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     ],
   },
   {
-    title: 'Read a Single Nested Field',
+    title: 'Read a Single Nested Field (peer.location.city)',
     unit: 'ns',
     maxVal: 1300,
     methodology:
@@ -216,6 +218,22 @@ export const benchmarkCategories: BenchmarkCategory[] = [
       { name: 'Avro (Raw Binary)', val: 649 },
       { name: 'MessagePack', val: 766 },
       { name: 'Protobuf', val: 1270 },
+    ],
+  },
+  {
+    title: 'Selective Single-Field Mutation (Update peer.sequence & Re-Serialize)',
+    unit: 'ns',
+    maxVal: 7000,
+    methodology:
+      'Checking peer.location.city, bumping the 64-bit sequence counter on an in-flight packet, and writing the updated packet bytes. OmniBuf splices the updated field directly onto the raw byte slice without unpacking or re-encoding the other 10 fields.',
+    rows: [
+      { name: 'OmniBuf (Opaque Splice)', val: 199, highlight: true, baseline: true },
+      { name: 'FlatBuffers', val: 958 },
+      { name: 'Avro (Raw Binary)', val: 1131 },
+      { name: 'Protobuf', val: 2027 },
+      { name: "Cap'n Proto", val: 2441 },
+      { name: 'MessagePack', val: 5051 },
+      { name: 'JSON (encoding/json)', val: 6846 },
     ],
   },
   {

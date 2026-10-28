@@ -120,18 +120,20 @@
           Merge messages by appending raw bytes
         </h3>
         <p class="text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
-          Packets have no file header or footer. Later scalar fields overwrite earlier ones, and
-          repeated fields append. If you concatenate two encoded buffers (
-          <code>append(msgA, msgB...)</code>), the result is already a valid merged message. No
-          decode or re-encode step required.
+          Packets have no file header or footer. When you concatenate two encoded buffers (
+          <code>append(msgA, msgB...)</code>) and unmarshal the combined bytes, later scalar fields
+          overwrite earlier ones, nested messages merge their fields recursively, map entries merge
+          by key, and repeated array fields (<code>WireArray</code>) append their elements in order
+          (whereas low-level single-field lookup via <code>LocateField</code> returns the last
+          occurrence). No decode or re-encode step is required to merge two packets.
         </p>
       </div>
       <div class="lg:col-span-6 font-mono text-sm min-w-0">
         <div class="p-4 bg-ink text-paper border-2 border-ink rounded-md overflow-x-auto">
-          <pre class="text-sm text-paper/95 leading-relaxed"><span class="text-paper/65">msgA:</span> &#123;<span class="text-acid">"id":</span> 1, <span class="text-acid">"active":</span> <span class="text-paper/70">false</span>&#125;
-<span class="text-paper/65">msgB:</span> &#123;<span class="text-acid">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>&#125;
+          <pre class="text-sm text-paper/95 leading-relaxed"><span class="text-paper/65">msgA:</span> &#123;<span class="text-acid">"id":</span> 1, <span class="text-acid">"active":</span> <span class="text-paper/70">false</span>, <span class="text-acid">"tags":</span> ["a"]&#125;
+<span class="text-paper/65">msgB:</span> &#123;<span class="text-acid">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>,  <span class="text-acid">"tags":</span> ["b"]&#125;
 
-<span class="text-acid font-bold">append(msgA, msgB...)</span> &rarr; &#123;<span class="text-acid">"id":</span> 1, <span class="text-acid">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>&#125;</pre>
+<span class="text-acid font-bold">append(msgA, msgB...)</span> &rarr; &#123;<span class="text-acid">"id":</span> 1, <span class="text-acid">"active":</span> <span class="text-[#FF4F18] font-bold">true</span>, <span class="text-acid">"tags":</span> ["a", "b"]&#125;</pre>
         </div>
       </div>
     </div>

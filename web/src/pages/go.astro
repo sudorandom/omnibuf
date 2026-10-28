@@ -20,9 +20,9 @@ err := out.UnmarshalOmniBuf(buf, true)`;
 const goFaqItems = [
   {
     id: 'go-faq-opaque',
-    question: 'When should I use Opaque views?',
+    question: 'Do I have to parse the whole message to read one field?',
     paragraphs: [
-      'Use <code>Unmarshal</code> when your code reads most of the struct. Use <code>Opaque</code> in proxies or routers when you only need to read or update one or two fields on a packet without unpacking the rest of the message.',
+      'No. While <code>omnibuf.Unmarshal</code> decodes a full message buffer into a struct, generated <code>Opaque</code> views (and low-level helpers like <code>wire.LocateField</code> or <code>wire.ReadString</code>) hop over preceding field headers by byte length and read or splice just the field you asked for without parsing or allocating the rest of the packet.',
     ],
     codeBlock: opaqueSpliceCode,
     codeLabel: 'Example',
@@ -49,7 +49,7 @@ const goFaqItems = [
     id: 'go-faq-plugin',
     question: 'Do I need protoc-gen-omnibuf?',
     paragraphs: [
-      'Usually no. <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> already run ~2x faster than <code>proto.Marshal</code> with no build step. Add <code>protoc-gen-omnibuf</code> when you want ~6x faster generated methods or <code>Opaque</code> views on flat proto3 messages.',
+      'It is optional, though worth adding when you want maximum speed. <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> already run ~2x faster than <code>proto.Marshal</code> with no extra plugin, and adding <code>protoc-gen-omnibuf</code> gives you ~6x faster generated methods plus <code>Opaque</code> views over OmniBuf packets.',
     ],
   },
 ];
