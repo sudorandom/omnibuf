@@ -212,9 +212,9 @@ func handlePluginTier(req *conformance.ConformanceRequest) *conformance.Conforma
 		var op pb.OpaqueTestAllTypes
 		_ = op.Unmarshal(req.OmniBufPayload)
 		_, _ = op.LookupF12MapStrUint("k")
-		wantSub := pb.AllTypesSubMsg{}
+		wantSub := &pb.AllTypesSubMsg{}
 		if msg.F8SubMsg != nil {
-			wantSub = *msg.F8SubMsg
+			wantSub = msg.F8SubMsg
 		}
 		if op.GetF1Uint32() != msg.F1Uint32 ||
 			op.GetF2Uint64() != msg.F2Uint64 ||

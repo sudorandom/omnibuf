@@ -799,22 +799,32 @@ func TestProtobufStyleConformanceCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal conformance corpus JSON: %v", err)
 	}
-	corpusPath := filepath.Join("testdata", "conformance_corpus.json")
+	corpusPaths := []string{
+		filepath.Join("testdata", "conformance_corpus.json"),
+		filepath.Join("internal", "conformance", "conformance_corpus.json"),
+	}
 	if *updateGolden {
-		if err := os.MkdirAll("testdata", 0o750); err != nil {
-			t.Fatalf("mkdir testdata: %v", err)
+		for _, cp := range corpusPaths {
+			if err := os.MkdirAll(filepath.Dir(cp), 0o750); err != nil {
+				t.Fatalf("mkdir %s: %v", filepath.Dir(cp), err)
+			}
+			if err := os.WriteFile(cp, corpusBytes, 0o600); err != nil {
+				t.Fatalf("write %s: %v", cp, err)
+			}
+			t.Logf("Updated %s (%d bytes)", cp, len(corpusBytes))
 		}
-		if err := os.WriteFile(corpusPath, corpusBytes, 0o600); err != nil {
-			t.Fatalf("write %s: %v", corpusPath, err)
-		}
-		t.Logf("Updated %s (%d bytes)", corpusPath, len(corpusBytes))
 	} else {
-		wantCorpus, err := os.ReadFile(corpusPath)
-		if err != nil {
-			t.Fatalf("read golden %s: %v (run `go test . -update-golden` to regenerate)", corpusPath, err)
+		for _, cp := range corpusPaths {
+			wantCorpus, err := os.ReadFile(cp)
+			if err != nil {
+				t.Fatalf("read golden %s: %v (run `go test . -update-golden` to regenerate)", cp, err)
+			}
+			if !bytes.Equal(corpusBytes, wantCorpus) {
+				t.Fatalf("golden %s differs from generated conformance corpus (run `go test . -update-golden` if wire format change was intentional)", cp)
+			}
 		}
-		if !bytes.Equal(corpusBytes, wantCorpus) {
-			t.Fatalf("golden %s differs from generated conformance corpus (run `go test . -update-golden` if wire format change was intentional)", corpusPath)
+		if !bytes.Equal(corpusBytes, conformance.EmbeddedCorpusJSON) {
+			t.Fatalf("conformance.EmbeddedCorpusJSON differs from generated conformance corpus")
 		}
 	}
 }
@@ -2272,17 +2282,21 @@ func TestLargeContainerExpansionOver16KB(t *testing.T) {
 func TestConformanceRunnerAdapterHarness(t *testing.T) {
 	tmpDir := t.TempDir()
 	runnerBin := filepath.Join(tmpDir, "conformance-runner")
+	cliBin := filepath.Join(tmpDir, "omnibuf")
 	adapterBin := filepath.Join(tmpDir, "conformance-go")
 
 	if out, err := exec.Command("go", "build", "-o", runnerBin, "./cmd/conformance-runner").CombinedOutput(); err != nil {
 		t.Fatalf("build conformance-runner failed: %v\n%s", err, out)
 	}
+	if out, err := exec.Command("go", "build", "-o", cliBin, "./cmd/omnibuf").CombinedOutput(); err != nil {
+		t.Fatalf("build omnibuf CLI failed: %v\n%s", err, out)
+	}
 	if out, err := exec.Command("go", "build", "-o", adapterBin, "./cmd/conformance-go").CombinedOutput(); err != nil {
 		t.Fatalf("build conformance-go failed: %v\n%s", err, out)
 	}
 
-	corpusPath := filepath.Join("testdata", "conformance_corpus.json")
-	sum, err := conformance.RunSuite(adapterBin, corpusPath)
+	// 1. Run via conformance.RunSuite with empty corpusPath (uses self-contained embedded corpus)
+	sum, err := conformance.RunSuite(adapterBin, "")
 	if err != nil {
 		t.Fatalf("conformance.RunSuite failed: %v", err)
 	}
@@ -2293,11 +2307,29 @@ func TestConformanceRunnerAdapterHarness(t *testing.T) {
 		t.Fatalf("expected >0 passed conformance cases")
 	}
 
-	// Also verify the standalone conformance-runner CLI binary exits 0 against conformance-go
+	// 2. Verify standalone conformance-runner CLI runs self-contained from tmpDir (without testdata/ on disk)
 	// #nosec G204 -- runnerBin and adapterBin are built in t.TempDir() above
-	out, err := exec.Command(runnerBin, "-corpus", corpusPath, adapterBin).CombinedOutput()
+	cmdRunner := exec.Command(runnerBin, adapterBin)
+	cmdRunner.Dir = tmpDir
+	out, err := cmdRunner.CombinedOutput()
 	if err != nil {
-		t.Fatalf("conformance-runner CLI failed: %v\n%s", err, out)
+		t.Fatalf("self-contained conformance-runner CLI failed: %v\n%s", err, out)
 	}
 	t.Logf("\n%s", strings.TrimSpace(string(out)))
+
+	// 3. Verify `omnibuf conformance` subcommand runs self-contained from tmpDir
+	// #nosec G204 -- cliBin and adapterBin are built in t.TempDir() above
+	cmdCLI := exec.Command(cliBin, "conformance", "--json", adapterBin)
+	cmdCLI.Dir = tmpDir
+	jsonOut, err := cmdCLI.CombinedOutput()
+	if err != nil {
+		t.Fatalf("omnibuf conformance --json failed: %v\n%s", err, jsonOut)
+	}
+	var parsedSum conformance.Summary
+	if err := json.Unmarshal(jsonOut, &parsedSum); err != nil {
+		t.Fatalf("unmarshal omnibuf conformance --json output failed: %v\n%s", err, jsonOut)
+	}
+	if parsedSum.PassedCases != sum.PassedCases || len(parsedSum.Failures) != 0 {
+		t.Fatalf("omnibuf conformance summary mismatch: got %+v, want %+v", parsedSum, sum)
+	}
 }

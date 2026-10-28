@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/sudorandom/omnibuf"
+	"github.com/sudorandom/omnibuf/internal/conformance"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -33,7 +34,7 @@ func main() {
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		printUsage(stderr)
-		return errors.New("missing command (expected 'decode' or 'encode')")
+		return errors.New("missing command (expected 'decode', 'encode', or 'conformance')")
 	}
 
 	switch args[0] {
@@ -41,22 +42,25 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return runDecode(args[1:], stdin, stdout, stderr)
 	case "encode", "enc", "e":
 		return runEncode(args[1:], stdin, stdout, stderr)
+	case "conformance", "conf":
+		return runConformance(args[1:], stdout, stderr)
 	case "-h", "--help", "help":
 		printUsage(stdout)
 		return nil
 	default:
 		printUsage(stderr)
-		return fmt.Errorf("unknown command %q (expected 'decode' or 'encode')", args[0])
+		return fmt.Errorf("unknown command %q (expected 'decode', 'encode', or 'conformance')", args[0])
 	}
 }
 
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprint(w, `Usage:
-  omnibuf <command> [flags] [input-file]
+  omnibuf <command> [flags] [args...]
 
 Commands:
-  decode    Decode OmniBuf wire bytes to JSON (blind or schema-aware)
-  encode    Encode JSON to OmniBuf wire bytes using a FileDescriptorSet schema
+  decode        Decode OmniBuf wire bytes to JSON (blind or schema-aware)
+  encode        Encode JSON to OmniBuf wire bytes using a FileDescriptorSet schema
+  conformance   Run the self-contained conformance suite against a client adapter binary
 
 Decode Examples:
   # Blind decode without a schema (from file or stdin)
@@ -72,7 +76,57 @@ Encode Examples:
 
   # Encode with Field #0 self-describing inline field names and output hex
   omnibuf encode -s schema.json -t PeerUpdate --field0 --hex input.json
+
+Conformance Examples:
+  # Run the built-in conformance suite against a compiled client binary
+  omnibuf conformance ./bin/conformance-go
+
+  # Run the built-in conformance suite against a Node.js client script
+  omnibuf conformance node ./packages/omnibuf-node/dist/bin/conformance-es.js
 `)
+}
+
+func runConformance(args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("conformance", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+
+	var (
+		corpusPath string
+		jsonOutput bool
+	)
+	fs.StringVar(&corpusPath, "corpus", "", "Optional path to override the built-in embedded conformance_corpus.json")
+	fs.BoolVar(&jsonOutput, "json", false, "Emit conformance summary as JSON")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return errors.New("conformance requires a client binary command (usage: omnibuf conformance [flags] <client-binary> [client-args...])")
+	}
+
+	sum, err := conformance.RunSuiteWithOptions(conformance.RunOptions{
+		AdapterBinary: fs.Arg(0),
+		AdapterArgs:   fs.Args()[1:],
+		CorpusPath:    corpusPath,
+	})
+	if err != nil {
+		return err
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(sum); err != nil {
+			return fmt.Errorf("encode conformance summary JSON: %w", err)
+		}
+	} else {
+		conformance.FormatSummary(stdout, stderr, sum)
+	}
+
+	if len(sum.Failures) > 0 {
+		return fmt.Errorf("%d conformance test(s) failed", len(sum.Failures))
+	}
+	return nil
 }
 
 func runDecode(args []string, stdin io.Reader, stdout, stderr io.Writer) error {

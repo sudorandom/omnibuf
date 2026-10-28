@@ -6,6 +6,7 @@ package conformance
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +22,13 @@ import (
 
 	"github.com/sudorandom/omnibuf"
 )
+
+// EmbeddedCorpusJSON holds the built-in language-independent conformance test corpus
+// so conformance-runner and `omnibuf conformance` work as self-contained binaries
+// without requiring external testdata files on disk.
+//
+//go:embed conformance_corpus.json
+var EmbeddedCorpusJSON []byte
 
 // WireFormat identifies the serialization format of payloads in ConformanceRequest and ConformanceResponse.
 type WireFormat uint32
@@ -224,27 +232,84 @@ type ConformanceCorpusFile struct {
 
 // Summary reports the outcome of running the conformance suite against an adapter binary.
 type Summary struct {
-	AdapterPath string
-	TotalCases  int
-	PassedCases int
-	Skipped     int
-	Failures    []string
-	ByTier      map[TestTier]int
+	AdapterPath string           `json:"adapter_path"`
+	TotalCases  int              `json:"total_cases"`
+	PassedCases int              `json:"passed_cases"`
+	Skipped     int              `json:"skipped"`
+	Failures    []string         `json:"failures,omitempty"`
+	ByTier      map[TestTier]int `json:"by_tier"`
 }
 
-// RunSuite spawns adapterBinary and executes the full conformance suite over stdin/stdout pipes.
-func RunSuite(adapterBinary, corpusPath string) (*Summary, error) {
-	corpusBytes, err := os.ReadFile(filepath.Clean(corpusPath))
-	if err != nil {
-		return nil, fmt.Errorf("read corpus %s: %w", corpusPath, err)
+// RunOptions configures a conformance test suite execution against a target client process.
+type RunOptions struct {
+	// AdapterBinary is the executable path or command name to launch (e.g., "./bin/conformance-go" or "node").
+	AdapterBinary string
+	// AdapterArgs are optional arguments passed to AdapterBinary (e.g., ["dist/bin/conformance-es.js"]).
+	AdapterArgs []string
+	// CorpusPath optionally overrides the built-in embedded conformance corpus with an external JSON file.
+	CorpusPath string
+}
+
+// LoadCorpus loads the conformance corpus from corpusPath when non-empty, or from the
+// built-in EmbeddedCorpusJSON when corpusPath is empty.
+func LoadCorpus(corpusPath string) (*ConformanceCorpusFile, error) {
+	corpusBytes := EmbeddedCorpusJSON
+	sourceLabel := "<embedded conformance_corpus.json>"
+	if corpusPath != "" {
+		var err error
+		corpusBytes, err = os.ReadFile(filepath.Clean(corpusPath))
+		if err != nil {
+			return nil, fmt.Errorf("read corpus %s: %w", corpusPath, err)
+		}
+		sourceLabel = corpusPath
 	}
 	var corpus ConformanceCorpusFile
 	if err := json.Unmarshal(corpusBytes, &corpus); err != nil {
-		return nil, fmt.Errorf("unmarshal corpus %s: %w", corpusPath, err)
+		return nil, fmt.Errorf("unmarshal corpus %s: %w", sourceLabel, err)
+	}
+	return &corpus, nil
+}
+
+// FormatSummary writes a human-readable conformance summary table to stdout and any failures to stderr.
+func FormatSummary(stdout, stderr io.Writer, sum *Summary) {
+	_, _ = fmt.Fprintf(stdout, "OmniBuf Conformance Suite (%s)\n", sum.AdapterPath)
+	_, _ = fmt.Fprintf(stdout, "  %-24s %4d passed\n", TestTierPlugin.String()+":", sum.ByTier[TestTierPlugin])
+	_, _ = fmt.Fprintf(stdout, "  %-24s %4d passed\n", TestTierProtobufTypes.String()+":", sum.ByTier[TestTierProtobufTypes])
+	_, _ = fmt.Fprintf(stdout, "  %-24s %4d passed\n", TestTierAnnotatedStruct.String()+":", sum.ByTier[TestTierAnnotatedStruct])
+	_, _ = fmt.Fprintf(stdout, "  %-24s %4d passed\n", TestTierBlind.String()+":", sum.ByTier[TestTierBlind])
+	_, _ = fmt.Fprintf(stdout, "  Total: %d passed, %d skipped, %d failed (out of %d cases)\n",
+		sum.PassedCases, sum.Skipped, len(sum.Failures), sum.TotalCases)
+
+	if len(sum.Failures) > 0 {
+		_, _ = fmt.Fprintln(stderr, "\nCONFORMANCE FAILURES:")
+		for _, f := range sum.Failures {
+			_, _ = fmt.Fprintf(stderr, "  - %s\n", f)
+		}
+	}
+}
+
+// RunSuite spawns adapterBinary and executes the full conformance suite over stdin/stdout pipes.
+// If corpusPath is empty, the self-contained embedded conformance corpus is used.
+func RunSuite(adapterBinary, corpusPath string) (*Summary, error) {
+	return RunSuiteWithOptions(RunOptions{
+		AdapterBinary: adapterBinary,
+		CorpusPath:    corpusPath,
+	})
+}
+
+// RunSuiteWithOptions spawns opts.AdapterBinary (with opts.AdapterArgs) and executes the
+// full conformance suite over length-prefixed stdin/stdout pipes.
+func RunSuiteWithOptions(opts RunOptions) (*Summary, error) {
+	if opts.AdapterBinary == "" {
+		return nil, errors.New("missing conformance client executable")
+	}
+	corpus, err := LoadCorpus(opts.CorpusPath)
+	if err != nil {
+		return nil, err
 	}
 
-	// #nosec G204 -- adapterBinary is the explicit conformance testee binary path provided by the test runner caller
-	cmd := exec.Command(adapterBinary)
+	// #nosec G204 -- AdapterBinary and AdapterArgs are the explicit conformance testee command provided by the test runner caller
+	cmd := exec.Command(opts.AdapterBinary, opts.AdapterArgs...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("open stdin pipe: %w", err)
@@ -256,12 +321,17 @@ func RunSuite(adapterBinary, corpusPath string) (*Summary, error) {
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
 
+	displayCmd := opts.AdapterBinary
+	if len(opts.AdapterArgs) > 0 {
+		displayCmd = opts.AdapterBinary + " " + strings.Join(opts.AdapterArgs, " ")
+	}
+
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start adapter %s: %w", adapterBinary, err)
+		return nil, fmt.Errorf("start adapter %s: %w", displayCmd, err)
 	}
 
 	sum := &Summary{
-		AdapterPath: adapterBinary,
+		AdapterPath: displayCmd,
 		ByTier:      make(map[TestTier]int),
 	}
 

@@ -216,6 +216,9 @@ func TestCLIErrorCases(t *testing.T) {
 	if err := run([]string{"decode", "-t", "PeerUpdate"}, strings.NewReader(""), &stdout, &stderr); err == nil {
 		t.Fatal("expected error when --type is passed without --schema")
 	}
+	if err := run([]string{"conformance"}, strings.NewReader(""), &stdout, &stderr); err == nil {
+		t.Fatal("expected error for conformance without client binary argument")
+	}
 	if err := run([]string{"--help"}, strings.NewReader(""), &stdout, &stderr); err != nil {
 		t.Fatalf("expected --help to succeed, got %v", err)
 	}

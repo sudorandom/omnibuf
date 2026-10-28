@@ -147,6 +147,32 @@ omnibuf encode -s testdata/golden/peer.fds.pb.gz -t PeerUpdate testdata/golden/p
 
 # Encode with Field #0 inline field names and output hex
 omnibuf encode -s testdata/golden/peer.fds.json -t PeerUpdate --field0 --hex testdata/golden/peer_update.input.json
+
+# Run the self-contained conformance suite against a target language client
+omnibuf conformance ./bin/conformance-go
+omnibuf conformance node ../omnibuf-es/packages/omnibuf-node/dist/bin/conformance-es.js
+```
+
+---
+
+## Conformance Testing (`conformance-runner` / `omnibuf conformance`)
+
+OmniBuf includes a self-contained conformance test runner modeled after Protobuf's `conformance-test-runner`, `protovalidate-conformance`, and Connect's conformance runner. The test corpus (`internal/conformance/conformance_corpus.json`) is embedded directly into the runner binary so language implementations do not need to copy test vectors across repositories.
+
+The runner spawns a language-specific conformance client binary (`cmd/conformance-go` for Go, `omnibuf-conformance-es` for TypeScript/Node.js) and exchanges 4-byte little-endian `uint32` length-prefixed `ConformanceRequest` and `ConformanceResponse` messages (defined in [`proto/omnibuf/conformance/conformance.proto`](proto/omnibuf/conformance/conformance.proto)) over `stdin` and `stdout` across all four implementation tiers:
+
+- `TEST_TIER_PLUGIN` (`1`): Generated plugin codecs (`protoc-gen-omnibuf-*`) and lazy `Opaque` views (`test_opaque_splice` / `test_opaque_splice_shrink`)
+- `TEST_TIER_PROTOBUF_TYPES` (`2`): Standard Protobuf descriptors and generated Protobuf message types
+- `TEST_TIER_ANNOTATED_STRUCT` (`3`): Plain language structs, classes, or declarative schemas
+- `TEST_TIER_BLIND` (`4`): Schema-less inspection (`DecodeBlind` / `decodeBlind`)
+
+```bash
+# Build and run the Go conformance suite via just
+just conformance
+
+# Or install the standalone runner binary for use in other language repositories
+go install github.com/sudorandom/omnibuf/cmd/conformance-runner@latest
+conformance-runner ./path/to/conformance-client
 ```
 
 ---
