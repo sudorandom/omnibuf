@@ -1,4 +1,17 @@
 ---
+import { Code } from 'astro:components';
+
+const spliceSnippet = `view := pb.NodeOpaque(pkt)
+city, _ := view.City()      // skips #1 and #2
+pkt = view.SetActive(false) // updates raw bytes`;
+
+const pbStructSnippet = `pkt, _ := omnibuf.Marshal(&pb.Node{Id: 1, City: "FRA"})`;
+
+const plainStructSnippet = `type Node struct {
+  ID   uint32 \`omnibuf:"1"\`
+  City string \`omnibuf:"2"\`
+}
+pkt, _ := omnibuf.Marshal(&Node{ID: 1, City: "FRA"})`;
 ---
 
 <section id="motivation" class="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -23,7 +36,7 @@
       id="inspectable-without-schema"
       class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
     >
-      <div class="lg:col-span-7 space-y-3">
+      <div class="lg:col-span-5 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Decode values without a schema
         </h3>
@@ -36,7 +49,7 @@
           If you also want the string field names on the wire, turning on <strong>Field #0</strong> writes a field-name table once at the top of the packet. Better yet, if your message has an array or map of 1,000 nested structs, JSON and MessagePack repeat the key strings inside all 1,000 items. OmniBuf writes the child field names <strong>once</strong> in Field #0 and every item in the array or map inherits them automatically, so self-describing packets are already smaller than MessagePack and JSON with just 4 array items.
         </p>
       </div>
-      <div class="lg:col-span-5 min-w-0">
+      <div class="lg:col-span-7 min-w-0">
         <div class="os-window overflow-hidden font-mono text-xs sm:text-sm">
           <div class="os-titlebar bg-[#E5E0D5]">
             <span class="font-bold uppercase text-ink text-xs">
@@ -49,19 +62,19 @@
               <div class="text-[11px] uppercase font-bold text-[#FF4F18] mb-1.5">
                 Protobuf (Ambiguous Wire Types)
               </div>
-              <pre class="leading-relaxed overflow-x-auto"><code>1: 1          <span class="text-paper/55"># true? 1? -1 (sint)? enum?</span>
-2: 3          <span class="text-paper/55"># +3 (uint/int)? or -2 (sint)?</span>
-3: &#123;"FRA"&#125;    <span class="text-paper/55"># string? bytes? sub-msg?</span>
-4: "\x0a\x14" <span class="text-paper/55"># bytes? string? packed array?</span></code></pre>
+              <pre class="leading-relaxed overflow-x-auto"><code><span class="text-[#FF4F18] font-bold">1:</span> 1          <span class="text-paper/55"># true? 1? -1 (sint)? enum?</span>
+<span class="text-[#FF4F18] font-bold">2:</span> 3          <span class="text-paper/55"># +3 (uint/int)? or -2 (sint)?</span>
+<span class="text-[#FF4F18] font-bold">3:</span> &#123;<span class="text-acid">"FRA"</span>&#125;    <span class="text-paper/55"># string? bytes? sub-msg?</span>
+<span class="text-[#FF4F18] font-bold">4:</span> <span class="text-acid">"\x0a\x14"</span> <span class="text-paper/55"># bytes? string? packed array?</span></code></pre>
             </div>
             <div class="bg-[#1F1F1F] p-3 rounded border border-acid/40">
               <div class="text-[11px] uppercase font-bold text-acid mb-1.5">
                 OmniBuf (Explicit Wire Types)
               </div>
-              <pre class="leading-relaxed overflow-x-auto"><code>1: true       <span class="text-acid/80"># bool (0 value bytes)</span>
-2: -2         <span class="text-acid/80"># sint (signed int)</span>
-3: "FRA"      <span class="text-acid/80"># string (UTF-8)</span>
-4: [10, 20]   <span class="text-acid/80"># array&lt;uint&gt; (count=2)</span></code></pre>
+              <pre class="leading-relaxed overflow-x-auto"><code><span class="text-acid font-bold">1:</span> <span class="text-[#FF4F18] font-bold">true</span>       <span class="text-acid/80"># bool (0 value bytes)</span>
+<span class="text-acid font-bold">2:</span> -2         <span class="text-acid/80"># sint (signed int)</span>
+<span class="text-acid font-bold">3:</span> <span class="text-acid">"FRA"</span>      <span class="text-acid/80"># string (UTF-8)</span>
+<span class="text-acid font-bold">4:</span> [10, 20]   <span class="text-acid/80"># array&lt;uint&gt; (count=2)</span></code></pre>
             </div>
           </div>
         </div>
@@ -73,7 +86,7 @@
       id="read-or-splice"
       class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
     >
-      <div class="lg:col-span-7 space-y-3">
+      <div class="lg:col-span-5 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Read, drop, or replace individual fields on raw bytes
         </h3>
@@ -85,7 +98,7 @@
           dropping unknown fields.
         </p>
       </div>
-      <div class="lg:col-span-5 min-w-0">
+      <div class="lg:col-span-7 min-w-0">
         <div class="os-window overflow-hidden font-mono text-xs sm:text-sm">
           <div class="os-titlebar bg-[#E5E0D5]">
             <span class="font-bold uppercase text-ink text-xs">
@@ -93,10 +106,8 @@
             </span>
             <div class="os-stripes"></div>
           </div>
-          <div class="bg-ink text-paper p-4">
-            <pre class="leading-relaxed overflow-x-auto"><code>view := pb.NodeOpaque(pkt)
-city, _ := view.City()      <span class="text-acid/80">// skips #1 and #2</span>
-pkt = view.SetActive(false) <span class="text-acid/80">// updates raw bytes</span></code></pre>
+          <div class="bg-ink text-paper p-4 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0 [&>pre]:leading-relaxed [&>pre]:overflow-x-auto">
+            <Code code={spliceSnippet} lang="go" theme="github-dark" />
           </div>
         </div>
       </div>
@@ -107,7 +118,7 @@ pkt = view.SetActive(false) <span class="text-acid/80">// updates raw bytes</spa
       id="proto-or-plain-structs"
       class="scroll-mt-16 py-8 sm:py-10 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center"
     >
-      <div class="lg:col-span-7 space-y-3">
+      <div class="lg:col-span-5 space-y-3">
         <h3 class="text-2xl sm:text-3xl font-bold uppercase tracking-tight leading-snug">
           Works with your existing .proto files, or just plain structs
         </h3>
@@ -120,7 +131,7 @@ pkt = view.SetActive(false) <span class="text-acid/80">// updates raw bytes</spa
           If you usually reach for JSON because you don't want to maintain <code>.proto</code> files and a code generator, put <code>omnibuf:"1"</code> tags on a <a href="/go#struct-tags" class="doc-link">Go struct</a> or use <code>defineMessage()</code> in <a href="/es#define-message" class="doc-link">TypeScript</a> just like <code>json:"host"</code> tags. You get packets that are less than half the size of JSON and 7x to 11x faster on plain structs.
         </p>
       </div>
-      <div class="lg:col-span-5 min-w-0">
+      <div class="lg:col-span-7 min-w-0">
         <div class="os-window overflow-hidden font-mono text-xs sm:text-sm">
           <div class="os-titlebar bg-[#E5E0D5]">
             <span class="font-bold uppercase text-ink text-xs">
@@ -129,21 +140,17 @@ pkt = view.SetActive(false) <span class="text-acid/80">// updates raw bytes</spa
             <div class="os-stripes"></div>
           </div>
           <div class="bg-ink text-paper p-4 space-y-3">
-            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0 [&>pre]:leading-relaxed [&>pre]:overflow-x-auto">
               <div class="text-[11px] uppercase font-bold text-paper/65 mb-1">
                 1. Existing .pb.go Struct (From .proto)
               </div>
-              <pre class="leading-relaxed overflow-x-auto"><code>pkt, _ := omnibuf.Marshal(&amp;pb.Node&#123;Id: 1, City: "FRA"&#125;)</code></pre>
+              <Code code={pbStructSnippet} lang="go" theme="github-dark" />
             </div>
-            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15">
+            <div class="bg-[#1F1F1F] p-3 rounded border border-paper/15 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0 [&>pre]:!border-0 [&>pre]:leading-relaxed [&>pre]:overflow-x-auto">
               <div class="text-[11px] uppercase font-bold text-paper/65 mb-1">
                 2. Plain Go Struct (No .proto)
               </div>
-              <pre class="leading-relaxed overflow-x-auto"><code>type Node struct &#123;
-  ID   uint32 `omnibuf:"1"`
-  City string `omnibuf:"2"`
-&#125;
-pkt, _ := omnibuf.Marshal(&amp;Node&#123;ID: 1, City: "FRA"&#125;)</code></pre>
+              <Code code={plainStructSnippet} lang="go" theme="github-dark" />
             </div>
             <div class="flex items-center justify-between px-3 py-2 rounded bg-acid text-ink font-bold text-xs border border-ink">
               <span class="uppercase">Same Wire Output (7B)</span>
