@@ -81,10 +81,13 @@ const miniLanguagePreviews = [
       const rest = bRows.filter((r) => !r.baseline);
 
       return (
-        <div class="flex flex-col justify-between px-1 sm:px-2 py-1 select-none">
+        <a
+          href={preview.href}
+          class="group flex flex-col justify-between p-3 sm:p-4 -m-2 sm:-m-3 rounded-md hover:bg-ink/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink transition select-none cursor-pointer"
+        >
           <div>
             <div class="flex items-baseline justify-between gap-2 mb-2">
-              <h3 class="text-xl sm:text-2xl font-bold uppercase tracking-tight leading-none text-ink">
+              <h3 class="text-xl sm:text-2xl font-bold uppercase tracking-tight leading-none text-ink group-hover:text-[#FF4F18] transition-colors">
                 {preview.lang}{' '}
                 <span class="font-serif italic font-normal normal-case text-[#FF4F18]">speed.</span>
               </h3>
@@ -207,14 +210,11 @@ const miniLanguagePreviews = [
           </div>
 
           <div class="pt-2.5 mt-2 border-t border-ink/20 flex items-center justify-end font-mono text-xs font-bold uppercase">
-            <a
-              href={preview.href}
-              class="text-ink underline decoration-ink/50 underline-offset-2 hover:text-[#FF4F18]"
-            >
+            <span class="text-ink underline decoration-ink/50 underline-offset-2 group-hover:text-[#FF4F18]">
               {preview.cta} &rarr;
-            </a>
+            </span>
           </div>
-        </div>
+        </a>
       );
     })}
   </div>
