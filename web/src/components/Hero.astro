@@ -134,7 +134,7 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
             </div>
           </div>
 
-          <!-- Rows 2..N: "The Rest" Butterfly Wings + Callout -->
+          <!-- Rows 2..N: Competitor Butterfly Wings + Callout -->
           <div class="mt-0.5 space-y-1">
             {restRows.map((r) => (
               <div
@@ -157,7 +157,7 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
             ))}
           </div>
 
-          <!-- Dual Upward Callout Arrows Pointing to "The Rest" Wings -->
+          <!-- Dual Upward Callout Arrows Pointing to Competitor Wings -->
           <div class="mt-2 flex items-center justify-center gap-2">
             <svg
               class="w-7 h-4 text-ink/75 shrink-0"
@@ -173,8 +173,8 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
                 stroke-linejoin="round"
               />
             </svg>
-            <span class="font-mono text-[11px] font-bold uppercase px-2 py-0.5 bg-[#E5E0D5] border border-ink text-ink leading-none rounded-sm">
-              The Rest (Protobuf, JSON, etc.)
+            <span class="font-mono text-[11px] font-bold uppercase px-2 py-1 bg-[#E5E0D5] border border-ink text-ink text-center leading-tight rounded-sm">
+              Protobuf, FlatBuffers, Avro, Cap&apos;n Proto, MsgPack, JSON
             </span>
             <svg
               class="w-7 h-4 text-ink/75 shrink-0"

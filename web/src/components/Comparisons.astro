@@ -18,6 +18,7 @@ const miniLanguagePreviews = [
     lang: 'Go',
     href: '/go#benchmarks',
     cta: 'Go Benchmarks',
+    competitorsLabel: "Protobuf, FlatBuffers, Avro, Cap'n Proto, MsgPack, JSON",
     encodeRows: (goEncodeCat?.rows ?? []).filter(
       (r) => (r.baseline || !r.highlight) && r.name !== 'JSON (encoding/json/v2)',
     ),
@@ -29,6 +30,7 @@ const miniLanguagePreviews = [
     lang: 'TypeScript & JS',
     href: '/es#benchmarks',
     cta: 'TS / JS Benchmarks',
+    competitorsLabel: 'protobufjs, protobuf-es, google-protobuf, MsgPack, JSON',
     encodeRows: esEncodeCat?.rows ?? [],
     decodeRows: esDecodeCat?.rows ?? [],
   },
@@ -146,7 +148,7 @@ const miniLanguagePreviews = [
               </div>
             </div>
 
-            <!-- The Rest Rows -->
+            <!-- Competitor Rows -->
             <div class="mt-0.5 space-y-1">
               {rest.map((r) => (
                 <div
@@ -184,8 +186,8 @@ const miniLanguagePreviews = [
                   stroke-linejoin="round"
                 />
               </svg>
-              <span class="font-mono text-[11px] font-bold uppercase px-2 py-0.5 bg-[#E5E0D5] border border-ink text-ink leading-none rounded-sm">
-                The Rest
+              <span class="font-mono text-[11px] font-bold uppercase px-2 py-1 bg-[#E5E0D5] border border-ink text-ink text-center leading-tight rounded-sm">
+                {preview.competitorsLabel}
               </span>
               <svg
                 class="w-7 h-4 text-ink/75 shrink-0"
