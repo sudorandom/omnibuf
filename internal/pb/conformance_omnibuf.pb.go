@@ -515,7 +515,7 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 			start := len(x.F9StringArr)
 			total := start + count
 			if cap(x.F9StringArr) < total {
-				next := make([]string, total)
+				next := make([]string, total, wire.GrowCapacity(cap(x.F9StringArr), total))
 				copy(next, x.F9StringArr)
 				x.F9StringArr = next
 			} else {
@@ -563,7 +563,7 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 			start := len(x.F10Uint32Arr)
 			total := start + count
 			if cap(x.F10Uint32Arr) < total {
-				next := make([]uint32, total)
+				next := make([]uint32, total, wire.GrowCapacity(cap(x.F10Uint32Arr), total))
 				copy(next, x.F10Uint32Arr)
 				x.F10Uint32Arr = next
 			} else {
@@ -608,7 +608,7 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 			total := start + count
 			if cap(x.F11SubMsgArr) < total {
 				slab := make([]AllTypesSubMsg, count)
-				next := make([]*AllTypesSubMsg, total)
+				next := make([]*AllTypesSubMsg, total, wire.GrowCapacity(cap(x.F11SubMsgArr), total))
 				copy(next, x.F11SubMsgArr)
 				for i := 0; i < count; i++ {
 					next[start+i] = &slab[i]

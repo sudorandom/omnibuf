@@ -721,7 +721,7 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 			start := len(x.Tags)
 			total := start + count
 			if cap(x.Tags) < total {
-				next := make([]string, total)
+				next := make([]string, total, wire.GrowCapacity(cap(x.Tags), total))
 				copy(next, x.Tags)
 				x.Tags = next
 			} else {
@@ -769,7 +769,7 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 			start := len(x.Prefixes)
 			total := start + count
 			if cap(x.Prefixes) < total {
-				next := make([]uint32, total)
+				next := make([]uint32, total, wire.GrowCapacity(cap(x.Prefixes), total))
 				copy(next, x.Prefixes)
 				x.Prefixes = next
 			} else {
@@ -829,7 +829,7 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 			total := start + count
 			if cap(x.Neighbors) < total {
 				slab := make([]Neighbor, count)
-				next := make([]*Neighbor, total)
+				next := make([]*Neighbor, total, wire.GrowCapacity(cap(x.Neighbors), total))
 				copy(next, x.Neighbors)
 				for i := 0; i < count; i++ {
 					next[start+i] = &slab[i]

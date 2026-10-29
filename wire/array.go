@@ -41,11 +41,21 @@ func ParseArrayHeader(body []byte) (elem uint8, count, pos int, ok bool) {
 	return elem, int(c), pos, true
 }
 
+// GrowCapacity returns a capacity for an expanding decoded array. Fresh arrays
+// allocate exactly once; fragmented arrays grow geometrically to bound copying.
+// current must be nonnegative, and required must be at least current.
+func GrowCapacity(current, required int) int {
+	if current <= int(^uint(0)>>1)/2 && current*2 > required {
+		return current * 2
+	}
+	return required
+}
+
 func growSlice[T any](dst []T, add int) ([]T, int) {
 	start := len(dst)
 	total := start + add
 	if cap(dst) < total || dst == nil {
-		next := make([]T, total)
+		next := make([]T, total, GrowCapacity(cap(dst), total))
 		copy(next, dst)
 		return next, start
 	}

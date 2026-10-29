@@ -2188,14 +2188,14 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			if _, ok := countSubMsgArrElems(arrPayload); !ok {
 				return 0, fmt.Errorf("omnibuf: corrupt submsg array at %d", pos)
 			}
-			newSlice := reflect.MakeSlice(fc.sliceType, total, total)
+			newSlice := reflect.MakeSlice(fc.sliceType, total, wire.GrowCapacity(sh.Cap, total))
 			newPtr := newSlice.UnsafePointer()
 			if start > 0 && sh.Data != nil {
 				reflect.Copy(newSlice, reflect.NewAt(fc.sliceType, unsafe.Pointer(sh)).Elem())
 			}
 			sh.Data = newPtr
 			sh.Len = total
-			sh.Cap = total
+			sh.Cap = newSlice.Cap()
 		} else {
 			sh.Len = total
 		}
@@ -2236,7 +2236,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			}
 			slab := reflect.MakeSlice(reflect.SliceOf(fc.elemType), elemCount, elemCount)
 			slabPtr := slab.UnsafePointer()
-			next := make([]unsafe.Pointer, total)
+			next := make([]unsafe.Pointer, total, wire.GrowCapacity(cap(ptrs), total))
 			copy(next, ptrs[:start])
 			for j := range elemCount {
 				next[start+j] = unsafe.Add(slabPtr, uintptr(j)*fc.elemSize)

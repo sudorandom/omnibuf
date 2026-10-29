@@ -143,6 +143,7 @@ func runDecode(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	)
 	fs.StringVar(&schemaPath, "schema", "", "Optional FileDescriptorSet path (.json, .pb, .pb.gz); omit for blind decode")
 	fs.StringVar(&schemaPath, "s", "", "Short alias for --schema")
+	maxSchemaBytes := fs.Int64("max-schema-bytes", 64<<20, "Maximum schema file and decompressed size in bytes")
 	fs.StringVar(&msgType, "type", "", "Message type name when --schema is used (auto-selected if schema has 1 message)")
 	fs.StringVar(&msgType, "t", "", "Short alias for --type")
 	fs.StringVar(&inputPath, "input", "", "Input file path (defaults to positional arg or stdin)")
@@ -194,7 +195,7 @@ func runDecode(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			return fmt.Errorf("failed to marshal blind-decoded JSON: %w", err)
 		}
 	} else {
-		md, err := loadMessageDescriptor(schemaPath, msgType)
+		md, err := loadMessageDescriptor(schemaPath, msgType, *maxSchemaBytes)
 		if err != nil {
 			return err
 		}
@@ -241,6 +242,7 @@ func runEncode(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	)
 	fs.StringVar(&schemaPath, "schema", "", "FileDescriptorSet path (.json, .pb, .pb.gz)")
 	fs.StringVar(&schemaPath, "s", "", "Short alias for --schema")
+	maxSchemaBytes := fs.Int64("max-schema-bytes", 64<<20, "Maximum schema file and decompressed size in bytes")
 	fs.StringVar(&msgType, "type", "", "Message type name (auto-selected if schema has 1 message)")
 	fs.StringVar(&msgType, "t", "", "Short alias for --type")
 	fs.StringVar(&inputPath, "input", "", "Input JSON file path (defaults to positional arg or stdin)")
@@ -265,7 +267,7 @@ func runEncode(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return fmt.Errorf("unexpected extra arguments: %v", fs.Args()[1:])
 	}
 
-	md, err := loadMessageDescriptor(schemaPath, msgType)
+	md, err := loadMessageDescriptor(schemaPath, msgType, *maxSchemaBytes)
 	if err != nil {
 		return err
 	}
@@ -298,11 +300,31 @@ func runEncode(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	return writeOutput(outputPath, stdout, wireBytes)
 }
 
+// readSchemaBytes bounds both compressed input and the sum of all gzip members.
+func readSchemaBytes(r io.Reader, maxBytes int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("schema exceeds limit of %d bytes (--max-schema-bytes)", maxBytes)
+	}
+	return data, nil
+}
+
 // loadFileDescriptorSet loads a *descriptorpb.FileDescriptorSet from a .json, .pb, or .pb.gz file.
 // Format is detected from the filename extension (.pb.gz/.gz, .json, .pb) as well as content inspection
 // (gzip magic header 0x1f 0x8b or leading '{' for JSON).
-func loadFileDescriptorSet(path string) (*descriptorpb.FileDescriptorSet, error) {
-	raw, err := os.ReadFile(path)
+func loadFileDescriptorSet(path string, maxBytes int64) (*descriptorpb.FileDescriptorSet, error) {
+	if maxBytes <= 0 || maxBytes == 1<<63-1 {
+		return nil, errors.New("max-schema-bytes must be positive and less than MaxInt64")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open schema %q: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	raw, err := readSchemaBytes(f, maxBytes)
 	if err != nil {
 		return nil, fmt.Errorf("read schema %q: %w", path, err)
 	}
@@ -314,7 +336,7 @@ func loadFileDescriptorSet(path string) (*descriptorpb.FileDescriptorSet, error)
 		if err != nil {
 			return nil, fmt.Errorf("open gzip schema %q: %w", path, err)
 		}
-		decompressed, err := io.ReadAll(zr)
+		decompressed, err := readSchemaBytes(zr, maxBytes)
 		_ = zr.Close()
 		if err != nil {
 			return nil, fmt.Errorf("decompress gzip schema %q: %w", path, err)
@@ -354,8 +376,8 @@ func loadFileDescriptorSet(path string) (*descriptorpb.FileDescriptorSet, error)
 
 // loadMessageDescriptor loads the FileDescriptorSet from schemaPath and resolves msgType.
 // If msgType is empty and the FileDescriptorSet contains exactly one top-level message, that message is returned.
-func loadMessageDescriptor(schemaPath, msgType string) (protoreflect.MessageDescriptor, error) {
-	fds, err := loadFileDescriptorSet(schemaPath)
+func loadMessageDescriptor(schemaPath, msgType string, maxBytes int64) (protoreflect.MessageDescriptor, error) {
+	fds, err := loadFileDescriptorSet(schemaPath, maxBytes)
 	if err != nil {
 		return nil, err
 	}

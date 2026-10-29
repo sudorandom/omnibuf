@@ -153,6 +153,9 @@ omnibuf conformance ./bin/conformance-go
 omnibuf conformance node ../omnibuf-es/packages/omnibuf-node/dist/bin/conformance-es.js
 ```
 
+Schema files and their decompressed contents are each limited to 64 MiB by default.
+Use `--max-schema-bytes` with `encode` or `decode` to set a different positive byte limit.
+
 ---
 
 ## Conformance Testing (`conformance-runner` / `omnibuf conformance`)

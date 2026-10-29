@@ -106,7 +106,7 @@ func growSliceOmni[T any](dst []T, add int) ([]T, int) {
 	start := len(dst)
 	total := start + add
 	if cap(dst) < total || dst == nil {
-		next := make([]T, total)
+		next := make([]T, total, wire.GrowCapacity(cap(dst), total))
 		copy(next, dst)
 		return next, start
 	}

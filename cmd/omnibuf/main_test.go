@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -323,6 +324,63 @@ func TestCLIAgainstCheckedInGoldenFiles(t *testing.T) {
 					t.Fatalf("CLI schema decode differs from golden .schema.json")
 				}
 			})
+		}
+	}
+}
+
+func TestSchemaSizeLimit(t *testing.T) {
+	jsonPath, pbPath, gzPath := createSchemaFiles(t)
+	for _, path := range []string{jsonPath, pbPath, gzPath} {
+		if _, err := loadFileDescriptorSet(path, 1<<20); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := loadFileDescriptorSet(path, 1); err == nil || !strings.Contains(err.Error(), "exceeds limit") {
+			t.Fatalf("expected file size limit: %v", err)
+		}
+	}
+	raw, err := os.ReadFile(pbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadFileDescriptorSet(pbPath, int64(len(raw))); err != nil {
+		t.Fatalf("exact limit: %v", err)
+	}
+	for _, limit := range []int64{0, -1, 1<<63 - 1} {
+		if _, err := loadFileDescriptorSet(pbPath, limit); err == nil {
+			t.Fatal("invalid limit accepted")
+		}
+	}
+	// A valid, highly compressible descriptor, including concatenated gzip
+	// members, must be bounded on expanded size even with no .gz extension.
+	raw = append(raw, bytes.Repeat([]byte{0xa2, 0x06, 0x00}, 4096)...)
+	var compressed bytes.Buffer
+	for _, part := range [][]byte{raw[:len(raw)/2], raw[len(raw)/2:]} {
+		zw := gzip.NewWriter(&compressed)
+		if _, err := zw.Write(part); err != nil {
+			t.Fatal(err)
+		}
+		if err := zw.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "schema.bin")
+	if err := os.WriteFile(path, compressed.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	limit := int64(len(raw) - 1)
+	if int64(compressed.Len()) >= limit {
+		t.Fatal("fixture must fit compressed limit")
+	}
+	if _, err := loadFileDescriptorSet(path, limit); err == nil || !strings.Contains(err.Error(), "exceeds limit") {
+		t.Fatalf("expected decompression limit: %v", err)
+	}
+	if _, err := loadFileDescriptorSet(path, int64(len(raw))); err != nil {
+		t.Fatalf("exact expanded limit: %v", err)
+	}
+	for _, run := range []func([]string, io.Reader, io.Writer, io.Writer) error{runEncode, runDecode} {
+		err := run([]string{"--schema", pbPath, "--max-schema-bytes", "1"}, strings.NewReader("{}"), io.Discard, io.Discard)
+		if err == nil || !strings.Contains(err.Error(), "exceeds limit") {
+			t.Fatalf("CLI ignored size limit: %v", err)
 		}
 	}
 }

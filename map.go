@@ -1,6 +1,8 @@
 package omnibuf
 
 import (
+	"slices"
+
 	"github.com/sudorandom/omnibuf/wire"
 )
 
@@ -17,10 +19,14 @@ func encodeMapStringUint(dst []byte, m map[string]uint64, deterministic bool) []
 		for k := range m {
 			keys = append(keys, k)
 		}
-		for i := 1; i < len(keys); i++ {
-			for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
-				keys[j], keys[j-1] = keys[j-1], keys[j]
+		if len(keys) <= 16 {
+			for i := 1; i < len(keys); i++ {
+				for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
+					keys[j], keys[j-1] = keys[j-1], keys[j]
+				}
 			}
+		} else {
+			slices.Sort(keys)
 		}
 		for _, k := range keys {
 			dst = appendVarint(dst, uint64(len(k)))
