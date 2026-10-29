@@ -98,18 +98,16 @@ const goBenchmarkCategories = benchmarkCategories.filter((cat) => cat.unit !== '
         <div class="text-acid font-bold uppercase">Hardware &amp; Runtime</div>
         <div>CPU: Apple M1 Pro (darwin/arm64)</div>
         <div>Compiler: Go 1.27.1</div>
-        <div>
-          Samples: 8 × 200 ms, CPU=1
-        </div>
+        <div>Samples: 8 × 200 ms, CPU=1</div>
         <div>Updated: 2026-10-28</div>
       </div>
     </div>
     <div class="md:col-span-8 md:pt-1 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
       <p>
-        These results are medians of eight runs on an M1 Pro MacBook Pro with Go 1.27.1
-        and <code>GOEXPERIMENT=jsonv2</code>, using <code>-benchtime=200ms -count=8 -cpu=1</code>. Each test encodes and
-        decodes the same <code>PeerUpdate</code> message, which has 11 fields (a mix of numbers,
-        booleans, strings, a nested <code>Location</code> message, and a list of 4{' '}
+        These results are medians of eight runs on an M1 Pro MacBook Pro with Go 1.27.1 and{' '}
+        <code>GOEXPERIMENT=jsonv2</code>, using <code>-benchtime=200ms -count=8 -cpu=1</code>. Each
+        test encodes and decodes the same <code>PeerUpdate</code> message, which has 11 fields (a
+        mix of numbers, booleans, strings, a nested <code>Location</code> message, and a list of 4{' '}
         <code>Neighbor</code> messages).
       </p>
       <!-- prettier-ignore -->
