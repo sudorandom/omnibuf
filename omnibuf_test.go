@@ -1,6 +1,7 @@
 package omnibuf_test
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -234,7 +235,9 @@ func TestAllCodecsRoundTripAndWireSize(t *testing.T) {
 	fbBuilder := flatbuffers.NewBuilder(512)
 	fbBytes := append([]byte(nil), EncodePeerFlatBuffers(fbBuilder, &orig)...)
 	var fbDec PeerUpdate
-	DecodePeerFlatBuffersInto(fbBytes, &fbDec, false)
+	if err := DecodePeerFlatBuffersInto(fbBytes, &fbDec, false); err != nil {
+		t.Fatal(err)
+	}
 	if !reflect.DeepEqual(orig, fbDec) {
 		t.Fatalf("FlatBuffers mismatch:\ngot:  %#v\nwant: %#v", fbDec, orig)
 	}
@@ -330,4 +333,38 @@ func TestAllCodecsRoundTripAndWireSize(t *testing.T) {
 	t.Logf("  Standard JSON (encoding/json):        %4d bytes", len(jsonBytes))
 	t.Logf("  Avro OCF (Self-Describing w/ Schema): %4d bytes", len(avroOCFBytes))
 	fmt.Printf("")
+}
+
+func TestFlatBuffersStringDecodersRejectInvalidUTF8(t *testing.T) {
+	cases := []struct {
+		name string
+		peer PeerUpdate
+	}{
+		{"router_id", PeerUpdate{RouterID: "\xff"}},
+		{"tag", PeerUpdate{Tags: []string{"ok", "\xff"}}},
+		{"location_region", PeerUpdate{Location: Location{Region: "\xff"}}},
+		{"location_datacenter", PeerUpdate{Location: Location{Datacenter: "\xff"}}},
+		{"location_city", PeerUpdate{Location: Location{City: "\xff"}}},
+		{"neighbor_router", PeerUpdate{Neighbors: []Neighbor{{Router: "\xff"}}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			builder := flatbuffers.NewBuilder(128)
+			packet := append([]byte(nil), EncodePeerFlatBuffers(builder, &tc.peer)...)
+			var out PeerUpdate
+			if err := DecodePeerFlatBuffersInto(packet, &out, false); !errors.Is(err, errFlatBuffersInvalidUTF8) {
+				t.Fatalf("decode error = %v, want invalid UTF-8", err)
+			}
+			if tc.name == "location_city" {
+				if _, ok := LookupFlatBuffersNestedCity(packet, true); ok {
+					t.Fatal("city lookup accepted invalid UTF-8")
+				}
+			}
+			if tc.name == "neighbor_router" {
+				if _, ok := LookupFlatBuffersNeighborRouter(packet, 0, true); ok {
+					t.Fatal("router lookup accepted invalid UTF-8")
+				}
+			}
+		})
+	}
 }

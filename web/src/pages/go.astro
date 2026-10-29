@@ -49,7 +49,7 @@ const goFaqItems = [
     id: 'go-faq-plugin',
     question: 'Do I need protoc-gen-omnibuf?',
     paragraphs: [
-      'It is optional, though worth adding when you want maximum speed. <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> already run ~2x faster than <code>proto.Marshal</code> with no extra plugin, and adding <code>protoc-gen-omnibuf</code> gives you ~6x faster generated methods plus <code>Opaque</code> views over OmniBuf packets.',
+      'It is optional, though worth adding when you want maximum speed. <code>omnibuf.Marshal</code> and <code>omnibuf.Unmarshal</code> work without a plugin. Adding <code>protoc-gen-omnibuf</code> provides faster generated codecs and <code>Opaque</code> views over OmniBuf packets.',
     ],
   },
 ];

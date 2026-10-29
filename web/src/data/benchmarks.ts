@@ -49,7 +49,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     key: 'omnibuf',
     name: 'OmniBuf',
     verdict:
-      'These radar charts compare five tradeoffs across our benchmark suite. Encode Speed and Decode Speed reflect how fast a message converts to and from native structs, where single-pass writing and TZCNT Prefix-Varints put OmniBuf at the top. Memory Efficiency tracks heap allocations during serialization, where buffer reuse and zeroCopy strings keep allocations near zero. Wire Size measures encoded byte length (within 7% of Protobuf and 14% of raw Avro), while Field Lookup measures reading one field from raw bytes, where hopping by byte length is much faster than scanning varints but still walks preceding field headers linearly unlike FlatBuffers offset tables.',
+      'These radar charts compare five tradeoffs across our benchmark suite. Encode Speed and Decode Speed reflect how fast a message converts to and from native structs, with generated OmniBuf leading encoding while FlatBuffers decodes faster in this workload. Memory Efficiency tracks heap allocations during serialization, where buffer reuse and zeroCopy strings keep allocations near zero. Wire Size measures encoded byte length (within 7% of Protobuf and 14% of raw Avro), while Field Lookup measures reading one field from raw bytes, where hopping by byte length is much faster than scanning varints but still walks preceding field headers linearly unlike FlatBuffers offset tables.',
     stats: [
       { label: 'Wire Size', score: 94 },
       { label: 'Encode Speed', score: 100 },
@@ -63,7 +63,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'Protobuf',
     url: 'https://protobuf.dev/',
     verdict:
-      'Protobuf is about 7% smaller on the wire and supported across almost every language in production. OmniBuf keeps the same .proto files and generated structs while writing messages in a single pass, encoding up to 6x faster and decoding 2x to 7x faster in Go, and letting you inspect raw packets or use plain structs without a code generator.',
+      'Protobuf is about 7% smaller on the wire and supported across almost every language in production. OmniBuf keeps the same .proto files and generated structs while writing messages in a single pass, encoding up to 6x faster and decoding roughly 3x to 7x faster in Go, and letting you inspect raw packets or use plain structs without a code generator.',
     stats: [
       { label: 'Wire Size', score: 100 },
       { label: 'Encode Speed', score: 45 },
@@ -105,7 +105,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'MessagePack',
     url: 'https://msgpack.org/',
     verdict:
-      'MessagePack is handy when you need to serialize arbitrary free-form maps with no struct definition at all. Because it is a binary version of JSON, it still repeats string field names on every object in an array. OmniBuf is 44% smaller (and still 4% smaller even with field names turned on, since array child names are written once) and 7x to 16x faster in Go.',
+      'MessagePack is handy when you need to serialize arbitrary free-form maps with no struct definition at all. Because it is a binary version of JSON, it still repeats string field names on every object in an array. OmniBuf is 44% smaller (and still 4% smaller even with field names turned on, since array child names are written once) and faster in the Go encode and decode benchmarks below.',
     stats: [
       { label: 'Wire Size', score: 52 },
       { label: 'Encode Speed', score: 15 },
@@ -119,7 +119,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'JSON',
     url: 'https://www.json.org/',
     verdict:
-      'JSON is the only format on this entire page that a human can actually read in curl or browser devtools with no extra tooling. When you want binary speed with the same workflow, OmniBuf uses struct tags in Go and object definitions in TypeScript just like JSON, while cutting packet size in half and running 7x to 25x faster in Go (and 2x faster in JS).',
+      'JSON is the only format on this entire page that a human can actually read in curl or browser devtools with no extra tooling. When you want binary speed with the same workflow, OmniBuf uses struct tags in Go and object definitions in TypeScript just like JSON, while cutting packet size in half and reducing encode and decode time in Go (and running 2x faster in JS).',
     stats: [
       { label: 'Wire Size', score: 42 },
       { label: 'Encode Speed', score: 12 },
@@ -133,7 +133,7 @@ export const formatProfiles: Record<string, FormatProfile> = {
     name: 'Apache Avro',
     url: 'https://avro.apache.org/',
     verdict:
-      'Avro is a staple in Kafka Schema Registry and Spark pipelines. Raw Avro leaves out all field numbers and byte lengths on the wire (14% smaller than OmniBuf), which means you cannot read or skip a single field without the exact writer schema in memory, whereas Avro container files (OCF) embed the full JSON schema and are 4x larger. In Go, OmniBuf encodes 4x faster, decodes 3x faster, and reads a single field 6x faster.',
+      'Avro is a staple in Kafka Schema Registry and Spark pipelines. Raw Avro leaves out all field numbers and byte lengths on the wire (14% smaller than OmniBuf), which means you cannot read or skip a single field without the exact writer schema in memory, whereas Avro container files (OCF) embed the full JSON schema and are 4x larger. The Go benchmarks below compare encoding, decoding, and single-field reads for both formats.',
     stats: [
       { label: 'Wire Size', score: 98 },
       { label: 'Encode Speed', score: 58 },
@@ -168,23 +168,25 @@ export const opponentKeys = [
   'json',
 ] as const;
 
+// Go timings: 2026-10-28, median of 8 × 200ms samples, CPU=1.
+// Raw output and commands: testdata/benchmarks.txt. JS timings are unchanged.
 export const benchmarkCategories: BenchmarkCategory[] = [
   {
     title: 'Full Message Encode Speed',
     unit: 'ns',
-    maxVal: 2300,
+    maxVal: 2800,
     methodology:
       "Time to serialize our 11-field Go struct into a byte slice in a single pass (FlatBuffers and Cap'n Proto times include copying fields into their buffer builders).",
     rows: [
-      { name: 'OmniBuf (Generated)', val: 124, highlight: true, baseline: true },
-      { name: 'OmniBuf (Go Struct Tags)', val: 305, highlight: true },
-      { name: 'Avro (Raw Binary)', val: 545 },
-      { name: 'FlatBuffers', val: 723 },
-      { name: 'Protobuf', val: 725 },
-      { name: "Cap'n Proto", val: 1361 },
-      { name: 'MessagePack', val: 2064 },
-      { name: 'JSON (encoding/json)', val: 2213 },
-      { name: 'JSON (encoding/json/v2)', val: 2222 },
+      { name: 'OmniBuf (Generated)', val: 123, highlight: true, baseline: true },
+      { name: 'OmniBuf (Go Struct Tags)', val: 350, highlight: true },
+      { name: 'Avro (Raw Binary)', val: 640 },
+      { name: 'Protobuf', val: 721 },
+      { name: 'FlatBuffers', val: 722 },
+      { name: "Cap'n Proto", val: 1467 },
+      { name: 'MessagePack', val: 2219 },
+      { name: 'JSON (encoding/json/v2)', val: 2734 },
+      { name: 'JSON (encoding/json)', val: 2739 },
     ],
   },
   {
@@ -192,48 +194,48 @@ export const benchmarkCategories: BenchmarkCategory[] = [
     unit: 'ns',
     maxVal: 4600,
     methodology:
-      "Time to unpack all 11 fields of a packet into a reused Go struct. For zero-unpack reads on FlatBuffers or Cap'n Proto buffers, see the single-field benchmark below.",
+      "Time to unpack all 11 fields. OmniBuf, FlatBuffers, Cap'n Proto, Avro, MessagePack, and JSON reuse the destination; standard Protobuf allocates a fresh message. Zero-copy strings are used where supported. For zero-unpack reads on FlatBuffers or Cap'n Proto buffers, see the single-field benchmark below.",
     rows: [
-      { name: 'OmniBuf (Generated)', val: 179, highlight: true, baseline: true },
-      { name: 'FlatBuffers', val: 222 },
-      { name: 'OmniBuf (Go Struct Tags)', val: 402, highlight: true },
-      { name: 'Avro (Raw Binary)', val: 538 },
-      { name: "Cap'n Proto", val: 994 },
-      { name: 'Protobuf', val: 1271 },
-      { name: 'MessagePack', val: 2784 },
-      { name: 'JSON (encoding/json/v2)', val: 3576 },
-      { name: 'JSON (encoding/json)', val: 4522 },
+      { name: 'OmniBuf (Generated)', val: 229, highlight: true, baseline: true },
+      { name: 'FlatBuffers', val: 253 },
+      { name: 'OmniBuf (Go Struct Tags)', val: 452, highlight: true },
+      { name: 'Avro (Raw Binary)', val: 670 },
+      { name: "Cap'n Proto", val: 1105 },
+      { name: 'Protobuf', val: 1521 },
+      { name: 'MessagePack', val: 3146 },
+      { name: 'JSON (encoding/json/v2)', val: 3492 },
+      { name: 'JSON (encoding/json)', val: 4451 },
     ],
   },
   {
     title: 'Read a Single Nested Field (peer.location.city)',
     unit: 'ns',
-    maxVal: 1400,
+    maxVal: 1600,
     methodology:
       "Time to read peer.location.city without unpacking the rest of the message. Cap'n Proto and FlatBuffers jump by offset; OmniBuf hops over earlier fields by byte length.",
     rows: [
       { name: "Cap'n Proto", val: 6 },
-      { name: 'FlatBuffers', val: 17 },
-      { name: 'OmniBuf', val: 104, highlight: true, baseline: true },
-      { name: 'Avro (Raw Binary)', val: 631 },
-      { name: 'MessagePack', val: 775 },
-      { name: 'Protobuf', val: 1372 },
+      { name: 'FlatBuffers', val: 35 },
+      { name: 'OmniBuf', val: 117, highlight: true, baseline: true },
+      { name: 'Avro (Raw Binary)', val: 677 },
+      { name: 'MessagePack', val: 914 },
+      { name: 'Protobuf', val: 1535 },
     ],
   },
   {
     title: 'Selective Single-Field Mutation (peer.sequence)',
     unit: 'ns',
-    maxVal: 7000,
+    maxVal: 7600,
     methodology:
-      'Checking peer.location.city, bumping the 64-bit sequence counter on an in-flight packet, and writing the updated packet bytes without unpacking the other 10 fields.',
+      'Checking peer.location.city, bumping the 64-bit sequence counter, and writing the updated packet. OmniBuf splices the field into the packet; the other implementations decode and re-encode the message.',
     rows: [
-      { name: 'OmniBuf (Opaque Splice)', val: 201, highlight: true, baseline: true },
-      { name: 'FlatBuffers', val: 952 },
-      { name: 'Avro (Raw Binary)', val: 1150 },
-      { name: 'Protobuf', val: 2046 },
-      { name: "Cap'n Proto", val: 2451 },
-      { name: 'MessagePack', val: 5009 },
-      { name: 'JSON (encoding/json)', val: 6824 },
+      { name: 'OmniBuf (Opaque Splice)', val: 255, highlight: true, baseline: true },
+      { name: 'FlatBuffers', val: 991 },
+      { name: 'Avro (Raw Binary)', val: 1345 },
+      { name: 'Protobuf', val: 2299 },
+      { name: "Cap'n Proto", val: 2733 },
+      { name: 'MessagePack', val: 5635 },
+      { name: 'JSON (encoding/json)', val: 7376 },
     ],
   },
   {

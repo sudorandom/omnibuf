@@ -99,20 +99,22 @@ const goBenchmarkCategories = benchmarkCategories.filter((cat) => cat.unit !== '
         <div>CPU: Apple M1 Pro (darwin/arm64)</div>
         <div>Compiler: Go 1.27.1</div>
         <div>
-          Command: <code>just bench</code>
+          Samples: 8 × 200 ms, CPU=1
         </div>
+        <div>Updated: 2026-10-28</div>
       </div>
     </div>
     <div class="md:col-span-8 md:pt-1 space-y-3.5 text-base sm:text-lg text-ink/85 leading-relaxed max-w-[65ch]">
       <p>
-        I ran these benchmarks on an M1 Pro MacBook Pro with Go 1.27.1. Each test encodes and
+        These results are medians of eight runs on an M1 Pro MacBook Pro with Go 1.27.1
+        and <code>GOEXPERIMENT=jsonv2</code>, using <code>-benchtime=200ms -count=8 -cpu=1</code>. Each test encodes and
         decodes the same <code>PeerUpdate</code> message, which has 11 fields (a mix of numbers,
         booleans, strings, a nested <code>Location</code> message, and a list of 4{' '}
         <code>Neighbor</code> messages).
       </p>
       <!-- prettier-ignore -->
       <p class="text-sm sm:text-base text-ink/80">
-        If you want to run them yourself or check how each library is set up, take a look at <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/jsonv2_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">jsonv2_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs_test.go</a> in the repo. I also committed the raw output from <code>GOEXPERIMENT=jsonv2 go test -bench=. -benchmem</code> to <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
+        If you want to run them yourself or check how each library is set up, take a look at <a href="https://github.com/sudorandom/omnibuf/blob/main/omnibuf_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">omnibuf_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/opaque_table_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">opaque_table_bench_test.go</a>, <a href="https://github.com/sudorandom/omnibuf/blob/main/jsonv2_bench_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">jsonv2_bench_test.go</a>, and <a href="https://github.com/sudorandom/omnibuf/blob/main/peer_codecs_test.go" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">peer_codecs_test.go</a> in the repo. The raw output and exact commands are recorded in <a href="https://github.com/sudorandom/omnibuf/blob/main/testdata/benchmarks.txt" target="_blank" rel="noopener noreferrer" class="doc-link font-mono">testdata/benchmarks.txt</a>.
       </p>
     </div>
   </div>

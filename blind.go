@@ -148,7 +148,7 @@ func decodeSchemaMeta(data []byte, depth int) (*SchemaMeta, error) {
 			if wt != wireString {
 				return nil, fmt.Errorf("omnibuf: SchemaMeta field #1 (type_name) must be wireString, got %d", wt)
 			}
-			s, nextPos, err := readLenSlice(data, pos, 0)
+			s, nextPos, err := readStrSlice(data, pos)
 			if err != nil {
 				return nil, err
 			}
@@ -177,7 +177,7 @@ func decodeSchemaMeta(data []byte, depth int) (*SchemaMeta, error) {
 					return nil, fmt.Errorf("omnibuf: invalid SchemaMeta field number %d at %d", k64, p)
 				}
 				p += kn
-				nameBytes, nextP, err := readLenSlice(body, p, 0)
+				nameBytes, nextP, err := readStrSlice(body, p)
 				if err != nil {
 					return nil, err
 				}
@@ -332,6 +332,12 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 	out := make(map[string]any, 8)
 	subPackets := make(map[string][]byte)
 	subSchemas := make(map[string]*SchemaMeta)
+	// shapes records each field's wire shape (wire type plus array element
+	// type or map key/value types). Repeated occurrences of a field number
+	// (e.g. from concatenation) MUST agree; changing a field's value type is
+	// not a compatible change, so a mismatch is rejected instead of merged.
+	shapes := make(map[int]uint32, 8)
+	owners := make(map[string]int, 8)
 
 	for pos < n {
 		tag, tn := decodeVarint(data[pos:])
@@ -363,6 +369,20 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 			name = fmt.Sprintf("field_%d", fieldNum)
 		}
 
+		if owner, ok := owners[name]; ok && owner != fieldNum {
+			return nil, fmt.Errorf("omnibuf: fields #%d and #%d both decode to name %q", owner, fieldNum, name)
+		}
+		owners[name] = fieldNum
+
+		shape, err := blindFieldShape(data, pos, wt)
+		if err != nil {
+			return nil, err
+		}
+		if prev, ok := shapes[fieldNum]; ok && prev != shape {
+			return nil, fmt.Errorf("omnibuf: field #%d changes wire shape within one message (0x%x -> 0x%x)", fieldNum, prev, shape)
+		}
+		shapes[fieldNum] = shape
+
 		var childSchema *SchemaMeta
 		if activeSchema != nil && activeSchema.Children != nil {
 			childSchema = activeSchema.Children[uint32(fieldNum)]
@@ -388,7 +408,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 		case wireBoolTrue:
 			out[name] = true
 		case wireString:
-			s, nextPos, err := readLenSlice(data, pos, 0)
+			s, nextPos, err := readStrSlice(data, pos)
 			if err != nil {
 				return nil, err
 			}
@@ -437,6 +457,9 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 			if err != nil {
 				return nil, err
 			}
+			if depth+1 > MaxNestingDepth {
+				return nil, fmt.Errorf("omnibuf: map nesting limit exceeded")
+			}
 			keyWT, valWT, count, p, ok := parseMapHeader(body)
 			if !ok {
 				return nil, fmt.Errorf("omnibuf: invalid wireMap header at %d", pos)
@@ -458,7 +481,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 					if err != nil {
 						return nil, err
 					}
-					v, nextP2, err := decodeMapValBlind(body, nextP, valWT, childSchema, depth)
+					v, nextP2, err := decodeMapValBlind(body, nextP, valWT, childSchema, depth+1)
 					if err != nil {
 						return nil, err
 					}
@@ -515,10 +538,35 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 	return out, nil
 }
 
+// blindFieldShape returns a comparable signature of a field's wire shape.
+// WireBoolFalse and WireBoolTrue share a shape since both encode a bool.
+func blindFieldShape(data []byte, pos int, wt uint8) (uint32, error) {
+	switch wt {
+	case wireBoolTrue:
+		return uint32(wireBoolFalse), nil
+	case wireArray, wireMap:
+		minLen := uint64(2)
+		if wt == wireMap {
+			minLen = 3
+		}
+		body, _, err := readLenSlice(data, pos, minLen)
+		if err != nil {
+			return 0, err
+		}
+		shape := uint32(wt) | uint32(body[0])<<8
+		if wt == wireMap {
+			shape |= uint32(body[1]) << 16
+		}
+		return shape, nil
+	default:
+		return uint32(wt), nil
+	}
+}
+
 func decodeMapKeyBlind(body []byte, p int, keyWT uint8) (string, int, error) {
 	switch keyWT {
 	case wireString:
-		kBytes, nextP, err := readLenSlice(body, p, 0)
+		kBytes, nextP, err := readStrSlice(body, p)
 		if err != nil {
 			return "", 0, err
 		}
@@ -585,7 +633,7 @@ func decodeMapValBlind(body []byte, p int, valWT uint8, childSchema *SchemaMeta,
 		}
 		return decodeZigZag(v), p + vn, nil
 	case wireString:
-		vBytes, nextP, err := readLenSlice(body, p, 0)
+		vBytes, nextP, err := readStrSlice(body, p)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -666,6 +714,17 @@ func decodeMapValBlind(body []byte, p int, valWT uint8, childSchema *SchemaMeta,
 	default:
 		return nil, 0, fmt.Errorf("omnibuf: invalid wireMap value wire type %d", valWT)
 	}
+}
+
+// ValidateField0 validates the Field #0 SchemaMeta payload that starts at
+// data[pos] (immediately after a Field #0 WireSubMsg tag) at the given nesting
+// depth and returns the position after it. It is used by generated decoders so
+// that Field #0 is validated in place rather than by rescanning the packet.
+func ValidateField0(data []byte, pos, depth int) (int, error) {
+	if pos < 0 || pos > len(data) {
+		return 0, fmt.Errorf("omnibuf: Field #0 position %d out of bounds", pos)
+	}
+	return validateField0(data, pos, wireSubMsg, depth)
 }
 
 // validateField0 validates metadata even in schema-aware decoders.

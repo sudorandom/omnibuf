@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"os/exec"
@@ -788,12 +789,18 @@ func TestProtobufStyleConformanceCorpus(t *testing.T) {
 	// ------------------------------------------------------------------------
 	vectors = append(vectors, buildSelectiveSpliceVectors(t)...)
 
+	// ------------------------------------------------------------------------
+	// Category M: Edge cases (UTF-8 boundaries, integer extremes, empty
+	// collections, overlong varints)
+	// ------------------------------------------------------------------------
+	vectors = append(vectors, buildEdgeCaseVectors(t)...)
+
 	// Verify or update golden corpus file at testdata/conformance_corpus.json
 	corpus := ConformanceCorpusFile{
 		Version:       "2.1.0",
 		Specification: "OmniBuf Wire Format v2.1 (TZCNT Prefix-Varints + 4-Bit Explicit WireTypes + Index-Free Concat-Compatible Stream)",
 		ValidVectors:  vectors,
-		InvalidCases:  buildInvalidWireCases(),
+		InvalidCases:  append(buildInvalidWireCases(), buildEdgeInvalidWireCases()...),
 	}
 	corpusBytes, err := json.MarshalIndent(corpus, "", "  ")
 	if err != nil {
@@ -2048,6 +2055,193 @@ func buildInvalidWireCases() []InvalidWireCase {
 	}
 }
 
+func buildEdgeCaseVectors(t *testing.T) []ConformanceVector {
+	t.Helper()
+	var out []ConformanceVector
+	out = append(out, verifyAllTypesAcrossEngines(t,
+		"edge_utf8_codepoint_boundaries", "M_EdgeCases",
+		"Strings at every UTF-8 encoding-width boundary (U+0000, U+007F, U+0080, U+07FF, U+0800, U+FFFF, U+10000, U+10FFFF) plus ZWJ emoji sequences in singular, array, map-key, nested and overflow string fields",
+		&TestAllTypes{
+			F6String:       "\x00\x7f\u0080\u07ff\u0800\uffff\U00010000\U0010ffff",
+			F8SubMsg:       &AllTypesSubMsg{Label: "👩‍👩‍👧‍👦"},
+			F9StringArr:    []string{"", "\x00", "\U0010ffff", "é"},
+			F11SubMsgArr:   []AllTypesSubMsg{{Label: "\u07ff"}, {Label: ""}},
+			F12MapStrUint:  map[string]uint64{"": 0, "\x00": 1, "\U0010ffff": 2, "🚀": 3},
+			F20OverflowStr: "\ufffd",
+		}))
+	out = append(out, verifyAllTypesAcrossEngines(t,
+		"edge_integer_extremes", "M_EdgeCases",
+		"Minimum and maximum values for every integer field, including 9-byte varints and ZigZag extremes",
+		&TestAllTypes{
+			F1Uint32: math.MaxUint32, F2Uint64: math.MaxUint64,
+			F3Sint32: math.MinInt32, F4Sint64: math.MinInt64,
+			F10Uint32Arr:  []uint32{0, 127, 128, 16383, 16384, 1<<29 - 1, 1 << 29, math.MaxUint32},
+			F12MapStrUint: map[string]uint64{"max": math.MaxUint64, "b9": 1 << 29, "b4": 1<<29 - 1},
+			F15Fixed32:    math.MaxUint32, F16Fixed64: math.MaxUint64,
+		}))
+	out = append(out, verifyAllTypesAcrossEngines(t,
+		"edge_integer_positive_extremes", "M_EdgeCases",
+		"Maximum positive ZigZag values and varint width boundaries",
+		&TestAllTypes{F1Uint32: 1 << 29, F2Uint64: 1<<29 - 1, F3Sint32: math.MaxInt32, F4Sint64: math.MaxInt64}))
+	out = append(out, verifyAllTypesAcrossEngines(t,
+		"edge_empty_collections_and_empty_submsg", "M_EdgeCases",
+		"Present-but-empty sub-message, arrays (string, uint, submsg) and map; each container keeps its type header",
+		&TestAllTypes{F8SubMsg: &AllTypesSubMsg{}, F9StringArr: []string{}, F10Uint32Arr: []uint32{},
+			F11SubMsgArr: []AllTypesSubMsg{}, F12MapStrUint: map[string]uint64{}}))
+
+	// Overlong (non-minimal) varints in tag, value, length, count positions are valid.
+	ov9 := func(v uint64) []byte {
+		b := []byte{0}
+		for i := 0; i < 8; i++ {
+			b = append(b, byte(v>>(8*i)))
+		}
+		return b
+	}
+	var ov []byte
+	ov = append(ov, 0x42, 0x00) // overlong 2-byte tag: (field 1 << 4 | WireUint) << 2 | 2
+	ov = append(ov, ov9(42)...)
+	ov = appendTag(ov, 6, WireString)
+	ov = append(ov, ov9(3)...)
+	ov = append(ov, "abc"...)
+	ov = appendTag(ov, 10, WireArray)
+	ov = append(ov, ov9(1+9+1)...)
+	ov = append(ov, WireUint)
+	ov = append(ov, ov9(1)...)
+	ov = append(ov, 0x0F)
+	var got TestAllTypes
+	if err := Unmarshal(ov, &got); err != nil || got.F1Uint32 != 42 || got.F6String != "abc" || len(got.F10Uint32Arr) != 1 || got.F10Uint32Arr[0] != 7 {
+		t.Fatalf("overlong varint vector: %+v, %v", got, err)
+	}
+	blindOv, err := DecodeBlind(ov)
+	if err != nil {
+		t.Fatalf("DecodeBlind(overlong): %v", err)
+	}
+	out = append(out, ConformanceVector{
+		Name:          "edge_overlong_varints_every_position",
+		Category:      "M_EdgeCases",
+		Description:   "Non-minimal 2-byte tag and 9-byte value, string length, array length and array count varints are valid and decode to the minimal-encoding values",
+		Schema:        "TestAllTypes",
+		WireHex:       hex.EncodeToString(ov),
+		WireByteLen:   len(ov),
+		PresentFields: inspectPresentFields(ov),
+		ExpectedBlind: blindOv,
+	})
+	return out
+}
+
+// buildEdgeInvalidWireCases lists malformed packets added by the edge-case
+// audit. Every one of them MUST be rejected by a full validating (blind) decoder.
+func buildEdgeInvalidWireCases() []InvalidWireCase {
+	var out []InvalidWireCase
+	add := func(name, category, desc string, raw []byte) {
+		out = append(out, InvalidWireCase{Name: name, Category: category, Description: desc, WireHex: hex.EncodeToString(raw)})
+	}
+	rv := func(rb byte) []byte { return []byte{rb, 0, 0, 0, 0, 0, 0, 0, 0} }
+	cat := func(parts ...[]byte) []byte {
+		var b []byte
+		for _, p := range parts {
+			b = append(b, p...)
+		}
+		return b
+	}
+
+	// Reserved Prefix-Varint first bytes (low three bits zero, not 0x00).
+	for _, rb := range []byte{0x08, 0x10, 0x80, 0xF8} {
+		add(fmt.Sprintf("reserved_varint_0x%02x_in_tag", rb), "ReservedVarint",
+			fmt.Sprintf("Field tag begins with reserved Prefix-Varint first byte 0x%02x", rb), rv(rb))
+		add(fmt.Sprintf("reserved_varint_0x%02x_in_uint_value", rb), "ReservedVarint",
+			fmt.Sprintf("Field #1 WireUint value begins with reserved first byte 0x%02x", rb), cat(appendTag(nil, 1, WireUint), rv(rb)))
+	}
+	add("reserved_varint_in_string_length", "ReservedVarint", "Field #6 WireString length uses reserved first byte 0x18",
+		cat(appendTag(nil, 6, WireString), rv(0x18), []byte("abcdefgh")))
+	add("reserved_varint_in_array_count", "ReservedVarint", "Field #10 WireArray count uses reserved first byte 0x20",
+		cat(appendTag(nil, 10, WireArray), AppendVarint(nil, 10), []byte{WireUint}, rv(0x20)))
+	add("reserved_varint_in_map_count", "ReservedVarint", "Field #12 WireMap count uses reserved first byte 0x28",
+		cat(appendTag(nil, 12, WireMap), AppendVarint(nil, 11), []byte{WireString, WireUint}, rv(0x28)))
+	add("reserved_varint_in_unknown_field_value", "ReservedVarint", "Unknown field #99 WireUint value uses reserved first byte 0x30 (skipping must still reject)",
+		cat(appendTag(nil, 99, WireUint), rv(0x30), AppendVarint(appendTag(nil, 1, WireUint), 1)))
+	add("reserved_varint_in_nested_submsg", "ReservedVarint", "WireSubMsg body contains a WireUint whose value uses reserved first byte 0x40",
+		cat(appendTag(nil, 8, WireSubMsg), AppendVarint(nil, 10), appendTag(nil, 1, WireUint), rv(0x40)))
+
+	// Invalid UTF-8 in WireString payloads.
+	str := func(f uint16, s string) []byte {
+		return cat(appendTag(nil, f, WireString), AppendVarint(nil, uint64(len(s))), []byte(s))
+	}
+	add("invalid_utf8_lone_ff", "InvalidUTF8", "Field #6 WireString containing byte 0xFF", str(6, "\xff"))
+	add("invalid_utf8_overlong_nul", "InvalidUTF8", "Field #6 WireString containing overlong NUL C0 80", str(6, "\xc0\x80"))
+	add("invalid_utf8_surrogate", "InvalidUTF8", "Field #6 WireString containing UTF-16 surrogate ED A0 80", str(6, "\xed\xa0\x80"))
+	add("invalid_utf8_above_max_codepoint", "InvalidUTF8", "Field #6 WireString containing F4 90 80 80 (> U+10FFFF)", str(6, "\xf4\x90\x80\x80"))
+	add("invalid_utf8_truncated_sequence", "InvalidUTF8", "Field #20 WireString ending in a truncated 3-byte sequence", str(20, "ok\xe2\x82"))
+	add("invalid_utf8_in_string_array", "InvalidUTF8", "Field #9 WireArray(WireString) element containing 0xFF",
+		cat(appendTag(nil, 9, WireArray), AppendVarint(nil, 4), []byte{WireString, 0x03, 0x03, 0xff}))
+	add("invalid_utf8_in_map_key", "InvalidUTF8", "Field #12 WireMap(WireString, WireUint) key containing 0xFF",
+		cat(appendTag(nil, 12, WireMap), AppendVarint(nil, 6), []byte{WireString, WireUint, 0x03, 0x03, 0xff, 0x03}))
+	add("invalid_utf8_in_map_value", "InvalidUTF8", "WireMap(WireUint, WireString) value containing 0xFF",
+		cat(appendTag(nil, 13, WireMap), AppendVarint(nil, 6), []byte{WireUint, WireString, 0x03, 0x03, 0x03, 0xff}))
+	add("invalid_utf8_in_nested_submsg", "InvalidUTF8", "WireSubMsg Field #8 whose Field #2 string contains 0xFF",
+		cat(appendTag(nil, 8, WireSubMsg), AppendVarint(nil, 3), str(2, "\xff")))
+	add("invalid_utf8_in_field0_type_name", "InvalidUTF8", "Field #0 SchemaMeta type_name containing 0xFF",
+		(&SchemaMeta{TypeName: "\xff"}).AppendField0(nil, true))
+	add("invalid_utf8_in_field0_field_name", "InvalidUTF8", "Field #0 SchemaMeta fields-map name containing 0xFF",
+		(&SchemaMeta{Fields: map[uint32]string{1: "\xff"}}).AppendField0(nil, true))
+
+	// Inconsistent wire shapes for one field number within one message.
+	add("shape_change_uint_then_string", "ShapeMismatch", "Field #1 appears as WireUint then as WireString in the same message",
+		cat(AppendVarint(appendTag(nil, 1, WireUint), 1), str(1, "x")))
+	add("shape_change_submsg_then_uint", "ShapeMismatch", "Field #3 appears as WireSubMsg then as WireUint",
+		cat(appendTag(nil, 3, WireSubMsg), AppendVarint(nil, 0), AppendVarint(appendTag(nil, 3, WireUint), 1)))
+	add("shape_change_array_element_type", "ShapeMismatch", "Field #10 appears as WireArray(WireUint) then WireArray(WireFixed64)",
+		cat(appendTag(nil, 10, WireArray), AppendVarint(nil, 3), []byte{WireUint, 0x03, 0x03},
+			appendTag(nil, 10, WireArray), AppendVarint(nil, 10), []byte{WireFixed64, 0x03, 1, 0, 0, 0, 0, 0, 0, 0}))
+	add("shape_change_map_value_type", "ShapeMismatch", "Field #12 appears as WireMap(String,Uint) then WireMap(String,String)",
+		cat(appendTag(nil, 12, WireMap), AppendVarint(nil, 6), []byte{WireString, WireUint, 0x03, 0x03, 'a', 0x03},
+			appendTag(nil, 12, WireMap), AppendVarint(nil, 7), []byte{WireString, WireString, 0x03, 0x03, 'a', 0x03, 'b'}))
+	add("field0_name_collision", "CorruptField0", "Field #0 names both field #1 and field #2 \"dup\" while both are present",
+		cat((&SchemaMeta{Fields: map[uint32]string{1: "dup", 2: "dup"}}).AppendField0(nil, true),
+			AppendVarint(appendTag(nil, 1, WireUint), 1), AppendVarint(appendTag(nil, 2, WireUint), 2)))
+
+	// Invalid element / key / value type codes and payloads.
+	arr := func(f uint16, body ...byte) []byte {
+		return cat(appendTag(nil, f, WireArray), AppendVarint(nil, uint64(len(body))), body)
+	}
+	mp := func(f uint16, body ...byte) []byte {
+		return cat(appendTag(nil, f, WireMap), AppendVarint(nil, uint64(len(body))), body)
+	}
+	add("array_element_type_bool_true", "CorruptWireArray", "WireArray element type 3 (WireBoolTrue is a tag literal, not a value type)", arr(10, WireBoolTrue, 0x01))
+	add("array_element_type_16", "CorruptWireArray", "WireArray element type 16 (out of 4-bit range)", arr(10, 16, 0x01))
+	add("array_bool_byte_2", "CorruptWireArray", "WireArray(WireBoolFalse) containing boolean byte 0x02", arr(10, WireBoolFalse, 0x03, 0x02))
+	add("array_bool_byte_ff", "CorruptWireArray", "WireArray(WireBoolFalse) containing boolean byte 0xFF", arr(10, WireBoolFalse, 0x03, 0xFF))
+	add("array_trailing_bytes_after_count", "CorruptWireArray", "WireArray(WireUint) with count=1 followed by an extra element byte", arr(10, WireUint, 0x03, 0x03, 0x05))
+	add("array_count_exceeds_body", "CorruptWireArray", "WireArray(WireString) claiming 3 elements with 1 byte of body", arr(9, WireString, 0x07, 0x01))
+	add("array_empty_body", "CorruptWireArray", "WireArray with byteLen 0 (missing ElementType and Count)", arr(10))
+	for _, k := range []byte{WireBoolTrue, WireFloat32, WireFloat64, WireBytes, WireSubMsg, WireArray, WireMap, WireExtended, 16} {
+		add(fmt.Sprintf("map_key_type_%d", k), "CorruptWireMap", fmt.Sprintf("WireMap with invalid KeyType %d", k), mp(12, k, WireUint, 0x01))
+	}
+	add("map_value_type_bool_true", "CorruptWireMap", "WireMap with ValueType 3 (WireBoolTrue)", mp(12, WireString, WireBoolTrue, 0x01))
+	add("map_bool_key_byte_2", "CorruptWireMap", "WireMap(WireBoolFalse, WireUint) with key byte 0x02", mp(13, WireBoolFalse, WireUint, 0x03, 0x02, 0x03))
+	add("map_empty_body", "CorruptWireMap", "WireMap with byteLen 0 (missing KeyType, ValueType, Count)", mp(12))
+	add("map_header_only_two_bytes", "CorruptWireMap", "WireMap body with KeyType and ValueType but no Count", mp(12, WireString, WireUint))
+
+	// Field #0 misuse anywhere in the packet.
+	add("field0_wrong_wire_type_mid_packet", "CorruptField0", "Field #0 with WireUint appearing after a valid field",
+		cat(AppendVarint(appendTag(nil, 1, WireUint), 1), []byte{0x01, 0x03}))
+	add("field0_corrupt_after_valid_field0", "CorruptField0", "A valid Field #0 followed later by a Field #0 whose SchemaMeta is truncated",
+		cat((&SchemaMeta{TypeName: "T"}).AppendField0(nil, true), AppendVarint(appendTag(nil, 1, WireUint), 1),
+			[]byte{0x19, 0x07, byte(((1<<4)|WireString)<<1 | 1), 0x15, 'A'}))
+	add("field0_corrupt_inside_submsg", "CorruptField0", "Nested WireSubMsg containing a Field #0 with a wrong-type SchemaMeta fields map",
+		cat(appendTag(nil, 8, WireSubMsg), AppendVarint(nil, 7), []byte{0x19, 0x0B, byte(((2<<4)|WireMap)<<1 | 1), 0x07, WireUint, WireUint, 0x01}))
+
+	// Nesting: arrays and maps count toward the 32-level limit.
+	nested := []byte{WireUint, 0x01} // innermost empty WireArray(WireUint) body
+	for i := 0; i < 33; i++ {
+		body := cat([]byte{WireArray, 0x03}, AppendVarint(nil, uint64(len(nested))), nested)
+		nested = body
+	}
+	add("nested_array_depth_34_bomb", "MaliciousDepthBomb", "WireArray of WireArray nested 34 levels deep (arrays count toward MaxNestingDepth = 32)",
+		cat(appendTag(nil, 99, WireArray), AppendVarint(nil, uint64(len(nested))), nested))
+	return out
+}
+
 func exerciseAllReadersNoPanic(raw []byte) {
 	// 1. Table-driven Unmarshal into TestAllTypes, TreeNode, and pb.PeerUpdate
 	var allTypes TestAllTypes
@@ -2126,7 +2320,7 @@ func exerciseAllReadersNoPanic(raw []byte) {
 }
 
 func TestMalformedWireRejectionConformance(t *testing.T) {
-	cases := buildInvalidWireCases()
+	cases := append(buildInvalidWireCases(), buildEdgeInvalidWireCases()...)
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			raw, err := hex.DecodeString(tc.WireHex)

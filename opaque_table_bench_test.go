@@ -418,7 +418,9 @@ func BenchmarkFlatBuffers_ReadModifyWrite(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		DecodePeerFlatBuffersInto(pkt, &msg, true)
+		if err := DecodePeerFlatBuffersInto(pkt, &msg, true); err != nil {
+			b.Fatal(err)
+		}
 		if msg.Location.City == "Frankfurt" {
 			msg.Sequence = msg.Sequence + 1
 		}

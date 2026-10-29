@@ -9,6 +9,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/sudorandom/omnibuf/wire"
 )
 
 // MarshalOptions configures OmniBuf wire encoding.
@@ -214,6 +216,9 @@ func appendProtoScalarPayload(dst []byte, k protoreflect.Kind, v protoreflect.Va
 		return appendVarint(dst, encodeZigZag(v.Int())), nil
 	case protoreflect.StringKind:
 		s := v.String()
+		if !wire.ValidUTF8([]byte(s)) {
+			return nil, fmt.Errorf("omnibuf: string contains invalid UTF-8 (use bytes for binary data)")
+		}
 		dst = appendVarint(dst, uint64(len(s)))
 		return append(dst, s...), nil
 	case protoreflect.BytesKind:
@@ -273,7 +278,7 @@ func decodeProtoScalarPayload(data []byte, pos int, k protoreflect.Kind) (protor
 		}
 		return protoreflect.ValueOfInt64(decodeZigZag(v)), pos + vn, nil
 	case protoreflect.StringKind:
-		s, nextPos, err := readLenSlice(data, pos, 0)
+		s, nextPos, err := readStrSlice(data, pos)
 		if err != nil {
 			return protoreflect.Value{}, 0, err
 		}
@@ -432,13 +437,15 @@ func unmarshalProtoReflect(data []byte, m protoreflect.Message) error {
 	if m == nil || !m.IsValid() {
 		return fmt.Errorf("omnibuf: Unmarshal requires non-nil protoreflect.Message")
 	}
-	if err := decodeProtoReflectMsg(data, m, 0); err != nil {
+	// Like proto.Unmarshal, decoding replaces the destination message:
+	// decodeProtoReflectMsg (merge=false) clears every field absent from data.
+	if err := decodeProtoReflectMsg(data, m, 0, false); err != nil {
 		return err
 	}
 	return proto.CheckInitialized(m.Interface())
 }
 
-func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge ...bool) error {
+func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge bool) error {
 	if depth > MaxNestingDepth {
 		return fmt.Errorf("omnibuf: nesting depth %d exceeds MaxNestingDepth (%d)", depth, MaxNestingDepth)
 	}
@@ -475,7 +482,10 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge
 			continue
 		}
 
-		alreadySeen := seen[fnum] || (len(merge) > 0 && merge[0])
+		if (fd.IsMap() || fd.IsList()) && depth+1 > MaxNestingDepth {
+			return fmt.Errorf("omnibuf: nesting depth %d exceeds MaxNestingDepth (%d)", depth+1, MaxNestingDepth)
+		}
+		alreadySeen := seen[fnum] || merge
 		seen[fnum] = true
 
 		if fd.IsMap() {
@@ -515,7 +525,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge
 				if err != nil {
 					return err
 				}
-				mv, nextP2, err := decodeMapEntryVal(body, nextP, fd.MapValue(), mp, depth)
+				mv, nextP2, err := decodeMapEntryVal(body, nextP, fd.MapValue(), mp, depth+1)
 				if err != nil {
 					return err
 				}
@@ -531,11 +541,11 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge
 
 		if fd.IsList() {
 			if wt != wireArray {
-				next, err := skipValue(data, pos, wt)
+				nextPos, err := skipValue(data, pos, wt)
 				if err != nil {
 					return err
 				}
-				pos = next
+				pos = nextPos
 				continue
 			}
 			body, next, err := readLenSlice(data, pos, 2)
@@ -558,7 +568,7 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge
 						return err
 					}
 					v := list.NewElement().Message()
-					if err := decodeProtoReflectMsg(sub, v, depth+1); err != nil {
+					if err := decodeProtoReflectMsg(sub, v, depth+2, false); err != nil {
 						return err
 					}
 					list.Append(protoreflect.ValueOfMessage(v))
@@ -594,7 +604,12 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge
 		}
 
 		expWT, err := protoScalarWireType(fd.Kind())
-		if err != nil || wt != expWT {
+		if err != nil {
+			return fmt.Errorf("omnibuf: field %s: %w", fd.FullName(), err)
+		}
+		if wt != expWT {
+			// Known field with a different wire type: validated and skipped
+			// like an unknown field (Protobuf semantics, shared by all tiers).
 			nextPos, err := skipValue(data, pos, wt)
 			if err != nil {
 				return err
@@ -622,6 +637,17 @@ func decodeProtoReflectMsg(data []byte, m protoreflect.Message, depth int, merge
 		}
 		m.Set(fd, sv)
 		pos = nextPos
+	}
+	if !merge {
+		for i := range fields.Len() {
+			fd := fields.Get(i)
+			if !seen[uint32(fd.Number())] && m.Has(fd) {
+				m.Clear(fd)
+			}
+		}
+		if len(m.GetUnknown()) > 0 {
+			m.SetUnknown(nil)
+		}
 	}
 	return nil
 }
@@ -664,7 +690,7 @@ func decodeMapEntryVal(body []byte, p int, vd protoreflect.FieldDescriptor, mp p
 			return protoreflect.Value{}, 0, err
 		}
 		subMsg := mp.NewValue().Message()
-		if err := decodeProtoReflectMsg(subBytes, subMsg, depth+1); err != nil {
+		if err := decodeProtoReflectMsg(subBytes, subMsg, depth+1, false); err != nil {
 			return protoreflect.Value{}, 0, err
 		}
 		return protoreflect.ValueOfMessage(subMsg), nextP, nil

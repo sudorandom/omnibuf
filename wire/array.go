@@ -203,6 +203,9 @@ func AppendStringArrBody(dst []string, body []byte, zeroCopy bool) ([]string, bo
 			return nil, false
 		}
 		p += n
+		if !ValidUTF8(body[p : p+int(l)]) {
+			return nil, false
+		}
 		dst[start+i] = DecodeStr(body[p:p+int(l)], zeroCopy)
 		p += int(l)
 	}

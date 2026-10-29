@@ -35,9 +35,13 @@ update-golden:
 fuzz time="10s":
     go test -fuzz=FuzzConformanceNoPanic -fuzztime={{time}} .
 
-# Lint Go code using golangci-lint
-go-lint:
+# Check compiler inlining for hot paths, then lint Go code using golangci-lint
+go-lint: go-inline-check
     golangci-lint run ./...
+
+# Fail if a performance-critical function loses compiler inlining eligibility
+go-inline-check:
+    go run ./internal/cmd/checkinline
 
 # Format Go code using golangci-lint fmt (gofmt + goimports)
 go-fmt:

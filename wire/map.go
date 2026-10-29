@@ -1,6 +1,8 @@
 package wire
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 // ============================================================================
 // Map Wire Type (WireMap)
@@ -99,6 +101,9 @@ func ReadMapStringUint(packet []byte, fieldNum uint16, zeroCopy bool) (map[strin
 				return nil, false
 			}
 			p += kn
+			if !ValidUTF8(body[p : p+int(kLen)]) {
+				return nil, false
+			}
 			k := DecodeStr(body[p:p+int(kLen)], zeroCopy)
 			p += int(kLen)
 			v, vn := DecodeVarint(body[p:])
@@ -151,6 +156,9 @@ func LookupMapStringUint(packet []byte, fieldNum uint16, targetKey string) (uint
 				return 0, false
 			}
 			p += kn
+			if !ValidUTF8(body[p : p+int(kLen)]) {
+				return 0, false
+			}
 			var k string
 			if kLen > 0 {
 				k = unsafe.String(&body[p], int(kLen))

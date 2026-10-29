@@ -353,11 +353,8 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 		numWords = 1
 	}
 	expectedMasks := make([]uint64, numWords)
-	var fnumList []string
-	fnumList = append(fnumList, "0")
-	for i, f := range msg.Fields {
+	for i := range msg.Fields {
 		expectedMasks[i/64] |= 1 << (i % 64)
-		fnumList = append(fnumList, fmt.Sprintf("%d", f.Desc.Number()))
 	}
 	maskVar := func(word int) string {
 		if word == 0 {
@@ -564,11 +561,8 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("		}")
 	g.P("		switch tag {")
 	g.P("		case uint64(wire.WireSubMsg):")
-	g.P("			if _, ok := omnibuf.ReadField0SchemaMeta(data); !ok {")
-	g.P(`				return fmt.Errorf("omnibuf: invalid Field #0 SchemaMeta")`)
-	g.P("			}")
 	g.P("			var err error")
-	g.P("			pos, err = wire.SkipValue(data, pos, wire.WireSubMsg)")
+	g.P("			pos, err = omnibuf.ValidateField0(data, pos, depth)")
 	g.P("			if err != nil {")
 	g.P("				return err")
 	g.P("			}")
@@ -587,6 +581,12 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			continue
 		}
 		g.P("		case ", (uint64(fnum)<<4)|uint64(wt), ":")
+		if f.Desc.IsMap() || f.Desc.IsList() {
+			// Arrays and maps count toward the nesting limit (spec §10).
+			g.P("			if depth+1 > omnibuf.MaxNestingDepth {")
+			g.P(`				return fmt.Errorf("omnibuf: max nesting depth exceeded")`)
+			g.P("			}")
+		}
 		if f.Desc.IsMap() {
 			g.P("			byteLen, bn := wire.DecodeVarint(data[pos:])")
 			g.P("			if bn == 0 || byteLen > uint64(n-(pos+bn)) {")
@@ -612,6 +612,9 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P(`					return fmt.Errorf("omnibuf: invalid map key")`)
 			g.P("				}")
 			g.P("				p += kn")
+			g.P("				if !wire.ValidUTF8(body[p : p+int(kLen)]) {")
+			g.P(`					return fmt.Errorf("omnibuf: invalid UTF-8 in map key")`)
+			g.P("				}")
 			g.P("				k := wire.DecodeStr(body[p:p+int(kLen)], zeroCopy)")
 			g.P("				p += int(kLen)")
 			g.P("				v, vn := wire.DecodeVarint(body[p:])")
@@ -664,6 +667,9 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 				g.P(`					return fmt.Errorf("omnibuf: invalid string element")`)
 				g.P("				}")
 				g.P("				p += ln")
+				g.P("				if !wire.ValidUTF8(body[p : p+int(l)]) {")
+				g.P(`					return fmt.Errorf("omnibuf: invalid UTF-8 in string element")`)
+				g.P("				}")
 				g.P("				x.", f.GoName, "[start+i] = wire.DecodeStr(body[p:p+int(l)], zeroCopy)")
 				g.P("				p += int(l)")
 				g.P("			}")
@@ -898,6 +904,9 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			}")
 			g.P("			pos += sn")
 			g.P("			sLen := int(sLen64)")
+			g.P("			if !wire.ValidUTF8(data[pos : pos+sLen]) {")
+			g.P(`				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")`)
+			g.P("			}")
 			g.P("			", mv, " |= 1 << ", bit)
 			g.P("			x.", f.GoName, " = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)")
 			g.P("			pos += sLen")
@@ -912,7 +921,10 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 			g.P("			if zeroCopy {")
 			g.P("				x.", f.GoName, " = data[pos : pos+bLen]")
 			g.P("			} else {")
-			g.P("				x.", f.GoName, " = append(x.", f.GoName, "[:0], data[pos:pos+bLen]...)")
+			// Always copy into a fresh slice: reusing x.Field's backing array
+			// could scribble over a packet buffer aliased by an earlier
+			// zero-copy decode (or any slice the caller assigned).
+			g.P("				x.", f.GoName, " = append([]byte(nil), data[pos:pos+bLen]...)")
 			g.P("			}")
 			g.P("			pos += bLen")
 		case protoreflect.MessageKind:
@@ -936,9 +948,11 @@ func generateOpenStructCodec(g *protogen.GeneratedFile, msg *protogen.Message) {
 	g.P("		default:")
 	g.P("			fnum := tag >> 4")
 	g.P("			wt := uint8(tag & 0x0F)")
-	g.P("			switch fnum {")
-	g.P("			case ", strings.Join(fnumList, ", "), ":")
-	g.P(`				return fmt.Errorf("omnibuf: unexpected wire type %d for field %d", wt, fnum)`)
+	// Field #0 is reserved for SchemaMeta and MUST be WireSubMsg. A known
+	// field arriving with a different wire type is validated and skipped like
+	// an unknown field (Protobuf semantics), matching omnibuf.Unmarshal.
+	g.P("			if fnum == 0 {")
+	g.P(`				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)`)
 	g.P("			}")
 	g.P("			var err error")
 	g.P("			pos, err = wire.SkipValue(data, pos, wt)")

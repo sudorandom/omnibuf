@@ -77,11 +77,8 @@ func (x *AllTypesSubMsg) decodeOmniBuf(data []byte, zeroCopy bool, depth int, me
 		}
 		switch tag {
 		case uint64(wire.WireSubMsg):
-			if _, ok := omnibuf.ReadField0SchemaMeta(data); !ok {
-				return fmt.Errorf("omnibuf: invalid Field #0 SchemaMeta")
-			}
 			var err error
-			pos, err = wire.SkipValue(data, pos, wire.WireSubMsg)
+			pos, err = omnibuf.ValidateField0(data, pos, depth)
 			if err != nil {
 				return err
 			}
@@ -100,6 +97,9 @@ func (x *AllTypesSubMsg) decodeOmniBuf(data []byte, zeroCopy bool, depth int, me
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 1
 			x.Label = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
@@ -120,9 +120,8 @@ func (x *AllTypesSubMsg) decodeOmniBuf(data []byte, zeroCopy bool, depth int, me
 		default:
 			fnum := tag >> 4
 			wt := uint8(tag & 0x0F)
-			switch fnum {
-			case 0, 1, 2, 3, 4:
-				return fmt.Errorf("omnibuf: unexpected wire type %d for field %d", wt, fnum)
+			if fnum == 0 {
+				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
 			}
 			var err error
 			pos, err = wire.SkipValue(data, pos, wt)
@@ -404,11 +403,8 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 		}
 		switch tag {
 		case uint64(wire.WireSubMsg):
-			if _, ok := omnibuf.ReadField0SchemaMeta(data); !ok {
-				return fmt.Errorf("omnibuf: invalid Field #0 SchemaMeta")
-			}
 			var err error
-			pos, err = wire.SkipValue(data, pos, wire.WireSubMsg)
+			pos, err = omnibuf.ValidateField0(data, pos, depth)
 			if err != nil {
 				return err
 			}
@@ -457,6 +453,9 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 5
 			x.F6String = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
@@ -471,7 +470,7 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 			if zeroCopy {
 				x.F7Bytes = data[pos : pos+bLen]
 			} else {
-				x.F7Bytes = append(x.F7Bytes[:0], data[pos:pos+bLen]...)
+				x.F7Bytes = append([]byte(nil), data[pos:pos+bLen]...)
 			}
 			pos += bLen
 		case 140:
@@ -490,6 +489,9 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 			}
 			pos += int(subLen)
 		case 157:
+			if depth+1 > omnibuf.MaxNestingDepth {
+				return fmt.Errorf("omnibuf: max nesting depth exceeded")
+			}
 			byteLen, bn := wire.DecodeVarint(data[pos:])
 			if bn == 0 || byteLen > uint64(n-(pos+bn)) {
 				return fmt.Errorf("omnibuf: invalid array byteLen")
@@ -525,6 +527,9 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 					return fmt.Errorf("omnibuf: invalid string element")
 				}
 				p += ln
+				if !wire.ValidUTF8(body[p : p+int(l)]) {
+					return fmt.Errorf("omnibuf: invalid UTF-8 in string element")
+				}
 				x.F9StringArr[start+i] = wire.DecodeStr(body[p:p+int(l)], zeroCopy)
 				p += int(l)
 			}
@@ -532,6 +537,9 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 				return fmt.Errorf("omnibuf: string array trailing bytes")
 			}
 		case 173:
+			if depth+1 > omnibuf.MaxNestingDepth {
+				return fmt.Errorf("omnibuf: max nesting depth exceeded")
+			}
 			byteLen, bn := wire.DecodeVarint(data[pos:])
 			if bn == 0 || byteLen > uint64(n-(pos+bn)) {
 				return fmt.Errorf("omnibuf: invalid array byteLen")
@@ -573,6 +581,9 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 				return fmt.Errorf("omnibuf: uint32 array trailing bytes")
 			}
 		case 189:
+			if depth+1 > omnibuf.MaxNestingDepth {
+				return fmt.Errorf("omnibuf: max nesting depth exceeded")
+			}
 			byteLen, bn := wire.DecodeVarint(data[pos:])
 			if bn == 0 || byteLen > uint64(n-(pos+bn)) {
 				return fmt.Errorf("omnibuf: invalid array byteLen")
@@ -624,6 +635,9 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 				return fmt.Errorf("omnibuf: submsg array trailing bytes")
 			}
 		case 206:
+			if depth+1 > omnibuf.MaxNestingDepth {
+				return fmt.Errorf("omnibuf: max nesting depth exceeded")
+			}
 			byteLen, bn := wire.DecodeVarint(data[pos:])
 			if bn == 0 || byteLen > uint64(n-(pos+bn)) {
 				return fmt.Errorf("omnibuf: invalid map byteLen")
@@ -648,6 +662,9 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 					return fmt.Errorf("omnibuf: invalid map key")
 				}
 				p += kn
+				if !wire.ValidUTF8(body[p : p+int(kLen)]) {
+					return fmt.Errorf("omnibuf: invalid UTF-8 in map key")
+				}
 				k := wire.DecodeStr(body[p:p+int(kLen)], zeroCopy)
 				p += int(kLen)
 				v, vn := wire.DecodeVarint(body[p:])
@@ -695,15 +712,17 @@ func (x *TestAllTypes) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merg
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 16
 			x.F20OverflowStr = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
 		default:
 			fnum := tag >> 4
 			wt := uint8(tag & 0x0F)
-			switch fnum {
-			case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20:
-				return fmt.Errorf("omnibuf: unexpected wire type %d for field %d", wt, fnum)
+			if fnum == 0 {
+				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
 			}
 			var err error
 			pos, err = wire.SkipValue(data, pos, wt)

@@ -60,7 +60,7 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
       <p class="lg:col-span-7 text-base sm:text-xl font-medium text-ink/90 leading-relaxed bg-[#FAF8F2] p-5 sm:p-6 border-2 border-ink shadow-[6px_6px_0px_#111] rounded-md flex items-center">
         <!-- prettier-ignore -->
         <span>
-          OmniBuf is a <strong>serialization format only</strong>, not a new RPC protocol. Most <a href="https://grpc.io/" target="_blank" rel="noopener noreferrer" class="doc-link">gRPC</a> and <a href="https://connectrpc.com/" target="_blank" rel="noopener noreferrer" class="doc-link">Connect</a> implementations let you register a custom wire codec, so you can drop OmniBuf into your existing RPC services and <code>.proto</code> files, or skip <code>.proto</code> files altogether and put <code>omnibuf:"1"</code> tags on Go structs (or <code>defineMessage</code> in TypeScript) just like <code>json</code> tags. It runs <strong>6x faster on encode and up to 7x faster on decode than standard Go Protobuf</strong> and <strong>7x to 25x faster than JSON</strong>, while keeping all 16 wire types explicit on the wire so you can decode exact values <i>without the schema</i>.
+          OmniBuf is a <strong>serialization format only</strong>, not a new RPC protocol. Most <a href="https://grpc.io/" target="_blank" rel="noopener noreferrer" class="doc-link">gRPC</a> and <a href="https://connectrpc.com/" target="_blank" rel="noopener noreferrer" class="doc-link">Connect</a> implementations let you register a custom wire codec, so you can drop OmniBuf into your existing RPC services and <code>.proto</code> files, or skip <code>.proto</code> files altogether and put <code>omnibuf:"1"</code> tags on Go structs (or <code>defineMessage</code> in TypeScript) just like <code>json</code> tags. It runs <strong>about 6x faster on encode and 7x faster on decode than standard Go Protobuf in our generated-code benchmark</strong> and <strong>faster than JSON in the benchmarks below</strong>, while keeping all 16 wire types explicit on the wire so you can decode exact values <i>without the schema</i>.
         </span>
       </p>
 
@@ -536,7 +536,7 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          6x to 7x faster &amp; near-Protobuf size
+          About 6x encode / 7x decode &amp; near-Protobuf size
         </text>
       </svg>
 
@@ -764,7 +764,7 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          6x to 7x faster
+          About 6x encode / 7x decode
         </text>
         <text
           x="80"
@@ -1004,7 +1004,7 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          7x to 11x faster &amp; 54% smaller
+          Faster encode &amp; decode &amp; 54% smaller
         </text>
       </svg>
 
@@ -1184,7 +1184,7 @@ const restRows = butterflyRows.filter((r) => !r.baseline);
           <tspan fill="#D4FF33" font-weight="700">
             ✓
           </tspan>{' '}
-          7x to 11x faster &amp; 54% smaller
+          Faster encode &amp; decode &amp; 54% smaller
         </text>
         <text
           x="80"

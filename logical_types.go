@@ -36,8 +36,14 @@ func finalizeWireType(fc *fieldCodec, t reflect.Type, opt string) {
 		switch fc.kind {
 		case kindStringSlice:
 			fc.elemWireType = wireString
+			if opt == "bytes" {
+				fc.elemWireType = wireBytes
+			}
 		case kindBytesSlice:
 			fc.elemWireType = wireBytes
+			if opt == "string" {
+				fc.elemWireType = wireString
+			}
 		case kindBoolSlice:
 			fc.elemWireType = wireBoolFalse
 		case kindStructValSlice, kindStructPtrSlice:

@@ -2185,6 +2185,252 @@
           "single"
         ]
       }
+    },
+    {
+      "name": "edge_utf8_codepoint_boundaries",
+      "category": "M_EdgeCases",
+      "description": "Strings at every UTF-8 encoding-width boundary (U+0000, U+007F, U+0080, U+07FF, U+0800, U+FFFF, U+10000, U+10FFFF) plus ZWJ emoji sequences in singular, array, map-key, nested and overflow string fields",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410163018301a5d529007fc280dfbfe0a080efbfbff0908080f48fbfbff7013202820021015533f09f91a9e2808df09f91a9e2808df09f91a7e2808df09f91a6658301760236000a0901030009f48fbfbf05c3a9b6020a000001f6025a000c05260021015505dfbf6583011e00210155016583013a0352000a0009010103000309f09f9a800709f48fbfbf05620300000000a6030000000000000000d20300000000160400000000000000002a0507efbfbd",
+      "wire_byte_len": 180,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [
+          {
+            "field_1": 0,
+            "field_2": "߿",
+            "field_3": false,
+            "field_4": 0
+          },
+          {
+            "field_1": 0,
+            "field_2": "",
+            "field_3": false,
+            "field_4": 0
+          }
+        ],
+        "field_12": {
+          "": 0,
+          "\u0000": 1,
+          "🚀": 3,
+          "􏿿": 2
+        },
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "�",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "\u0000߿ࠀ￿𐀀􏿿",
+        "field_7": "",
+        "field_8": {
+          "field_1": 0,
+          "field_2": "👩‍👩‍👧‍👦",
+          "field_3": false,
+          "field_4": 0
+        },
+        "field_9": [
+          "",
+          "\u0000",
+          "􏿿",
+          "é"
+        ]
+      }
+    },
+    {
+      "name": "edge_integer_extremes",
+      "category": "M_EdgeCases",
+      "description": "Minimum and maximum values for every integer field, including 9-byte varints and ZigZag extremes",
+      "schema": "TestAllTypes",
+      "wire_hex": "2100ffffffff000000004100ffffffffffffffff6300ffffffff000000008300ffffffffffffffffa5d501f70176020a000a01b6028a00001101ff0202feff04000200fcffffff00000000200000000000ffffffff00000000f6020a000c013a038e000a0007056234fcffffff056239000000002000000000076d617800ffffffffffffffff620300000000a6030000000000000000d203ffffffff1604ffffffffffffffff2a0501",
+      "wire_byte_len": 169,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 4294967295,
+        "field_10": [
+          0,
+          127,
+          128,
+          16383,
+          16384,
+          536870911,
+          536870912,
+          4294967295
+        ],
+        "field_11": [],
+        "field_12": {
+          "b4": 536870911,
+          "b9": 536870912,
+          "max": 18446744073709551615
+        },
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 4294967295,
+        "field_16": 18446744073709551615,
+        "field_2": 18446744073709551615,
+        "field_20": "",
+        "field_3": -2147483648,
+        "field_4": -9223372036854775808,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "edge_integer_positive_extremes",
+      "category": "M_EdgeCases",
+      "description": "Maximum positive ZigZag values and varint width boundaries",
+      "schema": "TestAllTypes",
+      "wire_hex": "2100000000200000000041fcffffff6300feffffff000000008300feffffffffffffffa5d501f70176020a000a01b6020a000001f6020a000c013a030e000a0001620300000000a6030000000000000000d20300000000160400000000000000002a0501",
+      "wire_byte_len": 100,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 536870912,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 536870911,
+        "field_20": "",
+        "field_3": 2147483647,
+        "field_4": 9223372036854775807,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_9": []
+      }
+    },
+    {
+      "name": "edge_empty_collections_and_empty_submsg",
+      "category": "M_EdgeCases",
+      "description": "Present-but-empty sub-message, arrays (string, uint, submsg) and map; each container keeps its type header",
+      "schema": "TestAllTypes",
+      "wire_hex": "2101410163018301a5d501f70132021e002101550165830176020a000a01b6020a000001f6020a000c013a030e000a0001620300000000a6030000000000000000d20300000000160400000000000000002a0501",
+      "wire_byte_len": 84,
+      "present_fields": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        20
+      ],
+      "expected_blind": {
+        "field_1": 0,
+        "field_10": [],
+        "field_11": [],
+        "field_12": {},
+        "field_13": 0,
+        "field_14": 0,
+        "field_15": 0,
+        "field_16": 0,
+        "field_2": 0,
+        "field_20": "",
+        "field_3": 0,
+        "field_4": 0,
+        "field_5": false,
+        "field_6": "",
+        "field_7": "",
+        "field_8": {
+          "field_1": 0,
+          "field_2": "",
+          "field_3": false,
+          "field_4": 0
+        },
+        "field_9": []
+      }
+    },
+    {
+      "name": "edge_overlong_varints_every_position",
+      "category": "M_EdgeCases",
+      "description": "Non-minimal 2-byte tag and 9-byte value, string length, array length and array count varints are valid and decode to the minimal-encoding values",
+      "schema": "TestAllTypes",
+      "wire_hex": "4200002a00000000000000d5000300000000000000616263b602000b00000000000000000001000000000000000f",
+      "wire_byte_len": 46,
+      "present_fields": [
+        1,
+        6,
+        10
+      ],
+      "expected_blind": {
+        "field_1": 42,
+        "field_10": [
+          7
+        ],
+        "field_6": "abc"
+      }
     }
   ],
   "invalid_cases": [
@@ -2343,6 +2589,324 @@
       "category": "InvalidTag",
       "description": "Field tag with field number 536870912 (exceeding maximum 29-bit Protobuf field number 536870911)",
       "wire_hex": "00000000000200000003"
+    },
+    {
+      "name": "reserved_varint_0x08_in_tag",
+      "category": "ReservedVarint",
+      "description": "Field tag begins with reserved Prefix-Varint first byte 0x08",
+      "wire_hex": "080000000000000000"
+    },
+    {
+      "name": "reserved_varint_0x08_in_uint_value",
+      "category": "ReservedVarint",
+      "description": "Field #1 WireUint value begins with reserved first byte 0x08",
+      "wire_hex": "21080000000000000000"
+    },
+    {
+      "name": "reserved_varint_0x10_in_tag",
+      "category": "ReservedVarint",
+      "description": "Field tag begins with reserved Prefix-Varint first byte 0x10",
+      "wire_hex": "100000000000000000"
+    },
+    {
+      "name": "reserved_varint_0x10_in_uint_value",
+      "category": "ReservedVarint",
+      "description": "Field #1 WireUint value begins with reserved first byte 0x10",
+      "wire_hex": "21100000000000000000"
+    },
+    {
+      "name": "reserved_varint_0x80_in_tag",
+      "category": "ReservedVarint",
+      "description": "Field tag begins with reserved Prefix-Varint first byte 0x80",
+      "wire_hex": "800000000000000000"
+    },
+    {
+      "name": "reserved_varint_0x80_in_uint_value",
+      "category": "ReservedVarint",
+      "description": "Field #1 WireUint value begins with reserved first byte 0x80",
+      "wire_hex": "21800000000000000000"
+    },
+    {
+      "name": "reserved_varint_0xf8_in_tag",
+      "category": "ReservedVarint",
+      "description": "Field tag begins with reserved Prefix-Varint first byte 0xf8",
+      "wire_hex": "f80000000000000000"
+    },
+    {
+      "name": "reserved_varint_0xf8_in_uint_value",
+      "category": "ReservedVarint",
+      "description": "Field #1 WireUint value begins with reserved first byte 0xf8",
+      "wire_hex": "21f80000000000000000"
+    },
+    {
+      "name": "reserved_varint_in_string_length",
+      "category": "ReservedVarint",
+      "description": "Field #6 WireString length uses reserved first byte 0x18",
+      "wire_hex": "d51800000000000000006162636465666768"
+    },
+    {
+      "name": "reserved_varint_in_array_count",
+      "category": "ReservedVarint",
+      "description": "Field #10 WireArray count uses reserved first byte 0x20",
+      "wire_hex": "b6021500200000000000000000"
+    },
+    {
+      "name": "reserved_varint_in_map_count",
+      "category": "ReservedVarint",
+      "description": "Field #12 WireMap count uses reserved first byte 0x28",
+      "wire_hex": "3a03170a00280000000000000000"
+    },
+    {
+      "name": "reserved_varint_in_unknown_field_value",
+      "category": "ReservedVarint",
+      "description": "Unknown field #99 WireUint value uses reserved first byte 0x30 (skipping must still reject)",
+      "wire_hex": "c2183000000000000000002103"
+    },
+    {
+      "name": "reserved_varint_in_nested_submsg",
+      "category": "ReservedVarint",
+      "description": "WireSubMsg body contains a WireUint whose value uses reserved first byte 0x40",
+      "wire_hex": "32021521400000000000000000"
+    },
+    {
+      "name": "invalid_utf8_lone_ff",
+      "category": "InvalidUTF8",
+      "description": "Field #6 WireString containing byte 0xFF",
+      "wire_hex": "d503ff"
+    },
+    {
+      "name": "invalid_utf8_overlong_nul",
+      "category": "InvalidUTF8",
+      "description": "Field #6 WireString containing overlong NUL C0 80",
+      "wire_hex": "d505c080"
+    },
+    {
+      "name": "invalid_utf8_surrogate",
+      "category": "InvalidUTF8",
+      "description": "Field #6 WireString containing UTF-16 surrogate ED A0 80",
+      "wire_hex": "d507eda080"
+    },
+    {
+      "name": "invalid_utf8_above_max_codepoint",
+      "category": "InvalidUTF8",
+      "description": "Field #6 WireString containing F4 90 80 80 (\u003e U+10FFFF)",
+      "wire_hex": "d509f4908080"
+    },
+    {
+      "name": "invalid_utf8_truncated_sequence",
+      "category": "InvalidUTF8",
+      "description": "Field #20 WireString ending in a truncated 3-byte sequence",
+      "wire_hex": "2a05096f6be282"
+    },
+    {
+      "name": "invalid_utf8_in_string_array",
+      "category": "InvalidUTF8",
+      "description": "Field #9 WireArray(WireString) element containing 0xFF",
+      "wire_hex": "7602090a0303ff"
+    },
+    {
+      "name": "invalid_utf8_in_map_key",
+      "category": "InvalidUTF8",
+      "description": "Field #12 WireMap(WireString, WireUint) key containing 0xFF",
+      "wire_hex": "3a030d0a000303ff03"
+    },
+    {
+      "name": "invalid_utf8_in_map_value",
+      "category": "InvalidUTF8",
+      "description": "WireMap(WireUint, WireString) value containing 0xFF",
+      "wire_hex": "7a030d000a030303ff"
+    },
+    {
+      "name": "invalid_utf8_in_nested_submsg",
+      "category": "InvalidUTF8",
+      "description": "WireSubMsg Field #8 whose Field #2 string contains 0xFF",
+      "wire_hex": "3202075503ff"
+    },
+    {
+      "name": "invalid_utf8_in_field0_type_name",
+      "category": "InvalidUTF8",
+      "description": "Field #0 SchemaMeta type_name containing 0xFF",
+      "wire_hex": "190e003503ff"
+    },
+    {
+      "name": "invalid_utf8_in_field0_field_name",
+      "category": "InvalidUTF8",
+      "description": "Field #0 SchemaMeta fields-map name containing 0xFF",
+      "wire_hex": "1926005d1a00000a030303ff"
+    },
+    {
+      "name": "shape_change_uint_then_string",
+      "category": "ShapeMismatch",
+      "description": "Field #1 appears as WireUint then as WireString in the same message",
+      "wire_hex": "2103350378"
+    },
+    {
+      "name": "shape_change_submsg_then_uint",
+      "category": "ShapeMismatch",
+      "description": "Field #3 appears as WireSubMsg then as WireUint",
+      "wire_hex": "79016103"
+    },
+    {
+      "name": "shape_change_array_element_type",
+      "category": "ShapeMismatch",
+      "description": "Field #10 appears as WireArray(WireUint) then WireArray(WireFixed64)",
+      "wire_hex": "b60207000303b6021505030100000000000000"
+    },
+    {
+      "name": "shape_change_map_value_type",
+      "category": "ShapeMismatch",
+      "description": "Field #12 appears as WireMap(String,Uint) then WireMap(String,String)",
+      "wire_hex": "3a030d0a00030361033a030f0a0a0303610362"
+    },
+    {
+      "name": "field0_name_collision",
+      "category": "CorruptField0",
+      "description": "Field #0 names both field #1 and field #2 \"dup\" while both are present",
+      "wire_hex": "1942005d3600000a050307647570050764757021034105"
+    },
+    {
+      "name": "array_element_type_bool_true",
+      "category": "CorruptWireArray",
+      "description": "WireArray element type 3 (WireBoolTrue is a tag literal, not a value type)",
+      "wire_hex": "b602050301"
+    },
+    {
+      "name": "array_element_type_16",
+      "category": "CorruptWireArray",
+      "description": "WireArray element type 16 (out of 4-bit range)",
+      "wire_hex": "b602051001"
+    },
+    {
+      "name": "array_bool_byte_2",
+      "category": "CorruptWireArray",
+      "description": "WireArray(WireBoolFalse) containing boolean byte 0x02",
+      "wire_hex": "b60207020302"
+    },
+    {
+      "name": "array_bool_byte_ff",
+      "category": "CorruptWireArray",
+      "description": "WireArray(WireBoolFalse) containing boolean byte 0xFF",
+      "wire_hex": "b602070203ff"
+    },
+    {
+      "name": "array_trailing_bytes_after_count",
+      "category": "CorruptWireArray",
+      "description": "WireArray(WireUint) with count=1 followed by an extra element byte",
+      "wire_hex": "b6020900030305"
+    },
+    {
+      "name": "array_count_exceeds_body",
+      "category": "CorruptWireArray",
+      "description": "WireArray(WireString) claiming 3 elements with 1 byte of body",
+      "wire_hex": "7602070a0701"
+    },
+    {
+      "name": "array_empty_body",
+      "category": "CorruptWireArray",
+      "description": "WireArray with byteLen 0 (missing ElementType and Count)",
+      "wire_hex": "b60201"
+    },
+    {
+      "name": "map_key_type_3",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 3",
+      "wire_hex": "3a0307030001"
+    },
+    {
+      "name": "map_key_type_8",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 8",
+      "wire_hex": "3a0307080001"
+    },
+    {
+      "name": "map_key_type_9",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 9",
+      "wire_hex": "3a0307090001"
+    },
+    {
+      "name": "map_key_type_11",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 11",
+      "wire_hex": "3a03070b0001"
+    },
+    {
+      "name": "map_key_type_12",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 12",
+      "wire_hex": "3a03070c0001"
+    },
+    {
+      "name": "map_key_type_13",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 13",
+      "wire_hex": "3a03070d0001"
+    },
+    {
+      "name": "map_key_type_14",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 14",
+      "wire_hex": "3a03070e0001"
+    },
+    {
+      "name": "map_key_type_15",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 15",
+      "wire_hex": "3a03070f0001"
+    },
+    {
+      "name": "map_key_type_16",
+      "category": "CorruptWireMap",
+      "description": "WireMap with invalid KeyType 16",
+      "wire_hex": "3a0307100001"
+    },
+    {
+      "name": "map_value_type_bool_true",
+      "category": "CorruptWireMap",
+      "description": "WireMap with ValueType 3 (WireBoolTrue)",
+      "wire_hex": "3a03070a0301"
+    },
+    {
+      "name": "map_bool_key_byte_2",
+      "category": "CorruptWireMap",
+      "description": "WireMap(WireBoolFalse, WireUint) with key byte 0x02",
+      "wire_hex": "7a030b0200030203"
+    },
+    {
+      "name": "map_empty_body",
+      "category": "CorruptWireMap",
+      "description": "WireMap with byteLen 0 (missing KeyType, ValueType, Count)",
+      "wire_hex": "3a0301"
+    },
+    {
+      "name": "map_header_only_two_bytes",
+      "category": "CorruptWireMap",
+      "description": "WireMap body with KeyType and ValueType but no Count",
+      "wire_hex": "3a03050a00"
+    },
+    {
+      "name": "field0_wrong_wire_type_mid_packet",
+      "category": "CorruptField0",
+      "description": "Field #0 with WireUint appearing after a valid field",
+      "wire_hex": "21030103"
+    },
+    {
+      "name": "field0_corrupt_after_valid_field0",
+      "category": "CorruptField0",
+      "description": "A valid Field #0 followed later by a Field #0 whose SchemaMeta is truncated",
+      "wire_hex": "190e0035035421031907351541"
+    },
+    {
+      "name": "field0_corrupt_inside_submsg",
+      "category": "CorruptField0",
+      "description": "Nested WireSubMsg containing a Field #0 with a wrong-type SchemaMeta fields map",
+      "wire_hex": "32020f190b5d07000001"
+    },
+    {
+      "name": "nested_array_depth_34_bomb",
+      "category": "MaliciousDepthBomb",
+      "description": "WireArray of WireArray nested 34 levels deep (arrays count toward MaxNestingDepth = 32)",
+      "wire_hex": "f618cb0d03c50d03bf0d03b90d03b30d03ad0d03a70d03a10d039b0d03950d038f0d03890d03830d037d0d03770d03710d036b0d03650d035f0d03590d03530d034d0d03470d03410d033b0d03350d032f0d03290d03230d031d0d03170d03110d030b0d03050001"
     }
   ]
 }

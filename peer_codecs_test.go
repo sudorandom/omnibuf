@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"unsafe"
@@ -919,8 +920,20 @@ func EncodePeerFlatBuffers(b *flatbuffers.Builder, p *PeerUpdate) []byte {
 	return b.FinishedBytes()
 }
 
+// errFlatBuffersInvalidUTF8 reports a FlatBuffers string that violates the
+// protobuf string contract used by the equivalent PeerUpdate schema.
+var errFlatBuffersInvalidUTF8 = errors.New("FlatBuffers string contains invalid UTF-8")
+
+func decodeFlatBuffersString(b []byte, zeroCopy bool) (string, bool) {
+	if !ValidUTF8(b) {
+		return "", false
+	}
+	return DecodeStr(b, zeroCopy), true
+}
+
 // DecodePeerFlatBuffersInto decodes a FlatBuffers PeerUpdate packet into out.
-func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
+// It checks every present string field, including vector elements.
+func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) error {
 	rootOff := flatbuffers.GetUOffsetT(buf)
 	tab := flatbuffers.Table{Bytes: buf, Pos: rootOff}
 
@@ -928,7 +941,11 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 		out.ASN = tab.GetUint32(o + tab.Pos)
 	}
 	if o := flatbuffers.UOffsetT(tab.Offset(6)); o != 0 {
-		out.RouterID = DecodeStr(tab.ByteVector(o+tab.Pos), zeroCopy)
+		if value, ok := decodeFlatBuffersString(tab.ByteVector(o+tab.Pos), zeroCopy); !ok {
+			return errFlatBuffersInvalidUTF8
+		} else {
+			out.RouterID = value
+		}
 	}
 	if o := flatbuffers.UOffsetT(tab.Offset(8)); o != 0 {
 		out.Active = tab.GetBool(o + tab.Pos)
@@ -952,7 +969,11 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 		vecStart := tab.Vector(o)
 		for i := range vecLen {
 			elemPos := vecStart + flatbuffers.UOffsetT(i*4)
-			out.Tags[i] = DecodeStr(tab.ByteVector(elemPos), zeroCopy)
+			if value, ok := decodeFlatBuffersString(tab.ByteVector(elemPos), zeroCopy); !ok {
+				return errFlatBuffersInvalidUTF8
+			} else {
+				out.Tags[i] = value
+			}
 		}
 	}
 	if o := flatbuffers.UOffsetT(tab.Offset(18)); o != 0 {
@@ -971,13 +992,25 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 		locPos := tab.Indirect(o + tab.Pos)
 		locTab := flatbuffers.Table{Bytes: buf, Pos: locPos}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(4)); lo != 0 {
-			out.Location.Region = DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
+			if value, ok := decodeFlatBuffersString(locTab.ByteVector(lo+locTab.Pos), zeroCopy); !ok {
+				return errFlatBuffersInvalidUTF8
+			} else {
+				out.Location.Region = value
+			}
 		}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(6)); lo != 0 {
-			out.Location.Datacenter = DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
+			if value, ok := decodeFlatBuffersString(locTab.ByteVector(lo+locTab.Pos), zeroCopy); !ok {
+				return errFlatBuffersInvalidUTF8
+			} else {
+				out.Location.Datacenter = value
+			}
 		}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(8)); lo != 0 {
-			out.Location.City = DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
+			if value, ok := decodeFlatBuffersString(locTab.ByteVector(lo+locTab.Pos), zeroCopy); !ok {
+				return errFlatBuffersInvalidUTF8
+			} else {
+				out.Location.City = value
+			}
 		}
 		if lo := flatbuffers.UOffsetT(locTab.Offset(10)); lo != 0 {
 			out.Location.Rack = locTab.GetUint32(lo + locTab.Pos)
@@ -1004,7 +1037,11 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 				out.Neighbors[i].PeerASN = nbTab.GetUint32(no + nbTab.Pos)
 			}
 			if no := flatbuffers.UOffsetT(nbTab.Offset(6)); no != 0 {
-				out.Neighbors[i].Router = DecodeStr(nbTab.ByteVector(no+nbTab.Pos), zeroCopy)
+				if value, ok := decodeFlatBuffersString(nbTab.ByteVector(no+nbTab.Pos), zeroCopy); !ok {
+					return errFlatBuffersInvalidUTF8
+				} else {
+					out.Neighbors[i].Router = value
+				}
 			}
 			if no := flatbuffers.UOffsetT(nbTab.Offset(8)); no != 0 {
 				out.Neighbors[i].LatencyUS = nbTab.GetUint32(no + nbTab.Pos)
@@ -1017,6 +1054,7 @@ func DecodePeerFlatBuffersInto(buf []byte, out *PeerUpdate, zeroCopy bool) {
 	if o := flatbuffers.UOffsetT(tab.Offset(24)); o != 0 {
 		out.Sequence = tab.GetUint64(o + tab.Pos)
 	}
+	return nil
 }
 
 // LookupFlatBuffersNestedCity reads peer.location.city via FlatBuffers vtable indirection.
@@ -1033,7 +1071,7 @@ func LookupFlatBuffersNestedCity(buf []byte, zeroCopy bool) (string, bool) {
 	if lo == 0 {
 		return "", false
 	}
-	return DecodeStr(locTab.ByteVector(lo+locTab.Pos), zeroCopy), true
+	return decodeFlatBuffersString(locTab.ByteVector(lo+locTab.Pos), zeroCopy)
 }
 
 // LookupFlatBuffersNeighborRouter reads peer.neighbors[idx].router via FlatBuffers vtable + vector indirection.
@@ -1051,7 +1089,7 @@ func LookupFlatBuffersNeighborRouter(buf []byte, idx int, zeroCopy bool) (string
 	if no == 0 {
 		return "", false
 	}
-	return DecodeStr(nbTab.ByteVector(no+nbTab.Pos), zeroCopy), true
+	return decodeFlatBuffersString(nbTab.ByteVector(no+nbTab.Pos), zeroCopy)
 }
 
 // ============================================================================

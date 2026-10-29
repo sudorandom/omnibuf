@@ -68,17 +68,23 @@ func appendVarintMulti(dst []byte, v uint64) []byte {
 
 // DecodeVarint decodes a Prefix-Varint from b using first-byte bit tests
 // and returns (value, bytesRead).
+// Keep this hot path inlineable; just go-inline-check guards the compiler decision.
 func DecodeVarint(b []byte) (v uint64, n int) {
-	if len(b) > 0 && b[0]&1 != 0 {
-		return uint64(b[0] >> 1), 1
+	if len(b) == 0 {
+		return
 	}
-	if len(b) >= 2 && b[0]&2 != 0 {
+	b0 := b[0]
+	if b0&1 != 0 {
+		return uint64(b0 >> 1), 1
+	}
+	if b0&2 != 0 && len(b) >= 2 {
 		return uint64(binary.LittleEndian.Uint16(b) >> 2), 2
 	}
-	if len(b) >= 4 && b[0]&4 != 0 {
+	if b0&4 != 0 && len(b) >= 4 {
 		return uint64(binary.LittleEndian.Uint32(b) >> 3), 4
 	}
-	if len(b) >= 9 {
+	// A nine-byte varint must start with zero; other low-three-bit-zero prefixes are reserved.
+	if b0 == 0 && len(b) >= 9 {
 		return binary.LittleEndian.Uint64(b[1:]), 9
 	}
 	return
@@ -89,6 +95,8 @@ func decodeVarintMulti(b []byte) (uint64, int) {
 }
 
 // ReadVarintAt decodes a Prefix-Varint from b[pos:] without constructing a sub-slice.
+// It performs no validation: callers MUST already know that b[pos:] holds a
+// complete, well-formed varint (use DecodeVarint for untrusted input).
 func ReadVarintAt(b []byte, pos int) (uint64, int) {
 	b0 := b[pos]
 	if (b0 & 1) != 0 {
@@ -152,8 +160,10 @@ func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
 			pos += 2
 		} else if (vb & 4) != 0 {
 			pos += 4
-		} else {
+		} else if vb == 0 {
 			pos += 9
+		} else {
+			return 0, false
 		}
 		return pos, pos <= n
 	case WireBoolFalse, WireBoolTrue:
@@ -261,6 +271,9 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 			pos += tn
 		}
 
+		if fnum == 0 && wt != WireSubMsg {
+			return nil, 0, false
+		}
 		if fnum == uint32(targetField) {
 			valSlice = packet[pos:]
 			wireType = wt
@@ -279,14 +292,16 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 				pos += 2
 			} else if (vb & 4) != 0 {
 				pos += 4
-			} else {
+			} else if vb == 0 {
 				pos += 9
+			} else {
+				return nil, 0, false
 			}
 			if pos > n {
 				return nil, 0, false
 			}
 		case WireBoolFalse, WireBoolTrue:
-		case WireString, WireBytes, WireSubMsg, WireArray, WireMap, WireExtended:
+		case WireString, WireBytes, WireSubMsg:
 			if pos >= n {
 				return nil, 0, false
 			}
@@ -308,6 +323,12 @@ func LocateField(packet []byte, targetField uint16) (valSlice []byte, wireType u
 			if pos > n {
 				return nil, 0, false
 			}
+		case WireArray, WireMap, WireExtended:
+			next, err := SkipValue(packet, pos, wt)
+			if err != nil {
+				return nil, 0, false
+			}
+			pos = next
 		case WireFixed32, WireFloat32, WireSfixed32:
 			pos += 4
 			if pos > n {
@@ -353,6 +374,9 @@ func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8,
 			pos += tn
 		}
 
+		if fnum == 0 && wt != WireSubMsg {
+			return nil, 0, false, false
+		}
 		if fnum == uint32(targetField) {
 			if wt != expWT {
 				return nil, 0, false, false

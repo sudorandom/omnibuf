@@ -258,7 +258,9 @@ func BenchmarkUnmarshal_FlatBuffers_ZeroCopy(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		DecodePeerFlatBuffersInto(pkt, &out, true)
+		if err := DecodePeerFlatBuffersInto(pkt, &out, true); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -270,7 +272,9 @@ func BenchmarkUnmarshal_FlatBuffers_SafeAlloc(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var out PeerUpdate
-		DecodePeerFlatBuffersInto(pkt, &out, false)
+		if err := DecodePeerFlatBuffersInto(pkt, &out, false); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

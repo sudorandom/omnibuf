@@ -88,11 +88,8 @@ func (x *Location) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 		}
 		switch tag {
 		case uint64(wire.WireSubMsg):
-			if _, ok := omnibuf.ReadField0SchemaMeta(data); !ok {
-				return fmt.Errorf("omnibuf: invalid Field #0 SchemaMeta")
-			}
 			var err error
-			pos, err = wire.SkipValue(data, pos, wire.WireSubMsg)
+			pos, err = omnibuf.ValidateField0(data, pos, depth)
 			if err != nil {
 				return err
 			}
@@ -103,6 +100,9 @@ func (x *Location) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 0
 			x.Region = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
@@ -113,6 +113,9 @@ func (x *Location) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 1
 			x.Datacenter = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
@@ -123,6 +126,9 @@ func (x *Location) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 2
 			x.City = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
@@ -151,9 +157,8 @@ func (x *Location) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 		default:
 			fnum := tag >> 4
 			wt := uint8(tag & 0x0F)
-			switch fnum {
-			case 0, 1, 2, 3, 4, 5, 6:
-				return fmt.Errorf("omnibuf: unexpected wire type %d for field %d", wt, fnum)
+			if fnum == 0 {
+				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
 			}
 			var err error
 			pos, err = wire.SkipValue(data, pos, wt)
@@ -343,11 +348,8 @@ func (x *Neighbor) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 		}
 		switch tag {
 		case uint64(wire.WireSubMsg):
-			if _, ok := omnibuf.ReadField0SchemaMeta(data); !ok {
-				return fmt.Errorf("omnibuf: invalid Field #0 SchemaMeta")
-			}
 			var err error
-			pos, err = wire.SkipValue(data, pos, wire.WireSubMsg)
+			pos, err = omnibuf.ValidateField0(data, pos, depth)
 			if err != nil {
 				return err
 			}
@@ -366,6 +368,9 @@ func (x *Neighbor) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 1
 			x.Router = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
@@ -386,9 +391,8 @@ func (x *Neighbor) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge bo
 		default:
 			fnum := tag >> 4
 			wt := uint8(tag & 0x0F)
-			switch fnum {
-			case 0, 1, 2, 3, 4:
-				return fmt.Errorf("omnibuf: unexpected wire type %d for field %d", wt, fnum)
+			if fnum == 0 {
+				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
 			}
 			var err error
 			pos, err = wire.SkipValue(data, pos, wt)
@@ -635,11 +639,8 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 		}
 		switch tag {
 		case uint64(wire.WireSubMsg):
-			if _, ok := omnibuf.ReadField0SchemaMeta(data); !ok {
-				return fmt.Errorf("omnibuf: invalid Field #0 SchemaMeta")
-			}
 			var err error
-			pos, err = wire.SkipValue(data, pos, wire.WireSubMsg)
+			pos, err = omnibuf.ValidateField0(data, pos, depth)
 			if err != nil {
 				return err
 			}
@@ -658,6 +659,9 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 			}
 			pos += sn
 			sLen := int(sLen64)
+			if !wire.ValidUTF8(data[pos : pos+sLen]) {
+				return fmt.Errorf("omnibuf: invalid UTF-8 in string field")
+			}
 			seenMask |= 1 << 1
 			x.RouterId = wire.DecodeStr(data[pos:pos+sLen], zeroCopy)
 			pos += sLen
@@ -691,6 +695,9 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 			x.CpuLoad = math.Float64frombits(binary.LittleEndian.Uint64(data[pos:]))
 			pos += 8
 		case 125:
+			if depth+1 > omnibuf.MaxNestingDepth {
+				return fmt.Errorf("omnibuf: max nesting depth exceeded")
+			}
 			byteLen, bn := wire.DecodeVarint(data[pos:])
 			if bn == 0 || byteLen > uint64(n-(pos+bn)) {
 				return fmt.Errorf("omnibuf: invalid array byteLen")
@@ -726,6 +733,9 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 					return fmt.Errorf("omnibuf: invalid string element")
 				}
 				p += ln
+				if !wire.ValidUTF8(body[p : p+int(l)]) {
+					return fmt.Errorf("omnibuf: invalid UTF-8 in string element")
+				}
 				x.Tags[start+i] = wire.DecodeStr(body[p:p+int(l)], zeroCopy)
 				p += int(l)
 			}
@@ -733,6 +743,9 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 				return fmt.Errorf("omnibuf: string array trailing bytes")
 			}
 		case 141:
+			if depth+1 > omnibuf.MaxNestingDepth {
+				return fmt.Errorf("omnibuf: max nesting depth exceeded")
+			}
 			byteLen, bn := wire.DecodeVarint(data[pos:])
 			if bn == 0 || byteLen > uint64(n-(pos+bn)) {
 				return fmt.Errorf("omnibuf: invalid array byteLen")
@@ -789,6 +802,9 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 			}
 			pos += int(subLen)
 		case 173:
+			if depth+1 > omnibuf.MaxNestingDepth {
+				return fmt.Errorf("omnibuf: max nesting depth exceeded")
+			}
 			byteLen, bn := wire.DecodeVarint(data[pos:])
 			if bn == 0 || byteLen > uint64(n-(pos+bn)) {
 				return fmt.Errorf("omnibuf: invalid array byteLen")
@@ -850,9 +866,8 @@ func (x *PeerUpdate) decodeOmniBuf(data []byte, zeroCopy bool, depth int, merge 
 		default:
 			fnum := tag >> 4
 			wt := uint8(tag & 0x0F)
-			switch fnum {
-			case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11:
-				return fmt.Errorf("omnibuf: unexpected wire type %d for field %d", wt, fnum)
+			if fnum == 0 {
+				return fmt.Errorf("omnibuf: invalid Field #0 wire type %d", wt)
 			}
 			var err error
 			pos, err = wire.SkipValue(data, pos, wt)

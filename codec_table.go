@@ -15,6 +15,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/sudorandom/omnibuf/wire"
 )
 
 // ============================================================================
@@ -126,18 +128,22 @@ type fieldCodec struct {
 	elemType     reflect.Type
 	mapKeyWT     uint8
 	mapValWT     uint8
+	index        int          // position in structCodec.fields (for seen tracking)
+	goKind       reflect.Kind // Go kind of the struct field (for clearing on reuse)
+	goSize       uintptr      // Go size of the struct field (for clearing on reuse)
 }
 
 type structCodec struct {
-	typ         reflect.Type
-	size        uintptr
-	fields      []fieldCodec
-	byNum       [maxDirectFieldSlot + 1]*fieldCodec
-	overflow    map[uint16]*fieldCodec
-	schemaNames []string
-	metaOnce    sync.Once
-	schemaMeta  *SchemaMeta
-	field0Wire  []byte
+	typ          reflect.Type
+	size         uintptr
+	fields       []fieldCodec
+	byNum        [maxDirectFieldSlot + 1]*fieldCodec
+	overflow     map[uint16]*fieldCodec
+	expectedMask uint64 // all fields seen; overflow fields are checked separately
+	schemaNames  []string
+	metaOnce     sync.Once
+	schemaMeta   *SchemaMeta
+	field0Wire   []byte
 }
 
 type emptyInterface struct {
@@ -241,6 +247,8 @@ func compileStructCodec(t reflect.Type, building map[reflect.Type]*structCodec) 
 		}
 
 		seenNums[fc.fieldNum] = sf.Name
+		fc.goKind = sf.Type.Kind()
+		fc.goSize = sf.Type.Size()
 		sc.fields = append(sc.fields, fc)
 	}
 
@@ -248,9 +256,11 @@ func compileStructCodec(t reflect.Type, building map[reflect.Type]*structCodec) 
 		return sc.fields[i].fieldNum < sc.fields[j].fieldNum
 	})
 
+	sc.expectedMask = uint64(1)<<min(len(sc.fields), 64) - 1
 	sc.schemaNames = make([]string, len(sc.fields))
 	for i := range sc.fields {
 		fc := &sc.fields[i]
+		fc.index = i
 		sc.schemaNames[i] = fc.name
 		if fc.fieldNum <= maxDirectFieldSlot {
 			sc.byNum[fc.fieldNum] = fc
@@ -626,6 +636,10 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 		}
 		fc.kind = kindStringSlice
 		fc.wireType = wireArray
+		fc.elemWireType = wireString
+		if wireOpt == "bytes" {
+			fc.elemWireType = wireBytes
+		}
 	case reflect.Slice:
 		if elem.Elem().Kind() == reflect.Uint8 {
 			if wireOpt != "" && wireOpt != "bytes" && wireOpt != "string" {
@@ -633,6 +647,10 @@ func configureSliceFieldCodec(fc *fieldCodec, sf reflect.StructField, ft reflect
 			}
 			fc.kind = kindBytesSlice
 			fc.wireType = wireArray
+			fc.elemWireType = wireBytes
+			if wireOpt == "string" {
+				fc.elemWireType = wireString
+			}
 			return nil
 		}
 		return fmt.Errorf("omnibuf: unsupported slice type %v on %s", ft, sf.Name)
@@ -1029,7 +1047,32 @@ func marshalTableAppend(dst []byte, v any, opts MarshalOptions) ([]byte, error) 
 	if opts.SelfDescribing {
 		dst = append(dst, sc.getField0Wire()...)
 	}
-	return sc.encodeStruct(dst, ptr, opts.Deterministic), nil
+	st := encState{deterministic: opts.Deterministic}
+	dst = sc.encodeStruct(dst, ptr, &st)
+	if st.badUTF8 != "" {
+		return nil, fmt.Errorf("omnibuf: field %s: string contains invalid UTF-8 (use WireBytes / wire=bytes for binary data)", st.badUTF8)
+	}
+	return dst, nil
+}
+
+// encState carries per-call encoding options and the first validation error
+// observed while encoding (encodeStruct itself stays allocation- and error-free
+// on the hot path).
+type encState struct {
+	deterministic bool
+	badUTF8       string // name of the first field holding invalid UTF-8
+}
+
+func (st *encState) checkString(fc *fieldCodec, s string) {
+	if st.badUTF8 == "" && !wire.ValidUTF8([]byte(s)) {
+		st.badUTF8 = fc.name
+	}
+}
+
+func (st *encState) checkBytes(fc *fieldCodec, b []byte) {
+	if st.badUTF8 == "" && !wire.ValidUTF8(b) {
+		st.badUTF8 = fc.name
+	}
 }
 
 func isFieldEmpty(fc *fieldCodec, fPtr unsafe.Pointer) bool {
@@ -1084,7 +1127,7 @@ func isStructEmpty(sc *structCodec, base unsafe.Pointer) bool {
 	return true
 }
 
-func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, deterministic bool) []byte {
+func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, st *encState) []byte {
 	fields := sc.fields
 	for i := range fields {
 		fc := &fields[i]
@@ -1221,16 +1264,38 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 			)
 		case kindString:
 			s := *(*string)(fPtr)
+			if fc.wireType == wireString {
+				st.checkString(fc, s)
+			}
 			dst = appendVarint(dst, uint64(len(s)))
 			dst = append(dst, s...)
 		case kindBytes:
 			b := *(*[]byte)(fPtr)
+			if fc.wireType == wireString {
+				st.checkBytes(fc, b)
+			}
 			dst = appendVarint(dst, uint64(len(b)))
 			dst = append(dst, b...)
 		case kindStringSlice:
-			dst = encodeStringArr(dst, *(*[]string)(fPtr))
+			items := *(*[]string)(fPtr)
+			if fc.elemWireType == wireBytes {
+				dst = encodeStringArrAs(dst, items, wireBytes)
+			} else {
+				for _, v := range items {
+					st.checkString(fc, v)
+				}
+				dst = encodeStringArr(dst, items)
+			}
 		case kindBytesSlice:
-			dst = encodeBytesArr(dst, *(*[][]byte)(fPtr))
+			items := *(*[][]byte)(fPtr)
+			if fc.elemWireType == wireString {
+				for _, v := range items {
+					st.checkBytes(fc, v)
+				}
+				dst = encodeBytesArrAs(dst, items, wireString)
+			} else {
+				dst = encodeBytesArr(dst, items)
+			}
 		case kindBoolSlice:
 			dst = encodeBoolArr(dst, *(*[]bool)(fPtr))
 		case kindUint8Slice:
@@ -1282,12 +1347,12 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 		case kindStructVal:
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
-			dst = fc.subCodec.encodeStruct(dst, fPtr, deterministic)
+			dst = fc.subCodec.encodeStruct(dst, fPtr, st)
 			dst = backpatchContainerLen(dst, lenPos)
 		case kindStructPtr:
 			lenPos := len(dst)
 			dst = append(dst, 0, 0)
-			dst = fc.subCodec.encodeStruct(dst, *(*unsafe.Pointer)(fPtr), deterministic)
+			dst = fc.subCodec.encodeStruct(dst, *(*unsafe.Pointer)(fPtr), st)
 			dst = backpatchContainerLen(dst, lenPos)
 		case kindStructValSlice:
 			sh := (*unsafeSliceHeader)(fPtr)
@@ -1298,7 +1363,7 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
 				elemPtr := unsafe.Add(sh.Data, uintptr(j)*fc.elemSize)
-				dst = fc.subCodec.encodeStruct(dst, elemPtr, deterministic)
+				dst = fc.subCodec.encodeStruct(dst, elemPtr, st)
 				dst = backpatchContainerLen(dst, eLenPos)
 			}
 			dst = backpatchContainerLen(dst, lenPos)
@@ -1311,15 +1376,19 @@ func (sc *structCodec) encodeStruct(dst []byte, base unsafe.Pointer, determinist
 				eLenPos := len(dst)
 				dst = append(dst, 0, 0)
 				if ptrs[j] != nil {
-					dst = fc.subCodec.encodeStruct(dst, ptrs[j], deterministic)
+					dst = fc.subCodec.encodeStruct(dst, ptrs[j], st)
 				}
 				dst = backpatchContainerLen(dst, eLenPos)
 			}
 			dst = backpatchContainerLen(dst, lenPos)
 		case kindMapStringUint:
-			dst = encodeMapStringUint(dst, *(*map[string]uint64)(fPtr), deterministic)
+			m := *(*map[string]uint64)(fPtr)
+			for k := range m {
+				st.checkString(fc, k)
+			}
+			dst = encodeMapStringUint(dst, m, st.deterministic)
 		case kindMap:
-			dst = encodeGenericMap(dst, fc, fPtr, deterministic)
+			dst = encodeGenericMap(dst, fc, fPtr, st)
 		}
 	}
 	return dst
@@ -1353,15 +1422,21 @@ func sortReflectMapKeys(keys []reflect.Value) {
 	})
 }
 
-func appendReflectMapEntryPayload(dst []byte, rv reflect.Value, wt uint8, subCodec *structCodec, deterministic bool) []byte {
+func appendReflectMapEntryPayload(dst []byte, fc *fieldCodec, rv reflect.Value, wt uint8, subCodec *structCodec, st *encState) []byte {
 	switch wt {
 	case wireString, wireBytes:
 		if rv.Kind() == reflect.String {
 			s := rv.String()
+			if wt == wireString {
+				st.checkString(fc, s)
+			}
 			dst = appendVarint(dst, uint64(len(s)))
 			return append(dst, s...)
 		}
 		b := rv.Bytes()
+		if wt == wireString {
+			st.checkBytes(fc, b)
+		}
 		dst = appendVarint(dst, uint64(len(b)))
 		return append(dst, b...)
 	case wireUint:
@@ -1413,12 +1488,12 @@ func appendReflectMapEntryPayload(dst []byte, rv reflect.Value, wt uint8, subCod
 		dst = append(dst, 0, 0)
 		if rv.Kind() == reflect.Pointer {
 			if !rv.IsNil() {
-				dst = subCodec.encodeStruct(dst, rv.UnsafePointer(), deterministic)
+				dst = subCodec.encodeStruct(dst, rv.UnsafePointer(), st)
 			}
 		} else {
 			cp := reflect.New(rv.Type())
 			cp.Elem().Set(rv)
-			dst = subCodec.encodeStruct(dst, cp.UnsafePointer(), deterministic)
+			dst = subCodec.encodeStruct(dst, cp.UnsafePointer(), st)
 		}
 		return backpatchContainerLen(dst, lenPos)
 	default:
@@ -1426,23 +1501,23 @@ func appendReflectMapEntryPayload(dst []byte, rv reflect.Value, wt uint8, subCod
 	}
 }
 
-func encodeGenericMap(dst []byte, fc *fieldCodec, fPtr unsafe.Pointer, deterministic bool) []byte {
+func encodeGenericMap(dst []byte, fc *fieldCodec, fPtr unsafe.Pointer, st *encState) []byte {
 	rv := reflect.NewAt(fc.sliceType, fPtr).Elem()
 	lenPos := len(dst)
 	dst = append(dst, 0, 0, fc.mapKeyWT, fc.mapValWT)
 	dst = appendVarint(dst, uint64(rv.Len()))
-	if deterministic && rv.Len() > 1 {
+	if st.deterministic && rv.Len() > 1 {
 		keys := rv.MapKeys()
 		sortReflectMapKeys(keys)
 		for _, k := range keys {
-			dst = appendReflectMapEntryPayload(dst, k, fc.mapKeyWT, nil, deterministic)
-			dst = appendReflectMapEntryPayload(dst, rv.MapIndex(k), fc.mapValWT, fc.subCodec, deterministic)
+			dst = appendReflectMapEntryPayload(dst, fc, k, fc.mapKeyWT, nil, st)
+			dst = appendReflectMapEntryPayload(dst, fc, rv.MapIndex(k), fc.mapValWT, fc.subCodec, st)
 		}
 	} else {
 		iter := rv.MapRange()
 		for iter.Next() {
-			dst = appendReflectMapEntryPayload(dst, iter.Key(), fc.mapKeyWT, nil, deterministic)
-			dst = appendReflectMapEntryPayload(dst, iter.Value(), fc.mapValWT, fc.subCodec, deterministic)
+			dst = appendReflectMapEntryPayload(dst, fc, iter.Key(), fc.mapKeyWT, nil, st)
+			dst = appendReflectMapEntryPayload(dst, fc, iter.Value(), fc.mapValWT, fc.subCodec, st)
 		}
 	}
 	return backpatchContainerLen(dst, lenPos)
@@ -1482,7 +1557,9 @@ func unmarshalTable(packet []byte, v any, zeroCopy bool) error {
 		return err
 	}
 	ptr := (*emptyInterface)(unsafe.Pointer(&v)).ptr
-	return sc.decodeStruct(packet, ptr, zeroCopy, 0)
+	// Like proto.Unmarshal, decoding replaces the destination: fields absent
+	// from packet are reset (slice capacity is retained for reuse).
+	return sc.decodeStruct(packet, ptr, zeroCopy, 0, false)
 }
 
 func sliceForDecode[T any](p *[]T, alreadySeen bool) []T {
@@ -1503,14 +1580,19 @@ func isBoolField(fc *fieldCodec) bool {
 	return false
 }
 
-func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy bool, depth int, merge ...bool) error {
+// decodeStruct decodes data into the struct at base. When merge is false the
+// struct is replaced: every field not present in data is reset to its zero
+// value (slices keep their capacity). When merge is true (a repeated
+// occurrence of the same sub-message, e.g. from concatenation) fields present
+// in data are merged onto the existing value and absent fields are kept.
+func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy bool, depth int, merge bool) error {
 	if depth > MaxNestingDepth {
 		return fmt.Errorf("omnibuf: nesting depth %d exceeds MaxNestingDepth (%d)", depth, MaxNestingDepth)
 	}
 	n := len(data)
 	pos := 0
 	var seenMask uint64
-	var seenOverflow map[uint16]bool
+	var seenOverflow map[int]bool
 
 	for pos < n {
 		b0 := data[pos]
@@ -1559,6 +1641,9 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 		} else if sc.overflow != nil {
 			fc = sc.overflow[fieldNum]
 		}
+		// A known field arriving with a different wire type is treated like
+		// an unknown field (as in Protobuf): its payload is validated and
+		// skipped. All decoder tiers share this rule.
 		if fc == nil || (!isBoolField(fc) && fc.wireType != wt) || (isBoolField(fc) && wt != wireBoolFalse && wt != wireBoolTrue) {
 			nextPos, err := skipValue(data, pos, wt)
 			if err != nil {
@@ -1569,26 +1654,75 @@ func (sc *structCodec) decodeStruct(data []byte, base unsafe.Pointer, zeroCopy b
 		}
 
 		var alreadySeen bool
-		if fieldNum < 64 {
-			alreadySeen = (seenMask & (1 << fieldNum)) != 0
-			seenMask |= (1 << fieldNum)
+		if idx := fc.index; idx < 64 {
+			alreadySeen = (seenMask & (1 << idx)) != 0
+			seenMask |= (1 << idx)
 		} else {
-			alreadySeen = seenOverflow[fieldNum]
+			alreadySeen = seenOverflow[idx]
 			if seenOverflow == nil {
-				seenOverflow = make(map[uint16]bool)
+				seenOverflow = make(map[int]bool)
 			}
-			seenOverflow[fieldNum] = true
+			seenOverflow[idx] = true
 		}
 		fPtr := unsafe.Add(base, fc.offset)
 
-		alreadySeen = alreadySeen || (len(merge) > 0 && merge[0])
+		alreadySeen = alreadySeen || merge
 		nextPos, err := decodeFieldValue(data, pos, wt, fc, fPtr, alreadySeen, zeroCopy, depth)
 		if err != nil {
 			return err
 		}
 		pos = nextPos
 	}
+	if !merge && (len(sc.fields) > 64 || seenMask != sc.expectedMask) {
+		for i := range sc.fields {
+			if i < 64 {
+				if seenMask&(1<<i) != 0 {
+					continue
+				}
+			} else if seenOverflow[i] {
+				continue
+			}
+			fc := &sc.fields[i]
+			clearField(fc, unsafe.Add(base, fc.offset))
+		}
+	}
 	return nil
+}
+
+// clearField resets a struct field that was absent from the decoded packet.
+// Slices are truncated (keeping capacity for reuse), maps are emptied,
+// pointers are set to nil, and nested struct values are cleared recursively.
+func clearField(fc *fieldCodec, fPtr unsafe.Pointer) {
+	switch fc.goKind {
+	case reflect.Slice:
+		if fc.kind == kindBytes {
+			*(*[]byte)(fPtr) = nil
+			return
+		}
+		(*unsafeSliceHeader)(fPtr).Len = 0
+	case reflect.Map:
+		if fc.kind == kindMapStringUint {
+			clear(*(*map[string]uint64)(fPtr))
+			return
+		}
+		mv := reflect.NewAt(fc.sliceType, fPtr).Elem()
+		if !mv.IsNil() {
+			mv.Clear()
+		}
+	case reflect.Pointer:
+		*(*unsafe.Pointer)(fPtr) = nil
+	case reflect.Struct:
+		if fc.subCodec != nil {
+			for i := range fc.subCodec.fields {
+				sub := &fc.subCodec.fields[i]
+				clearField(sub, unsafe.Add(fPtr, sub.offset))
+			}
+			return
+		}
+		clear(unsafe.Slice((*byte)(fPtr), fc.goSize))
+	default:
+		clear(unsafe.Slice((*byte)(fPtr), fc.goSize))
+	}
 }
 
 func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsafe.Pointer, alreadySeen, zeroCopy bool, depth int) (int, error) {
@@ -1600,6 +1734,12 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			*(*unsafe.Pointer)(fPtr) = subPtr
 		}
 		return decodeFieldValue(data, pos, wt, fc.elemCodec, subPtr, alreadySeen, zeroCopy, depth)
+	}
+	// Arrays and maps count toward the nesting limit just like messages
+	// (spec §10): a container nested more than MaxNestingDepth levels below
+	// the root is rejected, and message elements/values sit one level deeper.
+	if (fc.wireType == wireArray || fc.wireType == wireMap) && depth+1 > MaxNestingDepth {
+		return 0, fmt.Errorf("omnibuf: nesting depth %d exceeds MaxNestingDepth (%d)", depth+1, MaxNestingDepth)
 	}
 
 	switch fc.kind {
@@ -1721,12 +1861,18 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		if err != nil {
 			return 0, err
 		}
+		if wt == wireString && !wire.ValidUTF8(s) {
+			return 0, fmt.Errorf("omnibuf: invalid UTF-8 in string field %s at %d", fc.name, pos)
+		}
 		*(*string)(fPtr) = decodeStr(s, zeroCopy)
 		return nextPos, nil
 	case kindBytes:
 		b, nextPos, err := readLenSlice(data, pos, 0)
 		if err != nil {
 			return 0, err
+		}
+		if wt == wireString && !wire.ValidUTF8(b) {
+			return 0, fmt.Errorf("omnibuf: invalid UTF-8 in string field %s at %d", fc.name, pos)
 		}
 		if zeroCopy {
 			*(*[]byte)(fPtr) = b
@@ -1742,7 +1888,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			return 0, err
 		}
 		p := (*[]string)(fPtr)
-		sl, ok := appendStringArrBody(sliceForDecode(p, alreadySeen), body, zeroCopy)
+		sl, ok := appendStringArrBodyAs(sliceForDecode(p, alreadySeen), body, zeroCopy, fc.elemWireType)
 		if !ok {
 			return 0, fmt.Errorf("omnibuf: invalid string array at %d", pos)
 		}
@@ -1754,7 +1900,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			return 0, err
 		}
 		p := (*[][]byte)(fPtr)
-		sl, ok := appendBytesArrBody(sliceForDecode(p, alreadySeen), body, zeroCopy)
+		sl, ok := appendBytesArrBodyAs(sliceForDecode(p, alreadySeen), body, zeroCopy, fc.elemWireType)
 		if !ok {
 			return 0, fmt.Errorf("omnibuf: invalid bytes array at %d", pos)
 		}
@@ -2060,7 +2206,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			}
 			p += en
 			elemPtr := unsafe.Add(sh.Data, uintptr(start+j)*fc.elemSize)
-			if err := fc.subCodec.decodeStruct(arrPayload[p:p+int(el)], elemPtr, zeroCopy, depth+1); err != nil {
+			if err := fc.subCodec.decodeStruct(arrPayload[p:p+int(el)], elemPtr, zeroCopy, depth+2, false); err != nil {
 				return 0, err
 			}
 			p += int(el)
@@ -2110,7 +2256,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 			if ptrs[start+j] == nil {
 				ptrs[start+j] = reflect.New(fc.elemType).UnsafePointer()
 			}
-			if err := fc.subCodec.decodeStruct(arrPayload[p:p+int(el)], ptrs[start+j], zeroCopy, depth+1); err != nil {
+			if err := fc.subCodec.decodeStruct(arrPayload[p:p+int(el)], ptrs[start+j], zeroCopy, depth+2, false); err != nil {
 				return 0, err
 			}
 			p += int(el)
@@ -2139,7 +2285,7 @@ func decodeFieldValue(data []byte, pos int, wt uint8, fc *fieldCodec, fPtr unsaf
 		if err != nil {
 			return 0, err
 		}
-		if err := decodeGenericMapBody(fc, fPtr, body, alreadySeen, zeroCopy, depth); err != nil {
+		if err := decodeGenericMapBody(fc, fPtr, body, alreadySeen, zeroCopy, depth+1); err != nil {
 			return 0, err
 		}
 		return nextPos, nil
@@ -2155,6 +2301,9 @@ func decodeReflectMapEntryPayload(body []byte, p int, targetType reflect.Type, w
 		sBytes, nextP, err := readLenSlice(body, p, 0)
 		if err != nil {
 			return reflect.Value{}, 0, err
+		}
+		if wt == wireString && !wire.ValidUTF8(sBytes) {
+			return reflect.Value{}, 0, fmt.Errorf("omnibuf: invalid UTF-8 in wireMap string at %d", p)
 		}
 		if targetType.Kind() == reflect.String {
 			rv.SetString(decodeStr(sBytes, zeroCopy))
@@ -2238,13 +2387,13 @@ func decodeReflectMapEntryPayload(body []byte, p int, targetType reflect.Type, w
 		}
 		if targetType.Kind() == reflect.Pointer {
 			ptrVal := reflect.New(targetType.Elem())
-			if err := subCodec.decodeStruct(subBytes, ptrVal.UnsafePointer(), zeroCopy, depth+1); err != nil {
+			if err := subCodec.decodeStruct(subBytes, ptrVal.UnsafePointer(), zeroCopy, depth+1, false); err != nil {
 				return reflect.Value{}, 0, err
 			}
 			return ptrVal, nextP, nil
 		}
 		ptrVal := reflect.New(targetType)
-		if err := subCodec.decodeStruct(subBytes, ptrVal.UnsafePointer(), zeroCopy, depth+1); err != nil {
+		if err := subCodec.decodeStruct(subBytes, ptrVal.UnsafePointer(), zeroCopy, depth+1, false); err != nil {
 			return reflect.Value{}, 0, err
 		}
 		return ptrVal.Elem(), nextP, nil

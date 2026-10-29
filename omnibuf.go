@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"sort"
 	"unsafe"
+
+	"github.com/sudorandom/omnibuf/wire"
 )
 
 // Explicit 4-bit Wire Types (0..15) encoded in the low 4 bits of the field tag:
@@ -71,17 +73,23 @@ func appendVarintMulti(dst []byte, v uint64) []byte {
 	)
 }
 
+// Keep this hot path inlineable; just go-inline-check guards the compiler decision.
 func decodeVarint(b []byte) (v uint64, n int) {
-	if len(b) > 0 && b[0]&1 != 0 {
-		return uint64(b[0] >> 1), 1
+	if len(b) == 0 {
+		return
 	}
-	if len(b) >= 2 && b[0]&2 != 0 {
+	b0 := b[0]
+	if b0&1 != 0 {
+		return uint64(b0 >> 1), 1
+	}
+	if b0&2 != 0 && len(b) >= 2 {
 		return uint64(binary.LittleEndian.Uint16(b) >> 2), 2
 	}
-	if len(b) >= 4 && b[0]&4 != 0 {
+	if b0&4 != 0 && len(b) >= 4 {
 		return uint64(binary.LittleEndian.Uint32(b) >> 3), 4
 	}
-	if len(b) >= 9 {
+	// A nine-byte varint must start with zero; other low-three-bit-zero prefixes are reserved.
+	if b0 == 0 && len(b) >= 9 {
 		return binary.LittleEndian.Uint64(b[1:]), 9
 	}
 	return
@@ -131,8 +139,10 @@ func fastSkipValue(packet []byte, pos int, wt uint8) (int, bool) {
 			pos += 2
 		} else if (vb & 4) != 0 {
 			pos += 4
-		} else {
+		} else if vb == 0 {
 			pos += 9
+		} else {
+			return 0, false
 		}
 		return pos, pos <= n
 	case wireBoolFalse, wireBoolTrue:
@@ -233,6 +243,9 @@ func nextContainerField(packet []byte, pos int, targetField uint16, expWT uint8,
 			pos += tn
 		}
 
+		if fnum == 0 && wt != wireSubMsg {
+			return nil, 0, false, false
+		}
 		if fnum == uint32(targetField) {
 			if wt != expWT {
 				return nil, 0, false, false
@@ -290,6 +303,19 @@ func readLenSlice(data []byte, pos int, minLen uint64) (body []byte, nextPos int
 		return nil, 0, fmt.Errorf("omnibuf: invalid byteLen %d at %d", bLen, pos)
 	}
 	return data[pos : pos+int(bLen)], pos + int(bLen), nil
+}
+
+// readStrSlice is readLenSlice for WireString payloads: it additionally
+// rejects invalid UTF-8 as required by the spec (binary data uses WireBytes).
+func readStrSlice(data []byte, pos int) (body []byte, nextPos int, err error) {
+	body, nextPos, err = readLenSlice(data, pos, 0)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !wire.ValidUTF8(body) {
+		return nil, 0, fmt.Errorf("omnibuf: invalid UTF-8 in WireString at %d", pos)
+	}
+	return body, nextPos, nil
 }
 
 func countSubMsgArrElems(body []byte) (int, bool) {

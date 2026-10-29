@@ -3,6 +3,7 @@ package wire
 import (
 	"encoding/binary"
 	"math"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -70,6 +71,38 @@ func (e *Encoder) WriteBytes(fieldNum uint16, b []byte) {
 	e.writeTag(fieldNum, WireBytes)
 	e.buf = AppendVarint(e.buf, uint64(len(b)))
 	e.buf = append(e.buf, b...)
+}
+
+// ValidUTF8 reports whether b is valid UTF-8, as required for WireString payloads.
+func ValidUTF8(b []byte) bool {
+	// Short ASCII identifiers are common on the wire. Overlapping word loads
+	// cover every byte without reading outside the string. Non-ASCII input
+	// still goes through the standard UTF-8 validator.
+	n := len(b)
+	switch {
+	case n >= 8 && n <= 64:
+		var bits uint64
+		for i := 0; i < n-8; i += 8 {
+			bits |= binary.LittleEndian.Uint64(b[i:])
+		}
+		bits |= binary.LittleEndian.Uint64(b[n-8:])
+		if bits&0x8080808080808080 == 0 {
+			return true
+		}
+	case n >= 4 && n < 8:
+		if (binary.LittleEndian.Uint32(b)|binary.LittleEndian.Uint32(b[n-4:]))&0x80808080 == 0 {
+			return true
+		}
+	case n < 4:
+		var bits byte
+		for _, c := range b {
+			bits |= c
+		}
+		if bits < utf8.RuneSelf {
+			return true
+		}
+	}
+	return utf8.Valid(b)
 }
 
 // DecodeStr converts b into a Go string (zero-copy via unsafe.String if zeroCopy is true).
@@ -142,13 +175,13 @@ func ReadStringBytes(packet []byte, fieldNum uint16) ([]byte, bool) {
 	b0 := s[0]
 	if (b0 & 1) != 0 {
 		strLen := int(b0 >> 1)
-		if 1+strLen > len(s) {
+		if 1+strLen > len(s) || !ValidUTF8(s[1:1+strLen]) {
 			return nil, false
 		}
 		return s[1 : 1+strLen], true
 	}
 	sLen, sn := DecodeVarint(s)
-	if sn == 0 || sLen > uint64(len(s)-sn) {
+	if sn == 0 || sLen > uint64(len(s)-sn) || !ValidUTF8(s[sn:sn+int(sLen)]) {
 		return nil, false
 	}
 	return s[sn : sn+int(sLen)], true

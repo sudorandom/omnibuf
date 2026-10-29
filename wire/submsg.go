@@ -91,6 +91,9 @@ func ReadSubMsg(packet []byte, fieldNum uint16) ([]byte, bool) {
 			pos += tn
 		}
 
+		if fnum == 0 && wt != WireSubMsg {
+			return nil, false
+		}
 		if fnum == uint32(fieldNum) {
 			if wt != WireSubMsg {
 				return nil, false
@@ -111,14 +114,22 @@ func ReadSubMsg(packet []byte, fieldNum uint16) ([]byte, bool) {
 				pos += 2
 			} else if (vb & 4) != 0 {
 				pos += 4
-			} else {
+			} else if vb == 0 {
 				pos += 9
+			} else {
+				return nil, false
 			}
 			if pos > n {
 				return nil, false
 			}
 		case WireBoolFalse, WireBoolTrue:
-		case WireString, WireBytes, WireSubMsg, WireArray, WireMap, WireExtended:
+		case WireArray, WireMap, WireExtended:
+			next, err := SkipValue(packet, pos, wt)
+			if err != nil {
+				return nil, false
+			}
+			pos = next
+		case WireString, WireBytes, WireSubMsg:
 			if pos >= n {
 				return nil, false
 			}
@@ -189,6 +200,7 @@ func ReadElem(body []byte, index int) ([]byte, bool) {
 	if !ok || e != WireSubMsg || index < 0 || index >= count {
 		return nil, false
 	}
+	var elem []byte
 	for i := 0; i < count; i++ {
 		l, n := DecodeVarint(body[p:])
 		if n == 0 || l > uint64(len(body)-p-n) {
@@ -196,11 +208,15 @@ func ReadElem(body []byte, index int) ([]byte, bool) {
 		}
 		p += n
 		if i == index {
-			return body[p : p+int(l)], true
+			elem = body[p : p+int(l)]
 		}
 		p += int(l)
 	}
-	return nil, false
+	// Reject arrays whose declared count does not consume the body exactly.
+	if p != len(body) {
+		return nil, false
+	}
+	return elem, true
 }
 func CountSubMsgArrElems(body []byte) (int, bool) {
 	e, count, p, ok := ParseArrayHeader(body)

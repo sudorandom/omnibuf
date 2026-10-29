@@ -1,6 +1,8 @@
 package omnibuf
 
-import "github.com/sudorandom/omnibuf/wire"
+import (
+	"github.com/sudorandom/omnibuf/wire"
+)
 
 func parseMapHeader(body []byte) (keyWT, valWT uint8, count, pos int, ok bool) {
 	return wire.ParseMapHeader(body)
@@ -49,6 +51,9 @@ func decodeMapStringUintBody(dst map[string]uint64, body []byte, zeroCopy bool) 
 			return nil, false
 		}
 		p += kn
+		if !wire.ValidUTF8(body[p : p+int(kLen)]) {
+			return nil, false
+		}
 		k := decodeStr(body[p:p+int(kLen)], zeroCopy)
 		p += int(kLen)
 		v, vn := decodeVarint(body[p:])
