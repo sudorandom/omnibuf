@@ -275,6 +275,34 @@ func mergeSchemaMeta(base, next *SchemaMeta) *SchemaMeta {
 	return base
 }
 
+// blindSchema overlays message-local metadata on immutable inherited metadata.
+// One layer is added per message, not per Field #0 block, so lookup work is
+// bounded by MaxNestingDepth rather than the number or width of schema blocks.
+type blindSchema struct {
+	local  *SchemaMeta
+	parent *blindSchema
+}
+
+func (s *blindSchema) fieldName(field uint32) string {
+	for ; s != nil; s = s.parent {
+		if name, ok := s.local.Fields[field]; ok {
+			return name
+		}
+	}
+	return ""
+}
+
+func (s *blindSchema) child(field uint32) *blindSchema {
+	if s == nil {
+		return nil
+	}
+	parent := s.parent.child(field)
+	if child := s.local.Children[field]; child != nil {
+		return &blindSchema{local: child, parent: parent}
+	}
+	return parent
+}
+
 // DecodeBlind decodes any OmniBuf packet without a compile-time schema.
 // If Field #0 (Tag = 0x0B, wireSubMsg = 5, omnibuf.v1.SchemaMeta) is present, its field names
 // (and any nested children schemas) are used to decode human-readable keys.
@@ -283,7 +311,7 @@ func DecodeBlind(packet []byte) (map[string]any, error) {
 	return decodeBlindWithSchema(packet, nil, 0)
 }
 
-func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[string]any, error) {
+func decodeBlindWithSchema(data []byte, inherited *blindSchema, depth int) (map[string]any, error) {
 	if depth > MaxNestingDepth {
 		return nil, fmt.Errorf("omnibuf: nesting depth %d exceeds MaxNestingDepth (%d)", depth, MaxNestingDepth)
 	}
@@ -292,10 +320,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 		return map[string]any{}, nil
 	}
 
-	var activeSchema *SchemaMeta
-	if inherited != nil {
-		activeSchema = mergeSchemaMeta(nil, inherited)
-	}
+	var localSchema *SchemaMeta
 
 	// Resolve metadata before values so late Field #0 blocks and concatenated
 	// schemas give every occurrence of a numeric field the same name and type.
@@ -318,7 +343,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 			if err != nil {
 				return nil, err
 			}
-			activeSchema = mergeSchemaMeta(activeSchema, meta)
+			localSchema = mergeSchemaMeta(localSchema, meta)
 			scan = next
 		} else {
 			next, err := skipValue(data, scan, wt)
@@ -328,10 +353,14 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 			scan = next
 		}
 	}
+	activeSchema := inherited
+	if localSchema != nil {
+		activeSchema = &blindSchema{local: localSchema, parent: inherited}
+	}
 	pos := 0
 	out := make(map[string]any, 8)
 	subPackets := make(map[string][]byte)
-	subSchemas := make(map[string]*SchemaMeta)
+	subSchemas := make(map[string]*blindSchema)
 	// shapes records each field's wire shape (wire type plus array element
 	// type or map key/value types). Repeated occurrences of a field number
 	// (e.g. from concatenation) MUST agree; changing a field's value type is
@@ -361,10 +390,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 			continue
 		}
 
-		var name string
-		if activeSchema != nil && activeSchema.Fields != nil {
-			name = activeSchema.Fields[uint32(fieldNum)]
-		}
+		name := activeSchema.fieldName(uint32(fieldNum))
 		if name == "" {
 			name = fmt.Sprintf("field_%d", fieldNum)
 		}
@@ -383,10 +409,7 @@ func decodeBlindWithSchema(data []byte, inherited *SchemaMeta, depth int) (map[s
 		}
 		shapes[fieldNum] = shape
 
-		var childSchema *SchemaMeta
-		if activeSchema != nil && activeSchema.Children != nil {
-			childSchema = activeSchema.Children[uint32(fieldNum)]
-		}
+		childSchema := activeSchema.child(uint32(fieldNum))
 
 		switch wt {
 		case wireUint:
@@ -618,7 +641,7 @@ func decodeMapKeyBlind(body []byte, p int, keyWT uint8) (string, int, error) {
 	}
 }
 
-func decodeMapValBlind(body []byte, p int, valWT uint8, childSchema *SchemaMeta, depth int) (any, int, error) {
+func decodeMapValBlind(body []byte, p int, valWT uint8, childSchema *blindSchema, depth int) (any, int, error) {
 	switch valWT {
 	case wireUint:
 		v, vn := decodeVarint(body[p:])
@@ -742,7 +765,7 @@ func validateField0(data []byte, pos int, wt uint8, depth int) (int, error) {
 	return next, nil
 }
 
-func decodeArrayBlind(body []byte, schema *SchemaMeta, depth int) (any, error) {
+func decodeArrayBlind(body []byte, schema *blindSchema, depth int) (any, error) {
 	if depth > MaxNestingDepth {
 		return nil, fmt.Errorf("omnibuf: array nesting limit exceeded")
 	}
@@ -814,7 +837,7 @@ func decodeArrayBlind(body []byte, schema *SchemaMeta, depth int) (any, error) {
 	return out.Interface(), nil
 }
 
-func decodeMapBodyBlind(body []byte, schema *SchemaMeta, depth int) (map[string]any, error) {
+func decodeMapBodyBlind(body []byte, schema *blindSchema, depth int) (map[string]any, error) {
 	if depth > MaxNestingDepth {
 		return nil, fmt.Errorf("omnibuf: invalid map")
 	}

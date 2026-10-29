@@ -149,3 +149,98 @@ func TestLargeDeterministicMap(t *testing.T) {
 		})
 	}
 }
+
+// A shared schema must not be copied for each array element, including when
+// elements supply small local overrides of a large inherited schema.
+func TestBlindSharedSchemaAllocation(t *testing.T) {
+	for _, local := range []bool{false, true} {
+		t.Run(fmt.Sprintf("local=%v", local), func(t *testing.T) {
+			var small uint64
+			for _, count := range []int{256, 1024} {
+				fields := make(map[uint32]string, count)
+				for i := 1; i <= count; i++ {
+					fields[uint32(i)] = fmt.Sprintf("name_%d", i)
+				}
+				meta := &ob.SchemaMeta{Children: map[uint32]*ob.SchemaMeta{1: {Fields: fields}}}
+				packet := meta.AppendField0(nil, true)
+				body := wire.AppendVarint([]byte{wire.WireSubMsg}, uint64(count))
+				for i := range count {
+					elem := []byte{33, 1} // field 1, uint 0
+					if local && i%2 == 0 {
+						// Metadata after the value must still rename it, without
+						// changing the inherited schema for the next sibling.
+						elem = (&ob.SchemaMeta{Fields: map[uint32]string{1: "local"}}).AppendField0(elem, true)
+					}
+					body = wire.AppendVarint(body, uint64(len(elem)))
+					body = append(body, elem...)
+				}
+				packet = wire.AppendVarint(packet, 1<<4|uint64(wire.WireArray))
+				packet = wire.AppendVarint(packet, uint64(len(body)))
+				packet = append(packet, body...)
+				runtime.GC()
+				var before, after runtime.MemStats
+				runtime.ReadMemStats(&before)
+				out, err := ob.DecodeBlind(packet)
+				runtime.ReadMemStats(&after)
+				if err != nil {
+					t.Fatal(err)
+				}
+				children := out["field_1"].([]map[string]any)
+				if len(children) != count {
+					t.Fatal("wrong child count")
+				}
+				for i, child := range children {
+					name := "name_1"
+					if local && i%2 == 0 {
+						name = "local"
+					}
+					if value, ok := child[name]; !ok || value != uint64(0) || len(child) != 1 {
+						t.Fatalf("child %d: %v", i, child)
+					}
+				}
+				allocated := after.TotalAlloc - before.TotalAlloc
+				if count == 256 {
+					small = allocated
+				} else if allocated > 8<<20 || allocated > small*6 {
+					t.Fatalf("schema allocation is not linear: small=%d large=%d", small, allocated)
+				}
+			}
+		})
+	}
+}
+
+func TestBlindSchemaOverlayNestedMerges(t *testing.T) {
+	inherited := &ob.SchemaMeta{Children: map[uint32]*ob.SchemaMeta{1: {
+		Fields:   map[uint32]string{1: "nested"},
+		Children: map[uint32]*ob.SchemaMeta{1: {Fields: map[uint32]string{1: "original", 2: "retained"}}},
+	}}}
+	// Two local metadata blocks merge before overlaying the inherited child.
+	first := &ob.SchemaMeta{Children: map[uint32]*ob.SchemaMeta{1: {Fields: map[uint32]string{1: "replaced"}}}}
+	last := &ob.SchemaMeta{Children: map[uint32]*ob.SchemaMeta{1: {Fields: map[uint32]string{1: ""}}}}
+	grandchild := []byte{33, 3, 65, 5} // uint fields 1=1 and 2=2
+	child := wire.AppendVarint(nil, 1<<4|uint64(wire.WireSubMsg))
+	child = wire.AppendVarint(child, uint64(len(grandchild)))
+	child = append(child, grandchild...)
+	localChild := first.AppendField0(append([]byte(nil), child...), true)
+	localChild = last.AppendField0(localChild, true)
+	body := wire.AppendVarint([]byte{wire.WireSubMsg}, 2)
+	for _, elem := range [][]byte{localChild, child} {
+		body = wire.AppendVarint(body, uint64(len(elem)))
+		body = append(body, elem...)
+	}
+	packet := inherited.AppendField0(nil, true)
+	packet = wire.AppendVarint(packet, 1<<4|uint64(wire.WireArray))
+	packet = wire.AppendVarint(packet, uint64(len(body)))
+	packet = append(packet, body...)
+	got, err := ob.DecodeBlind(packet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{"field_1": []map[string]any{
+		{"nested": map[string]any{"field_1": uint64(1), "retained": uint64(2)}},
+		{"nested": map[string]any{"original": uint64(1), "retained": uint64(2)}},
+	}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
